@@ -7,7 +7,8 @@ import { refreshPath } from "../path/index.tsx";
 import { render } from "../shell/render.js";
 import { SYLLOGISM_ASK, syllogismBody, syllogismCard, syllogismCats } from "../../ai-shared/syllogism.ts";
 import { tutorTools } from "../../ai-shared/tools.ts";
-import { syllogismText } from "../../domain/syllogism.ts";
+import { endedAtThesis } from "../../domain/syllogism.ts";
+import { attemptText } from "./flow.js";
 import { topStage } from "../../domain/stages.ts";
 import { answered } from "../sound/play.ts";
 
@@ -19,7 +20,8 @@ import { answered } from "../sound/play.ts";
 const TIER="default";
 
 /** What the card reads of the answer on screen. */
-const answerView=U=>({sentence:syllogismText(state.cur.c,state.syllogismWording), grade:U.grade, ex:U.ex?{text:U.ex.text,v:U.ex.v}:null, stage:topStage(state.stages)});
+const answerView=U=>({sentence:attemptText(U), grade:U.grade, ex:U.ex?{text:U.ex.text,v:U.ex.v}:null, stage:topStage(state.stages),
+  ...(U.tf?{thesis:{said:U.th===undefined?null:U.th, ended:endedAtThesis(U.grade)}}:{})});
 
 /** The tutor's turn for the checked syllogism on screen: `kind` "explain" asks for the explanation, anything else is the learner's own question `text`. */
 export async function askSyllogism(text,kind,byItself){

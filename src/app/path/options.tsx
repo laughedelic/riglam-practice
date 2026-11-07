@@ -14,7 +14,7 @@ import { GUIDANCE_NAMES, GUIDES, guidance, setGuidance } from "../practice/guide
 import { PACE_NAME } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
-import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
+import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismCounter, setSyllogismThesis, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
 import { ANSWER_PICKS, BEST, CONFIRM_PICKS, RESULT_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, REMOTE_NOTE, SAMPLE, VOICE_SAY, WHERE, answerShown, hookVoices, readOut, remoteRests, serverId, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
@@ -97,6 +97,11 @@ function List() {
     <Group name={exName(tab)}>
       {guide}
       {tab === "categories" ? <Line title="One category at a time" sub="a yes or a no for each, in turn" sw={{ on: state.catsAsk === "one", toggle: () => setCategoriesAsk(state.catsAsk === "one" ? "all" : "one") }} /> : null}
+      {tab === "syllogism" ? <>
+        <Line title="Thesis first" sub="I accept or Why? to the thesis, then the reason" sw={{ on: state.syllogismThesis, toggle: () => setSyllogismThesis(!state.syllogismThesis) }} />
+        <Line title="Ask for a counter-example" sub={state.syllogismCounter ? "after There is no pervasion, before the result" : "off: the result comes at once, and you can add one there"}
+          sw={{ on: state.syllogismCounter, toggle: () => setSyllogismCounter(!state.syllogismCounter) }} />
+      </> : null}
       {wordings() || signs() ? <Line title="Wording and notation" sub={textLine()} go={() => openPage("text")} /> : null}
     </Group>
     <Group name="Practice">

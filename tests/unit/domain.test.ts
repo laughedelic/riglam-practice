@@ -2689,6 +2689,12 @@ test("checksShown: all three checks at Detailed; past it only the one that decid
   expect(checksShown({ answer: "pervasion" }, "none")).toEqual([{ k: "v", line: false }]);
   // the thesis is never shown past Detailed, nor the pervasion where the reason fails
   for (const answer of ["accept", "reason", "pervasion"] as const) expect(checksShown({ answer }, "hints").map((x) => x.k)).not.toContain("t");
+  // an attempt that ended at the thesis (thesis first) shows the thesis alone, at every level, with its line unless at None
+  for (const answer of ["accept", "reason", "pervasion"] as const) {
+    expect(checksShown({ answer }, "detailed", true)).toEqual([{ k: "t", line: true }]);
+    expect(checksShown({ answer }, "hints", true)).toEqual([{ k: "t", line: true }]);
+    expect(checksShown({ answer }, "none", true)).toEqual([{ k: "t", line: false }]);
+  }
 });
 
 test("examplePair: a pair of two categories with the relation asked for, of the stages that are on, under labels the learner has met", () => {

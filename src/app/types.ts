@@ -143,8 +143,13 @@ export interface SyllogismDoc {
   situation: Situation;
   /** the reply that was right */
   answer: Reply;
-  /** the reply the learner gave; null when the time ran out first (Blitz) */
+  /** the reply the learner gave; null when the time ran out first (Blitz), or when Why? to a true thesis ended the attempt (`thesis`) */
   said: Reply | null;
+  /**
+   * thesis first (a practice option): the reply to the thesis asked alone, I accept or Why? (null when the time ran out on it). "accept" is also `said`; after Why?
+   * `said` is the denial that followed. `answer` is then the reply that was right with the thesis first: "accept" for any true thesis.
+   */
+  thesis?: "accept" | "why" | null;
   correct: boolean;
   /** Blitz: the time ran out before a reply (counts as wrong) */
   timeout?: boolean;
@@ -158,7 +163,7 @@ export interface SyllogismDoc {
   level: 1 | 2;
   links: number;
   wording: Wording;
-  /** the counter-example offered after a right "there is no pervasion", and how the page judged it */
+  /** the counter-example offered after a right "there is no pervasion", and how the page judged it (asked before the result, or added on it when the counter-example is not asked) */
   example?: { text: string; verdict: "ok" | "bad" | "cmp" };
   /** the tutor's explanation, kept with the answer */
   explain?: string;
@@ -479,6 +484,10 @@ export interface State {
   syllogismRecent: string[];
   /** how a syllogism is worded (`rd-syllogism-wording`) */
   syllogismWording: Wording;
+  /** Syllogisms asks the thesis alone first, I accept or Why?, and the reason after Why? (the practice options, `rd-syllogism-thesis`) */
+  syllogismThesis: boolean;
+  /** Syllogisms asks for a counter-example after "there is no pervasion", before the result (on, the default); off, the result comes at once and offers it (`rd-syllogism-counter` "0") */
+  syllogismCounter: boolean;
   /** the relation Find a pair keeps asking for, picked by the learner (`rd-findrel`); null: a different one each time */
   findRel: RelKey | null;
   /** a negated name of more than one word is written in brackets (`rd-neg-brackets`, on) or without ("non-wooden things") */

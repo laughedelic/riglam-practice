@@ -37,6 +37,11 @@ export interface SyllogismAnswerView {
   ex?: { text: string; v: "ok" | "bad" | "cmp" } | null;
   /** the highest stage of the learning ladder the learner has on, for how the tutor speaks (stageLine) */
   stage?: number;
+  /**
+   * thesis first (a practice option): the reply to the thesis asked alone, "accept" or "why" (null when the time ran out on it), and whether the attempt ended there
+   * (I accept, Why? to a true thesis, or the time): then the learner never saw the reason, and the sentence is the thesis alone
+   */
+  thesis?: { said: "accept" | "why" | null; ended: boolean };
 }
 
 export const SYLLOGISM_NOTE = `This is the Syllogisms mode. The learner gets a subject S, a predicate P and a reason R as one sentence ("Take S. It follows it is P because it is R.") and replies with one of three: "The reason is not established" (S is not R), "There is no pervasion" (S is R, but not everything that is R is P), or "Accept" (S is R and everything that is R is P).
@@ -52,6 +57,15 @@ export const SYLLOGISM_ASK = `Explain this answer. The app shows the learner its
 - "Misconception:" only if the learner gave a wrong reply, one sentence; never when the time ran out.`;
 
 const SAID: Record<Reply, string> = { accept: "Accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
+const THESIS_NOTE = `The learner practices thesis first: the thesis came alone ("Take S. It follows it is P."), answered with "I accept" or "Why?". A true thesis is to be accepted, and that ends the attempt, whatever its reason; after "Why?" the reason came, answered with one of the two denials.`;
+/** What the card says of the thesis reply (thesis first), and, when the attempt ended there, which lines to write instead of the checks of the reason. */
+function thesisPart(c: SyllogismView, t: NonNullable<SyllogismAnswerView["thesis"]>): string {
+  const right = c.checks.t.ok ? "I accept" : "Why?";
+  const said = t.said ? `Learner's reply to the thesis: ${JSON.stringify(t.said === "accept" ? "I accept" : "Why?")}, which is ${(t.said === "accept") === c.checks.t.ok ? "right" : "wrong"}.` : "The time ran out on the thesis (Sprint), so nothing was mixed up.";
+  return `\n${THESIS_NOTE}\n${said} Right reply to the thesis: ${JSON.stringify(right)}.` + (t.ended
+    ? `\nThe attempt ended at the thesis, so the learner never saw the reason: write only a "Thesis:" line (whether the subject is the predicate, and why), and "Explanation:" and "Misconception:" as the request says for a wrong reply; leave out the reason, the pervasion and the counter-example.`
+    : "");
+}
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n) : s);
 
 /**
@@ -74,7 +88,8 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
     `2 Pervasion (is whatever is the reason also the predicate?): ${pervasion}. The app's line: ${JSON.stringify(c.checks.v.line)}`,
     `3 Thesis (is S the predicate?): ${c.checks.t.ok ? "TRUE" : "FALSE"}. The app's line: ${JSON.stringify(c.checks.t.line)}`,
   ].join("\n");
-  const replied = a.grade.said
+  const ended = !!a.thesis?.ended;
+  const replied = ended ? "" : a.grade.said
     ? `Learner replied: ${JSON.stringify(SAID[a.grade.said])}, which is ${a.grade.correct ? "right" : "wrong"}.`
     : "The learner gave no reply: the time ran out (Sprint), so nothing was mixed up.";
   const ex = a.ex
@@ -86,7 +101,7 @@ ${JSON.stringify(card)}
 Syllogism: ${JSON.stringify(a.sentence)}
 Checks (the app settled them):
 ${checks}
-Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}${a.grade.confusion ? "\nWhat the app says was mixed up: " + a.grade.confusion : ""}${ex}${stageLine(a.stage)}`;
+${ended ? "" : `Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}`}${a.thesis ? thesisPart(c, a.thesis) : ""}${a.grade.confusion ? "\nWhat the app says was mixed up: " + a.grade.confusion : ""}${ex}${stageLine(a.stage)}`;
 }
 
 /** The categories the tutor's fine points are taken from: the reason's and the predicate's (the same one once). */
