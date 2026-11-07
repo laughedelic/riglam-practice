@@ -1,8 +1,9 @@
 // The path's own scroll: the one part of a screen that moves under the top bar and over the foot. It is wired to the pulls (pulling on past
-// its end tightens the thread to the station, gesture.ts), and while the keyboard is up it keeps the heading's count of the examples written above.
+// its end tightens the thread to the station, gesture.ts; the top node pulled down goes one step back, back.tsx), and while the keyboard is up it keeps the heading's count of the examples written above.
 import type { ComponentChildren } from "preact";
 import { useContext, useEffect, useRef } from "preact/hooks";
 import { PullCtx } from "./shell.tsx";
+import { wireBack } from "./back.tsx";
 
 /** While the keyboard is up: how many examples written are above the scroll's top, on the heading ("2 above · pull down"). */
 export function aboveSync(root: HTMLElement | null) {
@@ -22,7 +23,8 @@ export function Scroll({ children, dim = false }: { children?: ComponentChildren
   const pull = useContext(PullCtx), ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const sc = ref.current; if (!sc) return;
-    return pull.wireScroll(sc, () => aboveSync(sc.closest<HTMLElement>(".pa")));
+    const unwire = [pull.wireScroll(sc, () => aboveSync(sc.closest<HTMLElement>(".pa"))), wireBack(sc, pull)];
+    return () => unwire.forEach((f) => f());
   }, [pull]);
   return <div class={"pscroll" + (dim ? " dim" : "")} ref={ref}><div class="pathc">{children}</div></div>;
 }
