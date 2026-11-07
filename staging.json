@@ -1,0 +1,29 @@
+{
+  "base": "main",
+  "baseSha": "31ee74cad36080c4c89ddfed0a9556fa5210ef9a",
+  "inputs": [
+    "236@2a59094a46d5d1cf8d2726947cc7964a637dbe7b",
+    "237@73f981b62698d213212a2e75dfdc30dc013ea51c<236"
+  ],
+  "branches": [
+    "claude/project-thread-gpirfl",
+    "claude/project-thread-hws4yi"
+  ],
+  "pulls": [
+    {
+      "number": 236,
+      "branch": "claude/project-thread-gpirfl",
+      "sha": "2a59094a46d5d1cf8d2726947cc7964a637dbe7b",
+      "title": "feat: pull the thread down by its top node to go back to the previous question's result",
+      "news": "\"Pull back to the last result\" (new entry at the top of `src/app/news.ts`)"
+    },
+    {
+      "number": 237,
+      "branch": "claude/project-thread-hws4yi",
+      "sha": "73f981b62698d213212a2e75dfdc30dc013ea51c",
+      "title": "feat: thesis first and an optional counter-example in Syllogisms",
+      "news": "\"Syllogisms: thesis first, and a counter-example when you want one\" (two new switches in the Syllogisms practice options)."
+    }
+  ],
+  "skipped": []
+}
