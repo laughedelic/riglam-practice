@@ -2549,6 +2549,11 @@ test("the tutor's facts on a negated side are read in reverse, and the tutor is 
   expect(body).toContain('"negation_of":');
   expect(body).toContain("Correct relation: Four possibilities.");
   expect(body).toContain('an empty Neither ("nothing exists") is then right');
+  // Neither is empty only where the reference says so: a pair whose reference gives a Neither example (a sense power) is not told that it can be empty
+  expect(body).toContain("only where the reference for Neither below says EMPTY");
+  expect(body).not.toContain("Neither can be empty on this pair,");
+  expect(negLine(p, true)).toContain("only if nothing that exists is neither A nor B");
+  expect(negLine(p, true)).toContain("Neither is not empty");
   // what is not known of the categories themselves is the tutor's to check, and nothing is asked of the server
   expect(openExamples(p, { cells: { both: { v: "cmp", msg: [], kind: "ex" } } as never }, [{ text: "a pebble", cells: ["both"] }])).toEqual([]);
   // the general rule that only Neither takes what does not exist is set aside on this pair, in the card and in the question

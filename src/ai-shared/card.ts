@@ -142,13 +142,17 @@ Classes (the reference's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
 
 /**
- * What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither may be empty.
+ * What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither is empty only where the reference says so.
  * `own`: a pair of the learner's own in Find a pair, for which the page worked out nothing, so the tutor is asked to judge with it.
  */
 export function negLine(p: Pick<PairLike, "a" | "b" | "neg">, own = false): string {
   if (!p.neg) return "";
   const names = p.neg === "ab" ? `A (${JSON.stringify(p.a)}) and B (${JSON.stringify(p.b)}) are negations` : p.neg === "a" ? `A (${JSON.stringify(p.a)}) is a negation` : `B (${JSON.stringify(p.b)}) is a negation`;
-  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). ${own ? "Judge the cells and the relation with that: on this pair it replaces" : "The cells and the relation were worked out with that, and on this pair it replaces"} the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). So Neither can be empty on this pair, and an empty Neither ("nothing exists") is then right; the relation is read from the other three cells, so something that is both, something that is each alone and nothing that is neither is still four possibilities (Perdue 2014 calls it four possibilities without neither; Perdue 1992, after Lati Rinpoche, three possibilities without there being something which is neither).
+  // Neither is empty only when nothing that exists is neither: on the pair "non-(internal forms)" and "external forms" a sense power is, so the cell is not empty
+  const neither = own
+    ? `So Neither can be empty on this pair only if nothing that exists is neither A nor B, and an empty Neither ("nothing exists") is then right; where some existent is neither (a sense power, for "non-(internal forms)" and "external forms"), Neither is not empty, and you never say that it can be.`
+    : `So Neither can be empty on this pair only where the reference for Neither below says EMPTY, and an empty Neither ("nothing exists") is then right. Where the reference gives an example for Neither (a sense power, for "non-(internal forms)" and "external forms"), Neither is not empty: never say that it can be, and do not explain the example away by what the "non-" term takes in.`;
+  return `Negation: ${names} of the category in "negation_of". "non-X" takes in everything that is not an X: other existents, permanent phenomena and what does not exist (the horn of a rabbit). ${own ? "Judge the cells and the relation with that: on this pair it replaces" : "The cells and the relation were worked out with that, and on this pair it replaces"} the rule above that only Neither takes what does not exist: a thing that does not exist is not A or B where they are plain and is the "non-" term, it goes in the cell those answers give, and it can be the only thing that is both (a possibility need not be an existent, Perdue 2014). ${neither} The relation is read from the other three cells, so something that is both, something that is each alone and nothing that is neither is still four possibilities (Perdue 2014 calls it four possibilities without neither; Perdue 1992, after Lati Rinpoche, three possibilities without there being something which is neither).
 `;
 }
 
