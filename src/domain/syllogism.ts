@@ -481,6 +481,21 @@ export function gradeThesisWhy(c: Syllogism): SyllogismResult {
 /** Whether an attempt ended at the thesis (thesis first): I accept, Why? to a true thesis, or no reply in time to the thesis. Its result is about the thesis alone; after a right Why? it went on to the reason. */
 export const endedAtThesis = (g: Pick<SyllogismResult, "expected" | "thesis">): boolean => g.thesis !== undefined && (g.thesis !== "why" || g.expected === "accept");
 
+/** What an attempt counts for in the learning ladder (intro.ts, stages.ts): the parts whose terms it grades, whether they were right, whether a miss among them counts, and whether it steps the runs. */
+export interface SyllogismCounts { parts: ("reason" | "predicate")[]; ok: boolean; misses: boolean; run: boolean }
+/**
+ * A whole syllogism grades the reason's term and the predicate's, right when the reply is; a wrong reply is mostly about the form, so it marks neither red, and it steps the
+ * runs (the stage's, which a mistake of form leaves as it is, and the exercise's) like any answer. An attempt that ended at the thesis (thesis first) asked much less: right, it is
+ * I accept to a true thesis, a choice of two about the predicate alone, and it counts for nothing, neither a term nor the runs. Wrong, it is about the predicate itself (whether
+ * the subject is it), so it is a miss on the predicate's term and steps the runs as a wrong answer; a time-up on the thesis grades no term, as a time-up says nothing of what the
+ * learner knows. Why? and then the right denial is a whole syllogism, with the thesis judged too.
+ */
+export function syllogismCounts(g: Pick<SyllogismResult, "correct" | "expected" | "thesis">): SyllogismCounts {
+  if (!endedAtThesis(g)) return { parts: ["reason", "predicate"], ok: g.correct, misses: false, run: true };
+  if (g.correct) return { parts: [], ok: true, misses: false, run: false };
+  return { parts: g.thesis === null ? [] : ["predicate"], ok: false, misses: true, run: true };
+}
+
 /**
  * The checks a result shows, by the level of guidance (practice/guided.ts): at Detailed all three, each with its line in the syllogism's words; past it only the one that
  * decides the answer, the first that fails ("whole" for a syllogism that stands), with its formula in S, P and R at Hints (`line`) and its name alone at None. So past

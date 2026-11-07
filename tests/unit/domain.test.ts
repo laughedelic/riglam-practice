@@ -31,7 +31,7 @@ import { examplePair } from "../../src/domain/find";
 import { instanceExample } from "../../src/domain/instance";
 import { timeUpView } from "../../src/domain/sprint";
 import { guideSteps } from "../../src/domain/stages";
-import { checksShown } from "../../src/domain/syllogism";
+import { checksShown, syllogismCounts } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -2684,6 +2684,20 @@ test("past Detailed an unsure verdict does not name the reference either", () =>
   const res = grade(ix, p, { rel: "4", cells: cellsOf({ ...perfect, bna: "a gray ghost" }) }, { refs: false });
   applyVerdicts(p, res, parseVerdicts("B not A: z => unsure"));
   expect(res.cells.bna.msg).toEqual(["Unsure. ", "Claude could not settle it; see below."]);
+});
+
+test("syllogismCounts: a whole syllogism grades both terms and steps the runs; a right I accept counts for nothing, a wrong thesis reply is a miss on the predicate", () => {
+  const whole = (correct: boolean, expected: "accept" | "reason" | "pervasion", thesis?: "why") => syllogismCounts({ correct, expected, ...(thesis ? { thesis } : {}) });
+  // the plain drill, and Why? then a denial: both terms, right with the reply, a wrong one about the form (nothing marked red)
+  for (const t of [undefined, "why"] as const) {
+    expect(whole(true, "reason", t)).toEqual({ parts: ["reason", "predicate"], ok: true, misses: false, run: true });
+    expect(whole(false, "pervasion", t)).toEqual({ parts: ["reason", "predicate"], ok: false, misses: false, run: true });
+  }
+  // thesis first, ended at the thesis
+  expect(syllogismCounts({ correct: true, expected: "accept", thesis: "accept" })).toEqual({ parts: [], ok: true, misses: false, run: false });
+  expect(syllogismCounts({ correct: false, expected: "reason", thesis: "accept" })).toEqual({ parts: ["predicate"], ok: false, misses: true, run: true });
+  expect(syllogismCounts({ correct: false, expected: "accept", thesis: "why" })).toEqual({ parts: ["predicate"], ok: false, misses: true, run: true });
+  expect(syllogismCounts({ correct: false, expected: "accept", thesis: null })).toEqual({ parts: [], ok: false, misses: true, run: true });   // time-up: no term
 });
 
 test("checksShown: all three checks at Detailed; past it only the one that decides, with its formula at Hints", () => {

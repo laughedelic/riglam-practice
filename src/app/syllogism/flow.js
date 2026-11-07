@@ -10,7 +10,7 @@ import { catsStageNow, shareNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, openNow, unmetNow } from "../practice/stops.ts";
 import { render, top0 } from "../shell/render.js";
 import { cue } from "../sound/play.ts";
-import { DENIALS, REPLIES, THESIS_REPLIES, drawSyllogism, endedAtThesis, gradeSyllogism, gradeThesisWhy, gradeTimeout, gradeExample, syllogismText, thesisText } from "../../domain/syllogism.ts";
+import { DENIALS, REPLIES, THESIS_REPLIES, drawSyllogism, endedAtThesis, gradeSyllogism, gradeThesisWhy, gradeTimeout, gradeExample, syllogismCounts, syllogismText, thesisText } from "../../domain/syllogism.ts";
 import { timeUpView } from "../../domain/sprint.ts";
 
 /* ---------- Syllogisms: take a thing, the reason and the conclusion; accept it, deny the reason or deny the pervasion ---------- */
@@ -137,10 +137,11 @@ function finishSyllogism(){
   // a right reply with a counter-example that is not one is partly right; a reply with no example, or one the page could not place, stands
   u.overall=g.correct&&u.ex&&u.ex.v==="bad"?"part":g.grade;
   u.checked=true; u.step=2;
-  // a wrong reply is often about the form: only a right one counts; "matter" grades matter (practice/stops.ts). An attempt that ended at the thesis never showed the reason.
-  const thesisOnly=endedAtThesis(g);
-  gradeTerms([...(thesisOnly?[]:[{cat:askedTerm(c.catR,c.reason),ok:g.correct}]),{cat:askedTerm(c.catP,c.predicate),ok:g.correct}],false);
-  stageStep("syllogism",catsStageNow(thesisOnly?[c.catP]:[c.catR,c.catP]),g.correct);     // the run towards the next stage; a miss here is about the form, it changes nothing (practice/stage-offer.ts)
+  // what the attempt counts for (src/domain/syllogism.ts, syllogismCounts): a whole syllogism grades both terms, and a wrong reply, often about the form, marks neither red;
+  // a right I accept (thesis first) counts for nothing, and a wrong thesis reply is a miss on the predicate's term. "matter" grades matter (practice/stops.ts).
+  const k=syllogismCounts(g);
+  gradeTerms(k.parts.map((p)=>({cat:p==="reason"?askedTerm(c.catR,c.reason):askedTerm(c.catP,c.predicate),ok:k.ok})),k.misses);
+  if(k.run) stageStep("syllogism",catsStageNow(endedAtThesis(g)?[c.catP]:[c.catR,c.catP]),g.correct);     // the run towards the next stage; a miss here is about the form, it changes nothing (practice/stage-offer.ts)
   render();
   top0();
   explainByItself(u);                             // with Explanations by Claude on Every answer, the explanation comes by itself

@@ -601,6 +601,34 @@ test("Syllogisms at stage 2 ask the terms of the stage that are not right yet, w
   expect(await page.evaluate((ids) => { for (let i = 0; i < 80; i++) { const c = window.__t.cur.c; if (ids.includes(c.catR) || ids.includes(c.catP)) return true; window.__t.next(); } return false; }, OPEN2)).toBe(true);
 });
 
+test("Syllogisms, thesis first at stage 2: a right I accept counts for no term, and a wrong thesis reply is a miss on the predicate's term", async ({ page }) => {
+  await page.addInitScript(() => {
+    const terms = { form: { box: 3, shows: 1 } };
+    for (const id of ["extf", "col", "shape", "vis"]) terms[id] = { box: 1, shows: 1, at: 0 };
+    localStorage.setItem("rd-stages", "0,1,2"); localStorage.setItem("rd-terms", JSON.stringify({ n: 10, next: 1000, terms }));   // with stage 0's everyday things as subjects
+    localStorage.setItem("rd-syllogism-thesis", "1");
+  });
+  await open(page, "Syllogisms");
+  const term = (cat) => page.evaluate((c) => window.__t.intro.terms[c], cat);
+  const drawTerm = (t) => page.evaluate(([ids, t]) => { for (let i = 0; i < 600; i++) { const c = window.__t.cur.c; if (ids.includes(c.catP) && c.checks.t.ok === t) return c.catP; window.__t.next(); } return null; }, [OPEN2, t]);
+  // a true thesis whose predicate is an open term of the stage: I accept is right, and the term is left as it was (one right answer would close it)
+  const t = await drawTerm(true);
+  expect(t, "a true thesis about an open term").not.toBeNull();
+  const n = await page.evaluate(() => window.__t.intro.n);
+  await choice(page, "I accept").click();
+  await expect(verdict(page)).toContainText("Right");
+  expect(await term(t)).toEqual({ box: 1, shows: 1, at: 0 });
+  expect(await page.evaluate(() => window.__t.intro.n), "the question is counted all the same").toBe(n + 1);
+  // a false one: I accept is wrong, and it is a miss on the predicate's term (a red mark on the ring: answered, not right)
+  await station(page).click();
+  await exerciseAtRest(page);
+  const f = await drawTerm(false);
+  expect(f, "a false thesis about an open term").not.toBeNull();
+  await choice(page, "I accept").click();
+  await expect(verdict(page)).toContainText("Not quite");
+  expect(await term(f)).toMatchObject({ box: 1, first: expect.any(Number) });
+});
+
 test("Find an instance at stage 2 asks the open terms, and a right thing counts for each category of its set", async ({ page }) => {
   await page.addInitScript(meeting);
   await open(page, "Find an instance");
