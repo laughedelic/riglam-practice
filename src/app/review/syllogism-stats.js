@@ -1,6 +1,6 @@
 import { state } from "../state.js";
 import { isSyllogism } from "../core/util.js";
-import { REPLIES } from "../../domain/syllogism.ts";
+import { REPLIES, endedAtThesis, thesisRight as thesisOk } from "../../domain/syllogism.ts";
 
 /* ---------- Syllogisms: what Review counts (path/review.tsx draws it) ---------- */
 // The answers of Syllogisms are kept with the Relations answers (collection "answers", mode "syllogism") and left out of the Relations statistics; they are counted here.
@@ -12,8 +12,8 @@ export const SAID={accept:"accept",reason:"the reason is not established",pervas
 // ended at the thesis when it was I accept, Why? to a true thesis, or the time ran out on the thesis; its line says the thesis reply, and its mistakes are counted in their own row.
 const T_SAID={accept:"I accept",why:"why?"};
 /** Whether a Syllogisms answer ended at the thesis (thesis first). */
-export const sylEnded=a=>a.thesis!==undefined&&(a.thesis!=="why"||a.answer==="accept");
-const thesisRight=a=>!!a.thesis&&(a.thesis==="accept")===(a.answer==="accept");
+export const sylEnded=a=>endedAtThesis({expected:a.answer,thesis:a.thesis});
+const thesisRight=a=>thesisOk({expected:a.answer,thesis:a.thesis});
 // null without any answers
 export function syllogismStats(){
   const all=/** @type {import("../types.ts").SyllogismDoc[]} */(/** @type {unknown} */(Object.values(state.answers).filter(isSyllogism))).sort((x,y)=>(x.at||"").localeCompare(y.at||""));

@@ -5,7 +5,7 @@ import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import {
   REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases,
-  DENIALS, THESIS_REPLIES, endedAtThesis, expectedReply, gradeThesisWhy, reasonText, thesisAnswer, thesisPieces, thesisText,
+  DENIALS, THESIS_REPLIES, endedAtThesis, expectedReply, gradeThesisWhy, reasonText, thesisAnswer, thesisPieces, thesisRight, thesisText,
 } from "../../src/domain/syllogism";
 import type { Syllogism, SyllogismHistory, Reply, Situation } from "../../src/domain/syllogism";
 import { inUniverse } from "../../src/domain/universe";
@@ -285,11 +285,13 @@ test("thesis first: a true thesis is accepted and the attempt ends; Why? of a fa
     const acc = gradeSyllogism(c, "accept", "accept");
     expect(acc, why).toMatchObject({ correct: t, grade: t ? "ok" : "bad", said: "accept", thesis: "accept", expected: t ? "accept" : c.answer, missedPoint: false });
     expect(endedAtThesis(acc), why).toBe(true);
+    expect(thesisRight(acc), why).toBe(t);
     if (t) {
       // Why? of a true thesis is wrong, and ends the attempt: no reason is shown
       const w = gradeThesisWhy(c);
       expect(w, why).toMatchObject({ correct: false, grade: "bad", said: null, thesis: "why", expected: "accept", missedPoint: false });
       expect(endedAtThesis(w), why).toBe(true);
+      expect(thesisRight(w), why).toBe(false);
       expect(acc.confusion, why).toBe("");
     } else {
       // a false thesis cannot stand, so its own answer is a denial; after Why? the denials are graded as the plain drill grades them
@@ -298,6 +300,7 @@ test("thesis first: a true thesis is accepted and the attempt ends; Why? of a fa
         const g = gradeSyllogism(c, d, "why"), plain = gradeSyllogism(c, d);
         expect(g, why).toEqual({ ...plain, thesis: "why" });
         expect(endedAtThesis(g), why).toBe(false);
+        expect(thesisRight(g), why).toBe(true);
       }
     }
   }
@@ -323,6 +326,10 @@ test("thesis first: when the time runs out on the thesis the attempt ends there;
   expect(gradeTimeout(f, "why")).toMatchObject({ expected: "reason", thesis: "why", said: null });
   expect(endedAtThesis(gradeTimeout(f, "why"))).toBe(false);
   expect(endedAtThesis(gradeTimeout(f))).toBe(false);
+  // a thesis the time ran out on is no right one, and without thesis first there is none
+  expect(thesisRight(gradeTimeout(t, null))).toBe(false);
+  expect(thesisRight(gradeTimeout(f, "why"))).toBe(true);
+  expect(thesisRight(gradeSyllogism(t, "accept"))).toBe(false);
 });
 
 test("thesis first: the thesis and the reason are said apart, in both wordings, and the pieces read as the sentence", () => {

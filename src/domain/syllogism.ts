@@ -480,6 +480,8 @@ export function gradeThesisWhy(c: Syllogism): SyllogismResult {
 }
 /** Whether an attempt ended at the thesis (thesis first): I accept, Why? to a true thesis, or no reply in time to the thesis. Its result is about the thesis alone; after a right Why? it went on to the reason. */
 export const endedAtThesis = (g: Pick<SyllogismResult, "expected" | "thesis">): boolean => g.thesis !== undefined && (g.thesis !== "why" || g.expected === "accept");
+/** Whether the reply to the thesis was right (thesis first): I accept to a true thesis, Why? to a false one. False when the time ran out on it, or without thesis first. */
+export const thesisRight = (g: Pick<SyllogismResult, "expected" | "thesis">): boolean => !!g.thesis && g.thesis === (g.expected === "accept" ? "accept" : "why");
 
 /** What an attempt counts for in the learning ladder (intro.ts, stages.ts): the parts whose terms it grades, whether they were right, whether a miss among them counts, and whether it steps the runs. */
 export interface SyllogismCounts { parts: ("reason" | "predicate")[]; ok: boolean; misses: boolean; run: boolean }

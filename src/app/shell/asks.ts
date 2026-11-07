@@ -151,8 +151,8 @@ export function heardHere(a: AskAny, alts: readonly string[]): Heard | string {
     const order = choicesNow(u) as readonly Reply[], r = spokenSyllogism(alts, order);
     if (!r || !order.includes(r)) return hint;
     const said = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" }[r];
-    // a "no pervasion" goes on to the counter-example unless Sprint is on, and can be taken back from there
-    return { heard: alts[0], label: said, row: r, apply: () => { saySyllogism(r); if (r === "pervasion" && !state.blitz) return () => backSyllogism(); } };
+    // a "no pervasion" goes on to the counter-example unless Sprint is on or it is not asked (the result comes at once), and can be taken back from there
+    return { heard: alts[0], label: said, row: r, apply: () => { saySyllogism(r); if (r === "pervasion" && !state.blitz && state.syllogismCounter) return () => backSyllogism(); } };
   }
   if (a.kind === "counter") {
     const x = spokenCounter(ix(), alts);
