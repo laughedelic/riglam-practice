@@ -1520,6 +1520,21 @@ test("the real data: Syllogisms keep to everyday reasons and predicates up to st
   }
 });
 
+test("the real data: with thesis first, a syllogism that asks an open term has a false thesis, so the whole syllogism comes; the rest keeps its true theses", () => {
+  const on = [0, 1, 2, 3], open = new Set(["col", "shape"]);
+  const draws = (share: number, thesisFirst: boolean) =>
+    Array.from({ length: 300 }, (_, s) => drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: on, open, newShare: share, thesisFirst }));
+  const asks = (c: { catR: string; catP: string }) => open.has(c.catR) || open.has(c.catP);
+  for (const c of draws(1, true)) {
+    expect(asks(c), c.id).toBe(true);
+    expect(c.checks.t.ok, c.id).toBe(false);
+  }
+  expect(new Set(draws(1, true).map((c) => c.answer))).toEqual(new Set(["reason", "pervasion"]));
+  // without thesis first an open term may come with a true thesis, and the draws that do not aim at it keep theirs
+  expect(draws(1, false).some((c) => c.checks.t.ok)).toBe(true);
+  expect(draws(0, true).some((c) => c.checks.t.ok)).toBe(true);
+});
+
 test("the real data: Syllogisms ask a share of the stage's open terms, with the course's terms even where the rest is everyday", () => {
   const on = [1, 2, 3], open = new Set(["col", "shape"]);
   const draws = (share: number | undefined, o: ReadonlySet<string> | undefined, level?: 1 | 2) =>

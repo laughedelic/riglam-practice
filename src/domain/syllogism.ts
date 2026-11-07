@@ -555,7 +555,8 @@ export interface SyllogismDraw {
   level?: 1 | 2;
   /**
    * thesis first: the answer drawn is the one the attempt ends in, so "accept" is any true thesis (its reason is never shown) and the two denials come with a
-   * false one. A third of the theses are true then; without it, about six in ten are (the true theses with a faulty reason are the traps of the plain drill).
+   * false one. A third of the theses are true then; without it, about six in ten are (the true theses with a faulty reason are the traps of the plain drill). A syllogism
+   * drawn to ask an open term (`open`, `newShare`) has a false thesis, so that the whole syllogism comes.
    */
   thesisFirst?: boolean;
   /**
@@ -586,12 +587,15 @@ export const levelAt = (on: Stages): 1 | 2 => (topStage(on) <= EVERYDAY_STAGES ?
 /** The syllogism to practice next. See the note on the draw: the answer, then the situation, then the triple by its links. */
 export function drawSyllogism(ix: DataIndex, st: SyllogismDraw): Syllogism {
   const rng = st.rng || Math.random, hist = st.hist;
-  // a share of the questions asks one of the stage's open terms, which needs the course's terms where the stage is still everyday; if no syllogism has one, the draw is the plain one
+  // a share of the questions asks one of the stage's open terms, which needs the course's terms where the stage is still everyday; if no syllogism has one, the draw is the plain one.
+  // With thesis first such a question has a false thesis, so that Why? and the reason follow: a true one ends at the thesis, which counts for no term (syllogismCounts), and an
+  // open term is closed only by a whole syllogism.
   const plan = (open?: ReadonlySet<string>) => {
     const top = open ? 2 : st.level ?? (st.stages ? levelAt(st.stages) : 2);
     const staged = st.stages && SIT_IDS.some((s) => viewOf(ix, s, top, st.stages).all.length > 0) ? st.stages : undefined;
     const cats = open && termCats(open), asks = (g: Group) => !cats || cats.has(g.pair.r) || cats.has(g.pair.p);
-    return { top, staged, asks, usable: (s: Situation) => viewOf(ix, s, top, staged).all.some(asks) };
+    const whole = (s: Situation) => !(open && st.thesisFirst && SITUATIONS[s].t);
+    return { top, staged, asks, usable: (s: Situation) => whole(s) && viewOf(ix, s, top, staged).all.some(asks) };
   };
   const wants = st.open?.size && st.level !== 1 && rng() < (st.newShare ?? 0.5) ? st.open : undefined;
   let p = plan(wants);
