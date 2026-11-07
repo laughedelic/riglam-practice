@@ -108,6 +108,81 @@ test("Syllogisms at Hints: only the check that decides, with its formula; a reas
   await expect(page.locator("#path .conf"), "nor what was mixed up").toHaveCount(0);
 });
 
+// the practice options under Syllogisms (src/app/path/options.tsx): thesis first, and the counter-example asked or not
+const drawUntil = (page, fits) => page.evaluate((src) => {
+  const ok = new Function("c", "return " + src);
+  for (let i = 0; i < 600; i++) { if (ok(window.__t.cur.c)) return true; window.__t.next(); }
+  return false;
+}, fits);
+
+test("Syllogisms, thesis first: the thesis alone with I accept or Why?; a true one ends there, and Why? of a false one brings the reason and the two denials", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-syllogism-thesis", "1"));
+  await open(page, "Syllogisms");
+  await expect(page.locator("#path .stm"), "S and P alone").toHaveCount(2);
+  await expect(choices(page)).toHaveCount(2);
+  await expect(choices(page).nth(0)).toContainText("I accept");
+  await expect(choices(page).nth(1)).toContainText("Why?");
+  // a true thesis: I accept is right, and the result is about the thesis alone
+  expect(await drawUntil(page, "c.checks.t.ok")).toBe(true);
+  await choice(page, "I accept").click();
+  await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#path .plead")).toHaveText("I accept.");
+  await expect(page.locator("#path .chk")).toHaveCount(1);
+  await expect(page.locator("#path .chk .lab2")).toHaveText("Thesis · true");
+  await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
+  expect((await saved(page, "syllogism"))[0]).toMatchObject({ thesis: "accept", said: "accept", answer: "accept", correct: true });
+  // a false thesis: Why?, then the reason under it with the two denials, graded as the plain drill grades them
+  await station(page).click();
+  await exerciseAtRest(page);
+  expect(await drawUntil(page, "!c.checks.t.ok && c.answer === 'reason'")).toBe(true);
+  await choice(page, "Why?").click();
+  await expect(choices(page)).toHaveCount(2);
+  await expect(choices(page).nth(0)).toContainText("The reason is not established");
+  await expect(choices(page).nth(1)).toContainText("There is no pervasion");
+  await expect(page.locator("#path .sylwhy")).toHaveText("Why?");
+  await expect(page.locator("#path .stm"), "S and P of the thesis, and R under the Why?").toHaveCount(3);
+  await choice(page, "The reason is not established").click();
+  await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#path .plead")).toHaveText("Why? The reason is not established.");
+  await expect(page.locator("#path .chk")).toHaveCount(3);
+  await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(2);
+  expect((await saved(page, "syllogism")).find((d) => d.thesis === "why")).toMatchObject({ said: "reason", answer: "reason", correct: true });
+});
+
+test("Syllogisms, thesis first: Why? of a true thesis is wrong and ends the attempt there", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-syllogism-thesis", "1"));
+  await open(page, "Syllogisms");
+  expect(await drawUntil(page, "c.checks.t.ok")).toBe(true);
+  await choice(page, "Why?").click();
+  await expect(verdict(page)).toContainText("Not quite");
+  await expect(page.locator("#path .plead s.no")).toHaveText("Why?");
+  await expect(page.locator("#path .plead .fix")).toHaveText("I accept.");
+  await expect(page.locator("#path .chk .lab2")).toHaveText("Thesis · true");
+  await expect.poll(async () => (await saved(page, "syllogism")).length).toBe(1);
+  expect((await saved(page, "syllogism"))[0]).toMatchObject({ thesis: "why", said: null, answer: "accept", correct: false });
+});
+
+test("Syllogisms, counter-example not asked: a right 'there is no pervasion' gives its result at once, and a counter-example may be named on it", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("rd-syllogism-counter", "0"));
+  await open(page, "Syllogisms");
+  expect(await drawUntil(page, "c.answer === 'pervasion' && !!c.witness && c.witness !== c.subject")).toBe(true);
+  const witness = await page.evaluate(() => window.__t.cur.c.witness);
+  await choice(page, "There is no pervasion").click();
+  await expect(verdict(page)).toContainText("Right");
+  await expect(page.locator("#sylex")).toHaveCount(0);
+  await expect(station(page)).toHaveAccessibleName(/^Next syllogism/);
+  await page.locator("#path .sylopt button").click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  await page.locator("#sylex").fill(witness);
+  await expect(station(page)).toHaveAccessibleName(/^Check/);
+  await station(page).click();
+  await expect(page.locator("#path .mine")).toContainText("Your counter-example:");
+  await expect(page.locator("#path .sylopt")).toHaveCount(0);
+  await expect(station(page)).toHaveAccessibleName(/^Next syllogism/);
+  await expect.poll(async () => (await saved(page, "syllogism"))[0]?.example?.verdict).toBe("ok");
+  expect((await saved(page, "syllogism"))[0]).toMatchObject({ said: "pervasion", grade: "ok" });
+});
+
 test("Syllogisms: S, P and R sit a line each (no room kept for a star the syllogism has none of), and the heading's stop stays yellow while the counter-example is asked", async ({ page }) => {
   await open(page, "Syllogisms");
   const rows = page.locator("#path .stm");

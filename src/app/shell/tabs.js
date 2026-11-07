@@ -35,7 +35,7 @@ export function begun(u){
   if(!u||u.checked) return false;
   if(u.cats) return categoriesBegun(u);                                                    // Categories: something ticked or answered, or step 1 checked
   if(u.inst) return instanceBegun(u);                                                      // Find an instance: something written, or "nothing is"
-  if(u.syllogism) return u.step>0;                                                         // Syllogisms: the reply is given, and the counter-example waits
+  if(u.syllogism) return u.step>0||!!u.th;                                                 // Syllogisms: the reply is given, and the counter-example waits; or (thesis first) Why? was said
   const typed=()=>Object.values(u.cells).some(c=>c.t.trim()||c.none);
   if(u.find) return u.step>0||!!u.wordA.trim()||!!u.wordB.trim()||typed();          // Find a pair: its relation is given, so words count
   if(u.rel) return true;

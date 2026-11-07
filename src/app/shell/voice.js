@@ -6,7 +6,7 @@ import { Wd, singular, termSing } from "../debate/text.js";
 import { check } from "../practice/grading.js";
 import { choose, fillable, missedCase, relRestore, relSnapshot } from "../practice/screen.js";
 import { NOT } from "../../ai-shared/debate.ts";
-import { plainWords, spokenCommand, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenYesNo } from "../../domain/spoken.ts";
+import { plainWords, spokenCommand, spokenConfirm, spokenDirection, spokenDontKnow, spokenExample, spokenRelation, spokenReply, spokenThesis, spokenYesNo } from "../../domain/spoken.ts";
 import { armSpeech, canHear, canSpeak, listen, listenHeld, onVoices, prefetchClips, speak, stopSpeaking } from "../../ui/speech";
 import { CELL_FULL, render } from "./render.js";
 import { refreshPath } from "../path/index.tsx";
@@ -302,10 +302,10 @@ function again(a,heard,hint,ask){
 }
 const same=(x,y)=>plainWords(x)===plainWords(y);
 const terms=()=>({a:state.cur.p.a,b:state.cur.p.b});
-const ownKinds=new Set(["syl","counter","cats","yesno","pair","instance"]);
-// "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why?, the yes or no of one category at a time, and "no" (or "nope")
+const ownKinds=new Set(["syl","thesis","counter","cats","yesno","pair","instance"]);
+// "no" after a step went on takes it back, except where "no" is itself an answer: Pervasions' Accept or Why? (and a syllogism's thesis asked alone), the yes or no of one category at a time, and "no" (or "nope")
 // at the counter-example question, which leaves the counter-example out ("back" and "undo" still take the step back there)
-const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no")||(a.kind==="counter"&&alts.some((h)=>/^(?:no|nope)$/.test(plainWords(h))));
+const answersNo=(a,alts)=>((a.kind==="reply"||a.kind==="example")&&!!spokenReply(state,alts))||(a.kind==="thesis"&&!!spokenThesis(alts))||(a.kind==="yesno"&&spokenYesNo(alts)==="no")||(a.kind==="counter"&&alts.some((h)=>/^(?:no|nope)$/.test(plainWords(h))));
 // what was heard, as the tap or the typed answer it stands for, once it is confirmed. What `apply` returns, if it returns anything, takes the step back ("back", "no" or Escape just after it went on)
 function take(a,alts){
   const v=state.voice, w=Wd();

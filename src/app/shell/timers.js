@@ -118,7 +118,7 @@ function caseStep(u) {
 export function stepNow() {
   const u = state.ui;
   if (!u || state.mode !== "quiz" || u.checked || state.tab !== tabOf(u)) return null;
-  if (u.syllogism) return u.step === 0 ? { key: "reply", kind: "syl", expire: expireSyllogism } : null;
+  if (u.syllogism) return u.step === 0 ? { key: u.tf && u.th === undefined ? "thesis" : "reply", kind: "syl", expire: expireSyllogism } : null;     // thesis first: the thesis and the reason after Why? each have the time of a reply
   if (u.debate) {
     if (u.step < 4) return u.pickWhy ? { key: "w" + u.step, kind: "ex", expire: expireQ } : { key: "q" + u.step, kind: "q", expire: expireQ };
     return u.rel ? null : { key: "rel", kind: "rel", expire: expireRelD };

@@ -18,9 +18,9 @@ import { noteContext, practiceAgain } from "../review/exercise.js";
 import { findLine, findStats } from "../review/find-stats.js";
 import { REPLY_HEAD, answerOf, byNewest, caseOf, replyCase } from "../review/flag-list.js";
 import { RNAME, mistakeLine, overview, pairFromAnswer, pct, startRetry, uniqueMistakePairs, weakSpots } from "../review/review.js";
-import { SAID, SAY, sylExample, sylLine, syllogismStats } from "../review/syllogism-stats.js";
+import { SAID, SAY, sylEnded, sylExample, sylLine, syllogismStats } from "../review/syllogism-stats.js";
 import { flagStateText, flaggedPart } from "../../domain/flags.ts";
-import { syllogismText } from "../../domain/syllogism.ts";
+import { syllogismText, thesisText } from "../../domain/syllogism.ts";
 import type { CellId, RelKey } from "../../ai-shared/relations.ts";
 import type { AnswerDoc, FavDoc, FlagDoc, SkipDoc } from "../types.ts";
 import { FlagEditor, TutorText } from "./flags.tsx";
@@ -43,7 +43,7 @@ interface Entry { key: string; at: string; mode: string; title: string; v: strin
 function entryOf(a: any, debate: boolean): Entry {
   const mode = debate ? "debate" : a.mode || "practice", v = mode === "find" && a.relOpen ? "open" : mode === "instance" && a.grade === "pend" ? "unk" : gradeOf(a) || "bad";
   const pair = mode === "practice" || mode === "debate" || mode === "find";
-  const title = mode === "syllogism" ? syllogismText(a, a.wording) : mode === "categories" ? String(a.thing || "") : mode === "instance" ? (a.labels || []).join(" · ") : a.a + " · " + a.b;
+  const title = mode === "syllogism" ? (sylEnded(a) ? thesisText(a, a.wording) : syllogismText(a, a.wording)) : mode === "categories" ? String(a.thing || "") : mode === "instance" ? (a.labels || []).join(" · ") : a.a + " · " + a.b;
   const minis = !pair ? [] : mode === "debate" ? (QCELL as CellId[]).map((c) => { const q = (a.qs || []).find((y: { c: string }) => y.c === c); return q && q.verdict ? MINI[q.verdict] || "" : ""; }).filter(Boolean)
     : (CELLS as CellId[]).map((c) => { const x = a.cells && a.cells[c]; return x && x.verdict ? MINI[x.verdict] || "" : ""; }).filter(Boolean);
   const sub = mode === "syllogism" ? [sylLine(a), sylExample(a)].filter(Boolean).join(". ") : mode === "categories" ? catLine(a) : mode === "instance" ? "your answer: " + (a.said ? "“" + a.said + "”" : "nothing is") : mode === "find" ? findLine(a) : undefined;
@@ -112,6 +112,7 @@ function Overview() {
     <Trail>{f.all.slice().reverse().slice(0, 10).map((a: any) => { const e = entryOf(a, false); return <TrailRow e={e} when={dayOf(a.at)} />; })}</Trail>);
   if (y) out.push(<Group h="Syllogisms" sub={y.all.length + (y.all.length === 1 ? " syllogism" : " syllogisms") + ", the reply right " + pct(y.right, y.all.length) + "%"} />,
     <Sx cls="walked">{(y.rows as [string, number, number][]).map(([r, n, k]) => <Stat name={SAY[r as keyof typeof SAY]} k={k} n={n} />)}
+      {y.theses ? <Stat name="Thesis first: the thesis replied right" k={y.thesesRight} n={y.theses} /> : null}
       {y.given.length ? <Stat name="Counter-examples that were one" k={y.shown} n={y.given.length} /> : null}
       {y.late ? <Stat name="Time ran out (Sprint)" text={y.late + (y.late === 1 ? " time" : " times")} /> : null}
       {y.mixed.map(([k, n]: [string, number]) => { const [said, was] = k.split(">"); return <Stat name={"Said “" + SAID[said as keyof typeof SAID] + "” when it was “" + SAID[was as keyof typeof SAID] + "”"} text={n + (n === 1 ? " time" : " times")} />; })}</Sx>,

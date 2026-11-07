@@ -340,7 +340,19 @@ export function spokenExample(ix: DataIndex, alts: readonly string[]): SpokenExa
   return { text: said[0], item: null, none: false, heard: alts[0] };
 }
 
-// ---- Syllogisms: the three replies, and the counter-example after "there is no pervasion" ----
+// ---- Syllogisms: the thesis alone (thesis first), the three replies, and the counter-example after "there is no pervasion" ----
+
+/** The reply to a thesis asked alone (Syllogisms, thesis first): I accept or Why?, in the words of the debate questions, or "one" and "two" as the keys pick them. */
+export function spokenThesis(alts: readonly string[]): Reply | null {
+  for (const heard of alts) {
+    const w = plainWords(heard);
+    const num = w.match(/^(?:number |option |key |reply )?(one|two)$/);
+    if (num) return num[1] === "one" ? "accept" : "why";
+    const hit = REPLIES.find(([p]) => w === p || w.startsWith(p + " "));
+    if (hit) return hit[1];
+  }
+  return null;
+}
 
 export type SylReply = "accept" | "reason" | "pervasion";
 const SYL_WORDS: [string, SylReply][] = [["i accept", "accept"], ["the reason is not established", "reason"], ["there is no pervasion", "pervasion"]];

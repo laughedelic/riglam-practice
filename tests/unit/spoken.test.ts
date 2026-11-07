@@ -167,7 +167,7 @@ test("\"I don't know\" in its usual wordings, and not inside an answer", () => {
 });
 
 // ---- the other four exercises ----
-import { spokenCategories, spokenCommand, spokenCounter, spokenPair, spokenSyllogism, spokenThing, spokenYesNo, termPhrase } from "../../src/domain";
+import { spokenCategories, spokenCommand, spokenCounter, spokenPair, spokenSyllogism, spokenThesis, spokenThing, spokenYesNo, termPhrase } from "../../src/domain";
 import type { SylReply } from "../../src/domain";
 
 const SYL_ORDER: SylReply[] = ["reason", "pervasion", "accept"];
@@ -183,6 +183,16 @@ test("a reply to a syllogism: its three sentences, the keys, and the recognizer'
   // the second guess may be the one that reads
   expect(spokenSyllogism(["the weather is nice", "there is no pervasion"], SYL_ORDER)).toBe("pervasion");
   expect(spokenSyllogism(["the weather is nice"], SYL_ORDER)).toBeNull();
+});
+
+test("a reply to a thesis asked alone (thesis first): I accept or Why?, by its words or as the keys 1 and 2 pick them", () => {
+  for (const s of ["I accept", "accept", "Except", "Yes", "I agree"]) expect(spokenThesis([s]), s).toBe("accept");
+  for (const s of ["Why?", "why", "No", "why is that"]) expect(spokenThesis([s]), s).toBe("why");
+  expect(spokenThesis(["one"])).toBe("accept");
+  expect(spokenThesis(["number two"])).toBe("why");
+  expect(spokenThesis(["3"])).toBeNull();
+  expect(spokenThesis(["the weather is nice", "why"])).toBe("why");
+  expect(spokenThesis(["the reason is not established"])).toBeNull(); // a denial is no reply to the thesis alone
 });
 
 test("a counter-example can be left out by saying so", () => {
