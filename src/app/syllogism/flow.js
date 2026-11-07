@@ -30,8 +30,6 @@ export const syllogismList=()=>/** @type {import("../types.ts").SyllogismDoc[]} 
 export function freshSyllogismUi(){
   return Object.assign(freshUi(),{syllogism:true, open:false, step:0, tf:state.syllogismThesis, th:undefined, said:null, grade:null, ex:null, exText:"", exNote:"", late:false, exOpen:false, timeout:false, ms:null});
 }
-/** Whether the thesis alone is asked now (thesis first, before I accept or Why?). */
-export const thesisAsked=(u=state.ui)=>!!u&&!!u.syllogism&&!!u.tf&&u.th===undefined&&!u.checked;
 /** The replies the step on screen offers, in the order of the keys: the thesis replies, the two denials after Why?, or the three replies. */
 export const choicesNow=(u=state.ui)=>u&&u.tf?(u.th===undefined?THESIS_REPLIES:DENIALS):REPLIES;
 /** The syllogism on screen. */
