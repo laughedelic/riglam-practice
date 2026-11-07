@@ -165,7 +165,9 @@ test("a page of Settings opens at its top, and Back finds Settings where it was 
   await page.setViewportSize({ width: 390, height: 520 });   // a short screen: Settings scrolls
   await openSettings(page);
   const sc = page.locator("#path .ppage.sfull");
-  await sc.evaluate((e) => { e.scrollTop = e.scrollHeight; });
+  // Settings learns where it is scrolled from its scroll events, and the browser sends one with its next frame, not at the scroll. A finger always lets a frame pass before a tap; a script
+  // can tap first (on a slow runner), and then Back would find the top. So it waits for the event of its scroll.
+  await sc.evaluate((e) => new Promise((done) => { e.addEventListener("scroll", () => done(), { once: true }); e.scrollTop = e.scrollHeight; }));
   const was = await sc.evaluate((e) => e.scrollTop);
   expect(was).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Your data: more" }).evaluate((b) => b.click());   // a tap in the page: no scrolling to the line first
@@ -173,5 +175,6 @@ test("a page of Settings opens at its top, and Back finds Settings where it was 
   expect(await sc.evaluate((e) => e.scrollTop)).toBe(0);
   await page.getByRole("button", { name: "Back to Settings", exact: true }).click();
   await expect(page.locator("#path .ptb-t")).toHaveText("Settings");
-  expect(Math.abs((await sc.evaluate((e) => e.scrollTop)) - was)).toBeLessThan(2);
+  const back = await sc.evaluate((e) => e.scrollTop);
+  expect(Math.abs(back - was), `Settings was left scrolled to ${was} and Back found it at ${back}`).toBeLessThan(2);
 });
