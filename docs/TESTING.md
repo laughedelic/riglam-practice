@@ -13,7 +13,7 @@ Tests that read the definitions need the folder `data-private/` (see [DATA.md](D
 
 ## Browsers
 
-Playwright is pinned to 1.56.1. In the Claude cloud container, Chromium 1194 is preinstalled and matches it (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`), so do not run `playwright install` there. On a laptop, `npx playwright install --with-deps chromium` (CI needs only `npx playwright install chromium`).
+Playwright is pinned to 1.61.0, the first release that can install a browser on Ubuntu 26.04, which is what `ubuntu-latest` means in CI; when the runner image moves on, check that the pin still supports it. In the Claude cloud container a Chromium is preinstalled (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`) but it is not the build this Playwright downloads, so do not run `playwright install` there: run the specs with a throwaway config that wraps `playwright.config.js` and sets `launchOptions: { executablePath: "/opt/pw-browsers/chromium", args: ["--no-sandbox"] }` for each project (and `cwd` for the web server). On a laptop, `npx playwright install --with-deps chromium` (CI needs only `npx playwright install chromium`).
 
 ## Conventions
 

@@ -43,7 +43,7 @@ src/pwa/                   PWA only: platform adapter, local `db` (IndexedDB), a
 src/artifact/              artifact only: platform adapter (embedded data, `window.claude`), head (title, font links)
 worker/                    the server: a Cloudflare Worker for /api/* (tutor access check, spend budgets, optional passkey accounts and document sync, flag reports and their scheduled review), D1 schema
 src/ai/                    the contract between page and server (protocol, access proof), shared by both
-scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, social (the hero pictures), Vite plugins
+scripts/                   build-artifact, artifact-verify, data (key, import, export), fonts, icons, social (the hero pictures and the link preview), Vite plugins
 tests/unit/                Vitest unit tests (artifact comparison, artifact and PWA build contracts, the data tiers, the shape of src/app, the tutor code in src/ai-shared, the rules in src/domain)
 tests/worker/              Vitest tests of the server with stand-ins for D1 and the model API
 tests/e2e/                 Playwright: the PWA specs and the parity of the two builds

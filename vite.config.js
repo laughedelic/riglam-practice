@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { includeMarkup } from "./scripts/vite-include-markup.mjs";
 import { iconSet } from "./scripts/lib/icon-set.mjs";
+import { linkPreviewHead } from "./scripts/lib/link-preview.mjs";
 import { NEWS } from "./src/app/news.ts";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -37,11 +38,14 @@ const iconLinks = () => ({
 const appName = process.env.RIGLAM_APP_NAME ?? "Riglam practice";
 const appShortName = process.env.RIGLAM_APP_SHORT_NAME ?? "Riglam";
 const appDescription = "Practice in logic and debate on the path of reasoning (Dudra and Tarig).";
+// The real app's page also says how a link to it looks in a chat or a forum post (scripts/lib/link-preview.mjs); a Preview does not.
+const linkPreview = iconSet() === "main" ? linkPreviewHead({ name: appName, description: appDescription, site: process.env.RIGLAM_SITE_URL }) : "";
 const appHead = () => ({
   name: "riglam-app-head",
   transformIndexHtml: (html) => html
     .replace(/<title>[^<]*<\/title>/, `<title>${appName}</title>`)
-    .replace(/(<meta name="description" content=")[^"]*(">)/, `$1${appDescription}$2`),
+    .replace(/(<meta name="description" content=")[^"]*(">)/, `$1${appDescription}$2`)
+    .replace("</head>", linkPreview ? `${linkPreview}\n</head>` : "</head>"),
 });
 
 export default defineConfig({

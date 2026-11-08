@@ -17,7 +17,7 @@ npm run artifact:verify -- <page.html>  # is a published page the current artifa
 npm run data:import -- <full.json>      # split a knowledge-base export into the open file and data-private/ (then data:publish loads the server)
 ```
 
-In Claude's cloud container Chromium is preinstalled and matches the pinned Playwright 1.56.1 (`/opt/pw-browsers`): do not run `playwright install`, and do not bump `@playwright/test` without the browser.
+In Claude's cloud container Chromium is preinstalled in `/opt/pw-browsers`, but it is not the build the pinned Playwright 1.61.0 downloads: do not run `playwright install`; point `launchOptions.executablePath` at `/opt/pw-browsers/chromium` (with `--no-sandbox`) in a throwaway config that wraps `playwright.config.js` (`docs/TESTING.md`). The Playwright pin must support the OS of CI's `ubuntu-latest`.
 
 ## Rules
 

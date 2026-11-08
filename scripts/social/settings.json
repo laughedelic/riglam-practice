@@ -6,6 +6,13 @@
     "lineSize": 127,
     "tibetanSize": 129
   },
+  "linkPreview": {
+    "from": "social-preview",
+    "file": "public/link-preview.jpg",
+    "width": 1200,
+    "height": 600,
+    "quality": 80
+  },
   "images": {
     "hero-light": {
       "file": "docs/images/hero-light.png",
