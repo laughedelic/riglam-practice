@@ -45,7 +45,8 @@ jobs:
   # When a project or a shard is added here, `npx playwright test --list` must still list every test exactly once across the jobs (docs/TESTING.md).
   browser:
     name: Browser tests (${{ matrix.name }})
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: that label now means Ubuntu 26.04, where Playwright 1.56 cannot install a browser. Move this label together with the Playwright pin (package.json).
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
