@@ -34,7 +34,7 @@ export type { Intro, IntroTerm, StageMark, Stop, StopWhy, TermMark, TreeTerm } f
 export { LANGS, NAME_LANGS, normLangs, termNames } from "./languages";
 export type { LangId, TermName } from "./languages";
 export type { Placement } from "./reference";
-export { lettersDirection, plainWords, spokenCategories, spokenCommand, spokenConfirm, spokenCounter, spokenDirection, spokenDontKnow, spokenExample, spokenPair, spokenRelation, spokenReply, spokenSyllogism, spokenThing, spokenYesNo } from "./spoken";
+export { lettersDirection, plainWords, spokenCategories, spokenCommand, spokenConfirm, spokenCounter, spokenDirection, spokenDontKnow, spokenExample, spokenPair, spokenRelation, spokenReply, spokenSyllogism, spokenThesis, spokenThing, spokenYesNo } from "./spoken";
 export type { Command, PairTerms, SpokenCategories, SpokenExample, SpokenPair, SpokenReply, SylReply } from "./spoken";
-export { EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, WORDINGS, levelAt, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
-export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, Wording } from "./syllogism";
+export { DENIALS, EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, THESIS_REPLIES, WORDINGS, endedAtThesis, thesisRight, expectedReply, syllogismCounts, levelAt, reasonText, syllogismOf, syllogismPieces, syllogismText, thesisAnswer, thesisPieces, thesisText, drawSyllogism, gradeSyllogism, gradeThesisWhy, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
+export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, ThesisReply, Wording } from "./syllogism";

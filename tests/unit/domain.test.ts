@@ -31,7 +31,7 @@ import { examplePair } from "../../src/domain/find";
 import { instanceExample } from "../../src/domain/instance";
 import { timeUpView } from "../../src/domain/sprint";
 import { guideSteps } from "../../src/domain/stages";
-import { checksShown } from "../../src/domain/syllogism";
+import { checksShown, syllogismCounts } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -1520,6 +1520,21 @@ test("the real data: Syllogisms keep to everyday reasons and predicates up to st
   }
 });
 
+test("the real data: with thesis first, a syllogism that asks an open term has a false thesis, so the whole syllogism comes; the rest keeps its true theses", () => {
+  const on = [0, 1, 2, 3], open = new Set(["col", "shape"]);
+  const draws = (share: number, thesisFirst: boolean) =>
+    Array.from({ length: 300 }, (_, s) => drawSyllogism(rix, { hist: [], recent: [], rng: seeded(s), stages: on, open, newShare: share, thesisFirst }));
+  const asks = (c: { catR: string; catP: string }) => open.has(c.catR) || open.has(c.catP);
+  for (const c of draws(1, true)) {
+    expect(asks(c), c.id).toBe(true);
+    expect(c.checks.t.ok, c.id).toBe(false);
+  }
+  expect(new Set(draws(1, true).map((c) => c.answer))).toEqual(new Set(["reason", "pervasion"]));
+  // without thesis first an open term may come with a true thesis, and the draws that do not aim at it keep theirs
+  expect(draws(1, false).some((c) => c.checks.t.ok)).toBe(true);
+  expect(draws(0, true).some((c) => c.checks.t.ok)).toBe(true);
+});
+
 test("the real data: Syllogisms ask a share of the stage's open terms, with the course's terms even where the rest is everyday", () => {
   const on = [1, 2, 3], open = new Set(["col", "shape"]);
   const draws = (share: number | undefined, o: ReadonlySet<string> | undefined, level?: 1 | 2) =>
@@ -2686,6 +2701,20 @@ test("past Detailed an unsure verdict does not name the reference either", () =>
   expect(res.cells.bna.msg).toEqual(["Unsure. ", "Claude could not settle it; see below."]);
 });
 
+test("syllogismCounts: a whole syllogism grades both terms and steps the runs; a right I accept counts for nothing, a wrong thesis reply is a miss on the predicate", () => {
+  const whole = (correct: boolean, expected: "accept" | "reason" | "pervasion", thesis?: "why") => syllogismCounts({ correct, expected, ...(thesis ? { thesis } : {}) });
+  // the plain drill, and Why? then a denial: both terms, right with the reply, a wrong one about the form (nothing marked red)
+  for (const t of [undefined, "why"] as const) {
+    expect(whole(true, "reason", t)).toEqual({ parts: ["reason", "predicate"], ok: true, misses: false, run: true });
+    expect(whole(false, "pervasion", t)).toEqual({ parts: ["reason", "predicate"], ok: false, misses: false, run: true });
+  }
+  // thesis first, ended at the thesis
+  expect(syllogismCounts({ correct: true, expected: "accept", thesis: "accept" })).toEqual({ parts: [], ok: true, misses: false, run: false });
+  expect(syllogismCounts({ correct: false, expected: "reason", thesis: "accept" })).toEqual({ parts: ["predicate"], ok: false, misses: true, run: true });
+  expect(syllogismCounts({ correct: false, expected: "accept", thesis: "why" })).toEqual({ parts: ["predicate"], ok: false, misses: true, run: true });
+  expect(syllogismCounts({ correct: false, expected: "accept", thesis: null })).toEqual({ parts: [], ok: false, misses: true, run: true });   // time-up: no term
+});
+
 test("checksShown: all three checks at Detailed; past it only the one that decides, with its formula at Hints", () => {
   expect(checksShown({ answer: "reason" }, "detailed")).toEqual([{ k: "e", line: true }, { k: "v", line: true }, { k: "t", line: true }]);
   expect(checksShown({ answer: "reason" }, "hints")).toEqual([{ k: "e", line: true }]);
@@ -2694,6 +2723,12 @@ test("checksShown: all three checks at Detailed; past it only the one that decid
   expect(checksShown({ answer: "pervasion" }, "none")).toEqual([{ k: "v", line: false }]);
   // the thesis is never shown past Detailed, nor the pervasion where the reason fails
   for (const answer of ["accept", "reason", "pervasion"] as const) expect(checksShown({ answer }, "hints").map((x) => x.k)).not.toContain("t");
+  // an attempt that ended at the thesis (thesis first) shows the thesis alone, at every level, with its line unless at None
+  for (const answer of ["accept", "reason", "pervasion"] as const) {
+    expect(checksShown({ answer }, "detailed", true)).toEqual([{ k: "t", line: true }]);
+    expect(checksShown({ answer }, "hints", true)).toEqual([{ k: "t", line: true }]);
+    expect(checksShown({ answer }, "none", true)).toEqual([{ k: "t", line: false }]);
+  }
 });
 
 test("examplePair: a pair of two categories with the relation asked for, of the stages that are on, under labels the learner has met", () => {

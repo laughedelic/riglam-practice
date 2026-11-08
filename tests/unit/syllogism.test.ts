@@ -5,6 +5,7 @@ import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import {
   REPLIES, SITUATIONS, syllogismOf, syllogismPieces, syllogismText, drawSyllogism, gradeSyllogism, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases,
+  DENIALS, THESIS_REPLIES, endedAtThesis, expectedReply, gradeThesisWhy, reasonText, thesisAnswer, thesisPieces, thesisRight, thesisText,
 } from "../../src/domain/syllogism";
 import type { Syllogism, SyllogismHistory, Reply, Situation } from "../../src/domain/syllogism";
 import { inUniverse } from "../../src/domain/universe";
@@ -263,6 +264,87 @@ test("when the time runs out (Blitz) there is no reply: wrong, the right reply n
   }
 });
 
+// ---- thesis first (a practice option): the thesis alone, I accept or Why?, then the reason after Why? ----
+
+const EIGHT: Record<Situation, [string, string, string]> = {
+  1: ["the memory of tea", "memory", "cons"], 2: ["a tomato", "red", "food"], 3: ["a red ball", "red", "food"], 4: ["a tomato", "red", "cons"],
+  5: ["a thought", "memory", "cons"], 6: ["a tomato", "memory", "cons"], 7: ["a banana", "red", "food"], 8: ["a stone", "red", "food"],
+};
+
+test("thesis first: a true thesis is accepted and the attempt ends; Why? of a false one goes on to the reason, graded as before", () => {
+  expect(THESIS_REPLIES).toEqual(["accept", "why"]);
+  expect(DENIALS).toEqual(REPLIES.filter((r) => r !== "accept"));
+  for (const sit of [1, 2, 3, 4, 5, 6, 7, 8] as Situation[]) {
+    const c = syllogismOf(ix, ...EIGHT[sit]) as Syllogism;
+    const why = `situation ${sit}`, t = SITUATIONS[sit].t;
+    expect(c.checks.t.ok, why).toBe(t);
+    expect(thesisAnswer(c), why).toBe(t ? "accept" : "why");
+    expect(expectedReply(c), why).toBe(c.answer); // without thesis first nothing changes
+    expect(expectedReply(c, true), why).toBe(t ? "accept" : c.answer);
+    // I accept: right exactly when the thesis is true, whatever the reason; the attempt ends at the thesis either way
+    const acc = gradeSyllogism(c, "accept", "accept");
+    expect(acc, why).toMatchObject({ correct: t, grade: t ? "ok" : "bad", said: "accept", thesis: "accept", expected: t ? "accept" : c.answer, missedPoint: false });
+    expect(endedAtThesis(acc), why).toBe(true);
+    expect(thesisRight(acc), why).toBe(t);
+    if (t) {
+      // Why? of a true thesis is wrong, and ends the attempt: no reason is shown
+      const w = gradeThesisWhy(c);
+      expect(w, why).toMatchObject({ correct: false, grade: "bad", said: null, thesis: "why", expected: "accept", missedPoint: false });
+      expect(endedAtThesis(w), why).toBe(true);
+      expect(thesisRight(w), why).toBe(false);
+      expect(acc.confusion, why).toBe("");
+    } else {
+      // a false thesis cannot stand, so its own answer is a denial; after Why? the denials are graded as the plain drill grades them
+      expect(DENIALS, why).toContain(c.answer);
+      for (const d of DENIALS) {
+        const g = gradeSyllogism(c, d, "why"), plain = gradeSyllogism(c, d);
+        expect(g, why).toEqual({ ...plain, thesis: "why" });
+        expect(endedAtThesis(g), why).toBe(false);
+        expect(thesisRight(g), why).toBe(true);
+      }
+    }
+  }
+  // without thesis first a result carries no thesis at all
+  expect("thesis" in gradeSyllogism(syllogismOf(ix, ...EIGHT[2]) as Syllogism, "accept")).toBe(false);
+});
+
+test("thesis first: the trap of a true thesis with a faulty reason is gone, and a mixed-up thesis reply says what it is", () => {
+  const c = syllogismOf(ix, "a tomato", "red", "food") as Syllogism; // situation 2: a tomato is food, but not whatever is red is
+  expect(gradeSyllogism(c, "accept").correct).toBe(false);
+  expect(gradeSyllogism(c, "accept", "accept").correct).toBe(true);
+  expect(gradeThesisWhy(c).confusion).toBe(`A tomato is ${c.predicate}, so the thesis is true and is accepted as it stands, whatever reason it might be given.`);
+  const d = syllogismOf(ix, "a red ball", "red", "food") as Syllogism; // situation 3: a red ball is not food
+  expect(gradeSyllogism(d, "accept", "accept").confusion).toBe(`A red ball is not ${d.predicate}, so the thesis cannot be accepted: Why? asks for its reason.`);
+});
+
+test("thesis first: when the time runs out on the thesis the attempt ends there; on the reason it is a denial missed", () => {
+  const t = syllogismOf(ix, "a tomato", "red", "food") as Syllogism, f = syllogismOf(ix, "a stone", "red", "food") as Syllogism;
+  expect(gradeTimeout(t, null)).toEqual({ grade: "bad", correct: false, said: null, expected: "accept", missedPoint: false, confusion: "", thesis: null });
+  expect(endedAtThesis(gradeTimeout(t, null))).toBe(true);
+  expect(gradeTimeout(f, null)).toMatchObject({ expected: "reason", thesis: null });
+  expect(endedAtThesis(gradeTimeout(f, null))).toBe(true);
+  expect(gradeTimeout(f, "why")).toMatchObject({ expected: "reason", thesis: "why", said: null });
+  expect(endedAtThesis(gradeTimeout(f, "why"))).toBe(false);
+  expect(endedAtThesis(gradeTimeout(f))).toBe(false);
+  // a thesis the time ran out on is no right one, and without thesis first there is none
+  expect(thesisRight(gradeTimeout(t, null))).toBe(false);
+  expect(thesisRight(gradeTimeout(f, "why"))).toBe(true);
+  expect(thesisRight(gradeSyllogism(t, "accept"))).toBe(false);
+});
+
+test("thesis first: the thesis and the reason are said apart, in both wordings, and the pieces read as the sentence", () => {
+  const c = syllogismOf(ix, "a tomato", "red", "food") as Syllogism;
+  expect(thesisText(c)).toBe(`Take a tomato. It follows it is ${c.predicate}.`);
+  expect(reasonText(c)).toBe("Because it is red.");
+  expect(thesisText(c, "formal")).toBe(`It follows that the subject, a tomato, is ${c.predicate}.`);
+  expect(reasonText(c, "formal")).toBe("Because of being red.");
+  for (const w of ["take", "formal"] as const) {
+    const pieces = thesisPieces(c, w);
+    expect(pieces.map((x) => (typeof x === "string" ? x : x.text)).join("")).toBe(thesisText(c, w));
+    expect(pieces.filter((x) => typeof x !== "string")).toEqual([{ part: "subject", text: "a tomato" }, { part: "predicate", text: c.predicate }]);
+  }
+});
+
 test("the proofs say why the subject is not the reason, by the classes that exclude each other", () => {
   const c = syllogismOf(ix, "a tomato", "memory", "cons") as Syllogism;
   expect(c.checks.e).toEqual({
@@ -423,6 +505,21 @@ test("every drawn syllogism is what the items and the term data say, checked aga
     expect(syllogismText(c), why).toContain(c.subject);
   }
   expect([...seen].sort(), "every situation turns up").toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test("thesis first draws by the answer the attempt ends in: about a third true theses, against about six in ten without it", () => {
+  const share = (thesisFirst: boolean) => {
+    const st = { hist: [] as SyllogismHistory[], recent: [] as string[], rng: seeded(61), thesisFirst };
+    const n = 1500, drawn = Array.from({ length: n }, () => drawSyllogism(real, st));
+    const ends = REPLIES.map((a) => drawn.filter((c) => expectedReply(c, thesisFirst) === a).length / n);
+    return { trueTheses: drawn.filter((c) => c.checks.t.ok).length / n, ends, sits: new Set(drawn.map((c) => c.situation)) };
+  };
+  const tf = share(true), plain = share(false);
+  expect(tf.trueTheses).toBeGreaterThan(0.25);
+  expect(tf.trueTheses).toBeLessThan(0.42);
+  expect(plain.trueTheses).toBeGreaterThan(0.5);
+  for (const e of tf.ends) expect(e).toBeGreaterThan(0.25); // I accept, and each denial after Why?, about a third each
+  expect([...tf.sits].sort(), "every situation still turns up").toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test("level 1 draws only everyday things and properties, and still gives all three answers", () => {

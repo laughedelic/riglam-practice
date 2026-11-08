@@ -335,3 +335,30 @@ test("the way back stays with its exercise: another exercise and back again, and
   await station(page).click();
   await expect(page.locator("#cin")).toHaveValue("my half answer");
 });
+
+test("Syllogisms: Thesis first turned on while the result before is pulled back to asks the syllogism held the new way when Next brings it back", async ({ page }) => {
+  await page.addInitScript(onPath);
+  await page.goto("/");
+  await expect(relOptions(page)).toHaveCount(5);
+  await open(page, "Syllogisms");
+  await expect(choices(page)).toHaveCount(3);
+  await choices(page).filter({ hasText: "The reason is not established" }).first().click();
+  await expect(verdict(page)).toBeVisible();
+  await station(page).click();
+  await expect(choices(page)).toHaveCount(3);
+  await settled(page);
+  await page.evaluate(() => { window.__held = window.__t.cur.c; });
+  await pullBack(page);
+  await expect(verdict(page), "the result of the syllogism before").toBeVisible();
+  await page.getByRole("button", { name: "Practice options" }).click();
+  const sheet = page.getByRole("dialog", { name: "Practice options" });
+  await sheet.getByRole("switch", { name: /^Thesis first/ }).click();
+  await page.getByRole("button", { name: "Close the practice options" }).click();
+  await expect(sheet).toBeHidden();
+  await expect(station(page)).toHaveAccessibleName(/^Back to your syllogism/);
+  await station(page).click();
+  await expect(choices(page)).toHaveCount(2);
+  await expect(choices(page).nth(0)).toContainText("I accept");
+  await expect(choices(page).nth(1)).toContainText("Why?");
+  expect(await page.evaluate(() => window.__t.cur.c === window.__held), "the syllogism held, not a new one").toBe(true);
+});
