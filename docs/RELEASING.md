@@ -38,7 +38,7 @@ Because the release pull request is created by a workflow, GitHub does not start
 
 ## Dependencies
 
-Dependabot opens weekly pull requests for npm (dev dependencies grouped, title prefix `chore(deps)`) and for GitHub Actions (`ci(deps)`). Neither triggers a release by itself. `@playwright/test` is excluded because it is pinned to the browser version preinstalled in Claude's cloud container.
+Dependabot opens weekly pull requests for npm (dev dependencies grouped, title prefix `chore(deps)`) and for GitHub Actions (`ci(deps)`). Neither triggers a release by itself. `@playwright/test` is excluded because it is bumped by hand: a new release changes the browser the specs run in, and the pin has to support the operating system of CI's `ubuntu-latest` (`docs/TESTING.md`).
 
 ## Artifact versions are separate
 
