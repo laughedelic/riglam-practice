@@ -1,4 +1,4 @@
-// The release setup: versions stay below 1.0.0 until someone decides otherwise and there is no changelog file. This
+// The release setup: the first release was 0.1.0, a version is set deliberately (never left in the config) and there is no changelog file. This
 // guards the settings and the files.
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
@@ -11,10 +11,15 @@ const manifest = read(".release-please-manifest.json");
 const pkg = read("package.json");
 const tracked = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" }).split("\n").filter(Boolean);
 
-test("the first release is 0.1.0 and breaking changes stay in 0.x", () => {
+test("the first release is 0.1.0 and breaking changes stay in 0.x until 1.0.0", () => {
   expect(config["initial-version"]).toBe("0.1.0");
   expect(config["bump-minor-pre-major"]).toBe(true);
-  expect(manifest["."], "release 1.0.0 deliberately, with a Release-As footer").toMatch(/^0\.\d+\.\d+$/);
+  expect(manifest["."], "a plain version; set one deliberately with a Release-As footer").toMatch(/^\d+\.\d+\.\d+$/);
+});
+
+test("no version is forced by the config", () => {
+  const forced = [config["release-as"], ...Object.values<Record<string, unknown>>(config.packages).map((p) => p["release-as"])].filter((v) => v !== undefined);
+  expect(forced, "release-as pins every later release to that version: remove it as soon as the release is out").toEqual([]);
 });
 
 test("package.json and the manifest hold the same version", () => {
