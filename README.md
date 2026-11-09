@@ -5,7 +5,7 @@
 
 # riglam-practice
 
-Practice in logic and debate on the "path of reasoning" (*rigs lam*): drills for Dudra and Tarig. The first drill compares two phenomena (pick the relation, then give an example for each combination); the second asks the four debate questions about a pair; the third turns the first round: it names a relation and asks for a pair of phenomena that has it, then for the examples.
+Practice in logic and debate on the "path of reasoning" (*rigs lam*), for Dudra and Tarig, a few minutes at a time. Relations compares two terms (pick the relation, then give an example for each case that exists); Pervasions asks the four debate questions about a pair; Find a pair turns the first round around (a relation is named, you name two terms that have it); Syllogisms takes a subject, a predicate and a reason; Categories and Find an instance work from one example; Sprint is an option that puts a clock on each step.
 
 One source builds two things:
 
@@ -65,6 +65,8 @@ docs/                      developing, architecture, term data and key, artifact
 
 ## Status
 
-Early: the page is the one developed as a Claude artifact. Answers stay on the device. A small server for the tutor exists but the page does not use it yet, so the features that ask Claude (tutor, answer checking) are available only in the artifact build.
+Released: the version is in the app (Settings, About) and each release is on the [releases page](https://github.com/laughedelic/riglam-practice/releases). Answers stay on the device; an optional account (a passkey) keeps them in step between devices. The definitions and notes are not in this repository: a device that has the Magic Key gets them from the server (docs/DATA.md), and the same server answers the features that ask Claude (explanations, checking an answer, the chat), takes flag reports and reads aloud (docs/SERVER.md). Without the key the app works with the open term data only.
+
+It is a personal project: it does not replace practicing together or with a teacher, it is not affiliated with any course and not endorsed by any organization, and its mistakes are the author's.
 
 Licence: AGPL-3.0, see `LICENSE`. The self-hosted fonts in `src/pwa/fonts` (Inter, EB Garamond, Sorts Mill Goudy, Merriweather, Noto Sans Math, Noto Serif Tibetan, Noto Serif Devanagari, Noto Serif SC) are distributed under the SIL Open Font License 1.1 by their authors, via Google Fonts; their notices and the licence text are in `public/licenses/fonts-OFL.txt`, which the app serves at `licenses/fonts-OFL.txt`.
