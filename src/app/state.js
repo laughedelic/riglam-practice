@@ -69,6 +69,7 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   carry: null,      // what a result that was not shown left due, for the next result (practice/queue.js, moveOn)
   given: null,      // a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts)
+  givenSprint: false, // Sprint (`blitz`) is as the giver of the question on screen says, not as its exercise's own switch (practice/given.ts)
   daily: null,      // a session of daily practice under way: its plan, how each step went and where it stands (practice/daily.ts)
   dailyDone: null,  // what the device keeps of the sessions done: the day of the last one, how many that day, its categories (`rd-daily`; read when first asked for)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)

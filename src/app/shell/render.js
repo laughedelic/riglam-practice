@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { $ } from "../core/dom.js";
+import { givenSprint } from "../practice/given.ts";
 import { dropStaleDef } from "../practice/terms.js";
 import { navSync } from "./history.js";
 import { ensureClock } from "./timers.js";
@@ -17,6 +18,7 @@ export const isEx=()=>state.tab==="practice"||state.tab==="debate"||state.tab===
 export const focusCin=(afterTimeUp)=>{ if(afterTimeUp&&keysStayDown()) return; const i=$("cin"); if(i) i.focus({preventScroll:true}); };
 export function render(){
   voiceBeforeRender();   // a screen that voice did not speak for lets go of its clock before this render starts the next one
+  givenSprint();         // Sprint is the giver's for a given question that says so, and the exercise's own again after it
   ensureClock();
   renderPath(); dropStaleDef(); voiceAfterRender();
   state.motion=true; // from now on panels slide (shell/motion.js)

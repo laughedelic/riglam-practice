@@ -1,6 +1,7 @@
 // Daily practice (src/app/practice/daily.ts, src/app/path/daily.tsx; the plan is src/domain/session.ts): the stop at the roadmap's fork starts a session of
-// questions that move between the exercises; each stands in its exercise with the session's row at the top of its thread; a missed question of a thread comes
-// back at the end; the last station says how it went and offers one more thread, and from it the roadmap is back.
+// questions that move between the exercises; each stands in its exercise with the session's row at the top of its thread; a missed question of a round comes
+// back at the end; the last station says how it went and offers one more round, and from it the roadmap is back. A session has no clock by itself: Sprint is
+// the session's own there, switched by the stopwatch or taken with a Sprint round at the last station, and no exercise's switch is touched by it.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, relOptions, roadmap } from "../../support/page.js";
 
@@ -25,6 +26,11 @@ async function start(page) {
 /** The question on screen is answered with `grade` and left by Next, as its exercise does when the answer is kept and Next is taken: the session hears both through its hooks. */
 const answer = (page, grade) => page.evaluate((g) => { const h = window.__t.daily.run.hooks; h.onChecked(g, {}); h.onNext({ skipped: false }); }, grade);
 const skip = (page) => page.evaluate(() => window.__t.skipPair());
+/** The stopwatch in the top bar, and the step the running clock is on (null when none runs). */
+const stopwatch = (page) => page.getByRole("switch", { name: /^Sprint/ });
+const clock = (page) => page.evaluate(() => (window.__t.ui && window.__t.ui.tq ? window.__t.ui.tq.key : null));
+/** On a phone the top bar steps aside while a field has the keyboard: the focus is let go before the top bar is used. */
+const calm = (page) => page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -47,7 +53,7 @@ test("the roadmap's stop starts a session; a question says where it stands; the 
   await expect(stop(page)).toHaveAccessibleName("Daily practice, 9 questions");
   await stop(page).click();
   await expect(roadmap(page)).toBeHidden();
-  // three threads of three questions; the first has no line, since nothing came before it
+  // three rounds of three questions; the first has no line, since nothing came before it
   expect(await now(page)).toMatchObject({ shown: true, ended: false, at: 0, n: 9, groups: [3, 3, 3], marks: ",,,,,,,," });
   await expect(row(page)).toHaveAccessibleName("Question 1 of 9 in this session");
   await expect(row(page).locator(".minis")).toHaveCount(3);
@@ -79,7 +85,7 @@ test("the roadmap's stop starts a session; a question says where it stands; the 
   await expect(row(page)).toHaveAccessibleName("Question 2 of 9 in this session");
 });
 
-test("answers color the row, one miss of each thread comes back, and the last station says how it went and offers one more thread", async ({ page }) => {
+test("answers color the row, one miss of each round comes back, and the last station says how it went and offers one more round", async ({ page }) => {
   await start(page);
   // up to the first syllogism every answer is right; the syllogism is answered on screen ("I accept" settles it at once), so its result is the exercise's own
   let s = await now(page);
@@ -98,11 +104,11 @@ test("answers color the row, one miss of each thread comes back, and the last st
   await station(page).click();
   await expect.poll(async () => (await now(page)).at).toBe(k + 1);
 
-  // the rest of the plan: the first two questions of the last thread are missed (as far as they are still to come), the others are right
+  // the rest of the plan: the first two questions of the last round are missed (as far as they are still to come), the others are right
   for (let i = k + 1; i < 9; i++) await answer(page, i === 6 ? "bad" : i === 7 ? "part" : "ok");
   s = await now(page);
   const marks = s.marks.split(",").slice(0, 9), missed = [0, 1, 2].filter((t) => marks.slice(t * 3, t * 3 + 3).some((m) => m === "bad" || m === "part")).length;
-  // one question comes back for each thread with a miss, however many it had, as a group of its own after the plan
+  // one question comes back for each round with a miss, however many it had, as a group of its own after the plan
   expect(missed).toBeGreaterThanOrEqual(k < 6 ? 1 : 0);
   expect(s).toMatchObject({ ended: missed === 0, n: 9 + missed });
   if (missed) {
@@ -115,7 +121,7 @@ test("answers color the row, one miss of each thread comes back, and the last st
     await page.evaluate(() => window.__t.daily.run.hooks.onNext({ skipped: false }));
   }
 
-  // the last station, in the place of the exercise: how many were right, each thread with its questions as they went, what the rest were
+  // the last station, in the place of the exercise: how many were right, each round with its questions as they went, what the rest were
   s = await now(page);
   const all = s.marks.split(","), right = all.filter((m) => m === "ok").length;
   expect(s).toMatchObject({ ended: true, shown: false, view: "daily", today: 1, n: 9 + missed });
@@ -132,10 +138,11 @@ test("answers color the row, one miss of each thread comes back, and the last st
   await page.keyboard.press("1"); await page.keyboard.press("n"); await page.keyboard.press("s");
   expect(await now(page)).toMatchObject({ ended: true, rel: under.rel, checked: under.checked, pair: under.pair });
 
-  // one more thread: three more questions, on with the count; the session is still one of the day's
-  await page.getByRole("button", { name: "One more thread" }).click();
+  // one more round: three more questions, on with the count, without a clock; the session is still one of the day's
+  await page.getByRole("button", { name: /^one more round$/i }).click();
   s = await now(page);
   expect(s).toMatchObject({ ended: false, shown: true, view: null, at: 9 + missed, n: 12 + missed });
+  expect(await clock(page)).toBeNull();
   await expect(row(page)).toHaveAccessibleName("Question " + (10 + missed) + " of " + (12 + missed) + " in this session");
   for (let i = 0; i < 3; i++) await answer(page, "ok");
   expect(await now(page)).toMatchObject({ ended: true, today: 1, n: 12 + missed });
@@ -174,4 +181,81 @@ test("the last station left by the top bar ends the session, and the exercise un
   await expect(page.locator("#path .sechead").first()).not.toContainText("Session done");
   await goTo(page, "Relations");
   await expect(relOptions(page)).toHaveCount(5);
+});
+
+test("a session has no clock where the exercises have Sprint on; the stopwatch and a Sprint round are the session's own", async ({ page }) => {
+  // Sprint on in every exercise, with times long enough that none runs out here; Relations then has its own switch, off
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); for (const k of ["rd-timer", "rd-timer-rel", "rd-timer-q", "rd-timer-syl", "rd-timer-cats", "rd-timer-cat"]) localStorage.setItem(k, "60000"); });
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => clock(page)).not.toBeNull();
+  await stopwatch(page).click();
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+
+  // no question of the session is asked against the clock, whatever its exercise
+  await start(page);
+  const seen = new Set();
+  for (let i = 0; i < 9; i++) {
+    const s = await now(page);
+    expect(s).toMatchObject({ shown: true, at: i });
+    seen.add(s.exercise);
+    await expect(stopwatch(page), "question " + (i + 1) + ", " + s.exercise).toHaveAttribute("aria-checked", "false");
+    expect(await clock(page), "question " + (i + 1) + ", " + s.exercise).toBeNull();
+    if (i === 2) {
+      // the stopwatch in a session is the session's: on, the question has its clock, and so has the one after it; off again, none has
+      await calm(page);
+      await stopwatch(page).click();
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+      await expect.poll(() => clock(page)).not.toBeNull();
+      await answer(page, "ok");
+      expect(await now(page)).toMatchObject({ shown: true, at: 3 });
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+      await expect.poll(() => clock(page)).not.toBeNull();
+      await calm(page);
+      await stopwatch(page).click();
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+      expect(await clock(page)).toBeNull();
+      // meanwhile the exercises have their own switches as they were: Relations off, Pervasions on, and the session goes on without a clock
+      await goTo(page, "Relations");
+      expect(await now(page)).toMatchObject({ tab: "practice", shown: false, on: true });
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+      await goTo(page, "Pervasions");
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+      await calm(page);
+      await start(page);
+      expect(await now(page)).toMatchObject({ shown: true, at: 3 });
+      await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+      expect(await clock(page)).toBeNull();
+      i = 3;
+    }
+    await answer(page, "ok");
+  }
+  expect(seen.size).toBeGreaterThan(2);
+
+  // everything right: the last station suggests the next round as a Sprint round, and offers one without the clock beside it
+  expect(await now(page)).toMatchObject({ ended: true, n: 9 });
+  await expect(page.locator("#path .tup-note").last()).toHaveText("Everything right. Up for a challenge? Sprint round, or one more round without the clock.");
+  await page.getByRole("button", { name: "Sprint round" }).click();
+  expect(await now(page)).toMatchObject({ ended: false, shown: true, at: 9, n: 12 });
+  for (let i = 9; i < 12; i++) {
+    await expect(stopwatch(page), "question " + (i + 1)).toHaveAttribute("aria-checked", "true");
+    await expect.poll(() => clock(page), { message: "question " + (i + 1) }).not.toBeNull();
+    if (i === 10) await skip(page); else await answer(page, "ok");
+  }
+  // not everything was right this time (one was skipped): the last station offers the round without the clock first
+  expect(await now(page)).toMatchObject({ ended: true, n: 12 });
+  await expect(page.locator("#path .tup-note").last()).toHaveText("Want more today? One more round, or a Sprint round against the clock.");
+  await page.getByRole("button", { name: "One more round" }).click();
+  expect(await now(page)).toMatchObject({ ended: false, shown: true, at: 12, n: 15 });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  expect(await clock(page)).toBeNull();
+
+  // the exercises still have their own switches
+  await calm(page);
+  await goTo(page, "Relations");
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  await goTo(page, "Syllogisms");
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  expect(JSON.parse(await page.evaluate(() => localStorage.getItem("rd-per-ex")))).toEqual({ practice: { blitz: false } });
 });

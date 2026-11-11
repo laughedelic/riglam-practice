@@ -7,6 +7,8 @@
 //   - Next from its result, and Skip, draw nothing: they ask the one who gave it (`onNext`), which opens the question after it or closes. With nothing said,
 //     the exercise's own attempt comes back.
 //   - When its answer is kept (checked, and again when what Claude says changes it), the one who gave it is told the grade (`onChecked`).
+//   - Its clock can be the giver's (`sprint`): Sprint is then on or off for it as the giver says, whatever its exercise's own switch is, and the stopwatch
+//     switched while it is on screen is the giver's to keep (`givenSprint`, `sprintGiven`).
 //
 // Going to an exercise by any other way (the roadmap, Review's "again") sets the given question aside as it is, and `resumeGiven` puts it back; a cold start
 // forgets it (shell/keep.ts keeps no attempt while one is on screen). One given question at a time: opening another leaves the one before.
@@ -20,6 +22,7 @@ import { freshSyllogismUi } from "../syllogism/flow.js";
 import { render, top0 } from "../shell/render.js";
 import { begun, goTo } from "../shell/tabs.js";
 import { pauseClock, stopTimer } from "../shell/timers.js";
+import { ownSprint } from "./per-exercise.ts";
 import { freshUi } from "./queue.js";
 import { openNow, unmetNow } from "./stops.ts";
 import type { Example } from "../../ai-shared/examples.ts";
@@ -45,6 +48,13 @@ export interface GivenHooks {
   next?: string;
   /** a line of the giver's own to show with the question (where it stands in a task or a run): kept here for the screen that draws it (`givenLine`) */
   line?: string;
+  /**
+   * Sprint for the question, whatever its exercise's own switch says (practice/per-exercise.ts): true asks it against the clock, false without one. Read
+   * each time the page is drawn. Left out, the exercise's own switch holds.
+   */
+  sprint?: boolean;
+  /** with `sprint`: the stopwatch was switched while the question was on screen. The giver keeps the new value; the exercise's own switch is not touched. */
+  onSprint?: (on: boolean) => void;
 }
 
 /** The given question the page holds: on screen in its exercise (`on`), or set aside. */
@@ -163,6 +173,23 @@ export function givenKept(u: Ui | null): void {
   if (!g || !u || g.ui !== u || !u.doc || !g.hooks.onChecked) return;
   const doc = u.doc as unknown as Record<string, unknown>;
   g.hooks.onChecked(String(doc.grade ?? ""), doc);
+}
+/**
+ * The clock of a given question is its giver's where the giver says so (`sprint`). Runs before the page is drawn and its clock made to fit (shell/render.js):
+ * while such a question is on screen Sprint is as the giver says, and once it no longer is (left, set aside, something took its place), the switch of the
+ * exercise under the screen is back.
+ */
+export function givenSprint(): void {
+  const g = live(), on = g ? g.hooks.sprint : undefined;
+  if (on !== undefined) { state.givenSprint = true; state.blitz = on; }
+  else if (state.givenSprint) { state.givenSprint = false; state.blitz = ownSprint(state.own); }
+}
+/** The stopwatch was switched (shell/timers.js). Whether the clock of the question on screen is its giver's, who is told then; when not, the switch is the exercise's own. */
+export function sprintGiven(on: boolean): boolean {
+  const g = live();
+  if (!g || g.hooks.sprint === undefined) return false;
+  if (g.hooks.onSprint) g.hooks.onSprint(on);
+  return true;
 }
 /** The giver's line for the given question on screen, or null: none was given, or the question on screen is the exercise's own. */
 export function givenLine(): string | null {

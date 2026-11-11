@@ -1,13 +1,13 @@
 // A session of mixed practice: a short run of questions that moves between the exercises by itself, planned ahead, and whose questions hang
-// together in threads. A pair thread walks one pair of categories from one example (Categories on a thing with both among the rows, or Find an
+// together in rounds. A pair round walks one pair of categories from one example (Categories on a thing with both among the rows, or Find an
 // instance for the two) to the two terms (Relations or Pervasions) to a reason (a syllogism with one of them as the reason for the other). A
-// term thread meets one course term from several sides, each time beside another partner. A question that was missed comes back before the
+// term round meets one course term from several sides, each time beside another partner. A question that was missed comes back before the
 // session ends, as another exercise on the same terms (`comeBacks`).
 //
 // A plan holds no questions, only what each is about, written down as given.ts takes it (`Given`): the page makes the question when its turn
 // comes, by the exercise's own rules, so it is shown and graded like any other. The planner makes each once, to know that the data can make it
 // for this learner (the stages, the terms met), and reads from a syllogism which reply is right, so that the three replies come about as often.
-// Each step after the first of a thread has a line that says what it carries over from the step before (`tie`): what is the same, never the
+// Each step after the first of a round has a line that says what it carries over from the step before (`tie`): what is the same, never the
 // answer. Pure functions of the data and of a random source, like the draws: the same data and the same random numbers give the same plan.
 import type { Item } from "../ai-shared/data";
 import type { DataIndex } from "../ai-shared/lookup";
@@ -28,48 +28,48 @@ import { cap, pick } from "./util";
 export interface SessionStep {
   /** what the question is about, as given.ts makes it when its turn comes */
   given: Given;
-  /** the categories it turns on (ids): what the thread carries, and what a miss brings back */
+  /** the categories it turns on (ids): what the round carries, and what a miss brings back */
   cats: string[];
-  /** what it carries over from the step before, as the learner reads it; "" for the first step of a thread */
+  /** what it carries over from the step before, as the learner reads it; "" for the first step of a round */
   tie: string;
   /** it came back after a miss */
   again?: true;
 }
 
 /** A few questions of different exercises about the same thing: a pair of categories, or one course term. */
-export interface SessionThread {
+export interface SessionRound {
   kind: "pair" | "term";
-  /** the two categories of a pair thread, the category of a term thread */
+  /** the two categories of a pair round, the category of a term round */
   cats: string[];
   steps: SessionStep[];
 }
 
 export interface SessionPlan {
-  threads: SessionThread[];
+  rounds: SessionRound[];
 }
 
 /** What a plan is made for. */
 export interface SessionOptions {
   /** the learner's stages: every question is one a learner at them is asked */
   stages: Stages;
-  /** the learner's terms (intro.ts): a category in `unmet` is in no question, and a term thread is about one of the `open` terms first */
+  /** the learner's terms (intro.ts): a category in `unmet` is in no question, and a term round is about one of the `open` terms first */
   words?: PairWords;
   rng?: Rng;
   /** the pair pool (`buildPool`), where the caller keeps one; made once per data otherwise */
   pool?: readonly PoolEntry[];
-  /** how many threads (default `SESSION_THREADS`) */
-  threads?: number;
+  /** how many rounds (default `SESSION_ROUNDS`) */
+  rounds?: number;
   /** categories to pass over while others remain: those of the sessions before, so that the next one is about something else */
   avoid?: ReadonlySet<string>;
 }
 
-/** The threads of a session: with three steps each, nine questions. */
-export const SESSION_THREADS = 3;
-/** The steps of the term thread a session opens with (a thing, a thing the learner names, a reason). */
+/** The rounds of a session: with three steps each, nine questions. */
+export const SESSION_ROUNDS = 3;
+/** The steps of the term round a session opens with (a thing, a thing the learner names, a reason). */
 export const TERM_STEPS = 3;
 
 /** The questions of a session where nothing is missed. */
-export const SESSION_QUESTIONS = SESSION_THREADS * 3;
+export const SESSION_QUESTIONS = SESSION_ROUNDS * 3;
 
 /** Whether a step with this grade (of its kept answer: ok, part, bad, pend) was missed, so that it comes back: as Review counts a miss (util.ts, isMiss). */
 export const sessionMiss = (grade: string | null | undefined): boolean => grade === "bad" || grade === "part";
@@ -83,8 +83,8 @@ export function sessionTally(grades: readonly (string | null | undefined)[]): Se
   return t;
 }
 
-/** What a thread is about, as the learner reads it: its term, or its two terms ("Color · Shape"). */
-export function threadName(ix: DataIndex, t: Pick<SessionThread, "cats">): string {
+/** What a round is about, as the learner reads it: its term, or its two terms ("Color · Shape"). */
+export function roundName(ix: DataIndex, t: Pick<SessionRound, "cats">): string {
   return t.cats.map((id) => { const c = ix.CAT[id]; return cap(c ? c.term || c.labels[0] : id); }).join(" · ");
 }
 
@@ -97,7 +97,7 @@ interface Ctx {
   rng: Rng;
   /** what every question of the plan is made with */
   given: GivenOptions;
-  /** the pairs a thread can be about: those drawn at the stages, without the terms not met */
+  /** the pairs a round can be about: those drawn at the stages, without the terms not met */
   pairs: readonly StagedEntry[];
   /** how often each reply to a syllogism is the right one in the plan so far */
   said: Record<Reply, number>;
@@ -169,7 +169,7 @@ function reasonStep(c: Ctx, a: string, b: string, tie: (subject: string) => stri
   return step({ exercise: "syllogism", subject: hit.subject, reason: hit.reason, predicate: hit.predicate }, [hit.reason, hit.predicate], tie(hit.subject));
 }
 
-// ---- a thread on one pair: an example, the two terms, a reason ----
+// ---- a round on one pair: an example, the two terms, a reason ----
 
 /** The cases of a pair whose things tell the most about its relation: Categories asks about one of them. */
 const TELLING: Record<RelKey, readonly CellId[]> = { "3ab": ["bna", "both"], "3ba": ["anb", "both"], "4": ["anb", "bna", "both"], con: ["anb", "bna"], mi: ["both"] };
@@ -180,8 +180,8 @@ function telling(c: Ctx, a: string, b: string): Item[] {
   return shuffle(TELLING[relOfCells(cells)].flatMap((k) => shuffle(things(c, cells[k], a, b), c.rng).slice(0, 6)), c.rng);
 }
 
-/** How a pair thread is walked; what is left out is drawn. */
-export interface PairThreadOptions {
+/** How a pair round is walked; what is left out is drawn. */
+export interface PairRoundOptions {
   /** the exercise of the one example */
   first?: "categories" | "instance";
   /** the exercise of the two terms */
@@ -190,7 +190,7 @@ export interface PairThreadOptions {
   find?: boolean;
 }
 
-function pairThreadOf(c: Ctx, a: string, b: string, o: PairThreadOptions = {}): SessionThread | null {
+function pairRoundOf(c: Ctx, a: string, b: string, o: PairRoundOptions = {}): SessionRound | null {
   if (a === b || !c.ix.CAT[a] || !c.ix.CAT[b]) return null;
   const rel = relOfCells(cellsFor(c.ix, a, b));
   // 1 one example: a telling thing judged by categories with both terms among them, or something that is both, named
@@ -211,16 +211,16 @@ function pairThreadOf(c: Ctx, a: string, b: string, o: PairThreadOptions = {}): 
 }
 
 /**
- * A thread on one pair of categories: one example, the two terms, a reason (and with `find`, a pair of the learner's own). Null when the data
+ * A round on one pair of categories: one example, the two terms, a reason (and with `find`, a pair of the learner's own). Null when the data
  * cannot make all three for the learner: a category it lacks or the learner has not met, a pair it does not judge, no syllogism it can settle.
  */
-export function pairThread(ix: DataIndex, a: string, b: string, o: SessionOptions & PairThreadOptions): SessionThread | null {
-  return pairThreadOf(context(ix, o), a, b, o);
+export function pairRound(ix: DataIndex, a: string, b: string, o: SessionOptions & PairRoundOptions): SessionRound | null {
+  return pairRoundOf(context(ix, o), a, b, o);
 }
 
-// ---- a thread on one term: the same term from several sides, each time beside another partner ----
+// ---- a round on one term: the same term from several sides, each time beside another partner ----
 
-function termThreadOf(c: Ctx, id: string, max: number): SessionThread | null {
+function termRoundOf(c: Ctx, id: string, max: number): SessionRound | null {
   const cat = c.ix.CAT[id];
   if (!cat || c.given.words?.unmet?.has(id)) return null;
   const name = cap(cat.term || cat.labels[0]), steps: SessionStep[] = [];
@@ -252,20 +252,20 @@ function termThreadOf(c: Ctx, id: string, max: number): SessionThread | null {
     const five = p && reasonStep(c, id, p.other, () => name + " again, now in a reason.");
     if (five) { steps.push(five); break; }
   }
-  // a short thread keeps its ends: a thing first, a reason last
+  // a short round keeps its ends: a thing first, a reason last
   const kept = steps.length > max ? [...steps.slice(0, max - 1), steps[steps.length - 1]] : steps;
   return kept.length >= 3 ? { kind: "term", cats: [id], steps: kept } : null;
 }
 
 /**
- * A thread on one course term, at most `steps` questions (default 5): a thing that is one, a thing the learner names, the term beside a wider or
+ * A round on one course term, at most `steps` questions (default 5): a thing that is one, a thing the learner names, the term beside a wider or
  * narrower one, beside one it shuts out, and in a reason. Null when the data makes fewer than three of them for the learner.
  */
-export function termThread(ix: DataIndex, id: string, o: SessionOptions & { steps?: number }): SessionThread | null {
-  return termThreadOf(context(ix, o), id, o.steps ?? 5);
+export function termRound(ix: DataIndex, id: string, o: SessionOptions & { steps?: number }): SessionRound | null {
+  return termRoundOf(context(ix, o), id, o.steps ?? 5);
 }
 
-/** The course terms a term thread can be about, in the order to try them: the open ones (met, the last answer not right yet), then those of the highest stage, then the others; those to avoid last. */
+/** The course terms a term round can be about, in the order to try them: the open ones (met, the last answer not right yet), then those of the highest stage, then the others; those to avoid last. */
 function termOrder(c: Ctx, avoid?: ReadonlySet<string>): string[] {
   const top = topStage(c.on), unmet = c.given.words?.unmet, open = c.given.words?.open?.size ? termCats(c.given.words.open) : null;
   const ids = shuffle(Object.values(c.ix.CAT).filter((x) => x.kind === "dudra" && !!x.term && c.on.includes(catStage(x)) && !unmet?.has(x.id)).map((x) => x.id), c.rng);
@@ -276,7 +276,7 @@ function termOrder(c: Ctx, avoid?: ReadonlySet<string>): string[] {
 // ---- the session ----
 
 /**
- * A pair for a thread: none of the categories the plan has (`seen`), those to `avoid` and the relations it has (`rels`) only when nothing else is
+ * A pair for a round: none of the categories the plan has (`seen`), those to `avoid` and the relations it has (`rels`) only when nothing else is
  * left. A pair new at the highest stage half the time, then a relation, each as likely, then a pair, one with a course term most of the time.
  */
 function drawPair(c: Ctx, seen: ReadonlySet<string>, failed: ReadonlySet<StagedEntry>, rels: ReadonlySet<PoolRel>, avoid?: ReadonlySet<string>): StagedEntry | null {
@@ -290,29 +290,29 @@ function drawPair(c: Ctx, seen: ReadonlySet<string>, failed: ReadonlySet<StagedE
   return pick(course.length && c.rng() < 0.7 ? course : ofRel, c.rng);
 }
 
-/** How many pairs are tried for the threads of a plan before it is left shorter. */
+/** How many pairs are tried for the rounds of a plan before it is left shorter. */
 const PAIR_TRIES = 200;
 
 /**
- * The plan of a session: a short term thread first, where the learner has met a course term it can be about (an open one before the others),
- * then pair threads, each about other categories and, while the data has them, another relation; the example and the two terms of the pairs
- * come by turns from the two exercises that can ask them. Fewer threads than asked for, or none, when the data has no more for the learner.
+ * The plan of a session: a short term round first, where the learner has met a course term it can be about (an open one before the others),
+ * then pair rounds, each about other categories and, while the data has them, another relation; the example and the two terms of the pairs
+ * come by turns from the two exercises that can ask them. Fewer rounds than asked for, or none, when the data has no more for the learner.
  */
 export function planSession(ix: DataIndex, o: SessionOptions): SessionPlan {
-  const c = context(ix, o), n = Math.max(0, o.threads ?? SESSION_THREADS), threads: SessionThread[] = [], seen = new Set<string>();
-  const add = (t: SessionThread) => { threads.push(t); for (const s of t.steps) for (const x of s.cats) seen.add(x); };
+  const c = context(ix, o), n = Math.max(0, o.rounds ?? SESSION_ROUNDS), rounds: SessionRound[] = [], seen = new Set<string>();
+  const add = (t: SessionRound) => { rounds.push(t); for (const s of t.steps) for (const x of s.cats) seen.add(x); };
   if (n > 1) for (const id of termOrder(c, o.avoid)) {
-    const t = termThreadOf(c, id, TERM_STEPS);
+    const t = termRoundOf(c, id, TERM_STEPS);
     if (t) { add(t); break; }
   }
   const failed = new Set<StagedEntry>(), rels = new Set<PoolRel>();
-  for (let tries = 0, pairs = 0; tries < PAIR_TRIES && threads.length < n; tries++) {
+  for (let tries = 0, pairs = 0; tries < PAIR_TRIES && rounds.length < n; tries++) {
     const e = drawPair(c, seen, failed, rels, o.avoid);
     if (!e) break;
-    const t = pairThreadOf(c, e.a, e.b, pairs % 2 ? { first: "instance", two: "debate" } : { first: "categories", two: "practice" });
+    const t = pairRoundOf(c, e.a, e.b, pairs % 2 ? { first: "instance", two: "debate" } : { first: "categories", two: "practice" });
     if (t) { add(t); rels.add(e.r); pairs++; } else failed.add(e);
   }
-  return { threads };
+  return { rounds };
 }
 
 // ---- a miss comes back from another side ----
@@ -358,13 +358,13 @@ function comeBack(c: Ctx, missed: SessionStep, asked: ReadonlySet<string>): Sess
 
 /**
  * The steps that come back at the end of a session for the ones that were missed (`missed`: their step keys), in the order of the plan: each as
- * another exercise on the same categories, and none a question the session has had or another miss has brought back. One for each thread, for
- * its first miss that the data has something more for, so that a session stays about as long as it was planned however it went: three threads of
+ * another exercise on the same categories, and none a question the session has had or another miss has brought back. One for each round, for
+ * its first miss that the data has something more for, so that a session stays about as long as it was planned however it went: three rounds of
  * three are nine to twelve questions.
  */
 export function comeBacks(ix: DataIndex, plan: SessionPlan, missed: ReadonlySet<string>, o: SessionOptions): SessionStep[] {
-  const c = context(ix, o), asked = new Set(plan.threads.flatMap((t) => t.steps.map(stepKey))), out: SessionStep[] = [];
-  for (const t of plan.threads) for (const s of t.steps) {
+  const c = context(ix, o), asked = new Set(plan.rounds.flatMap((t) => t.steps.map(stepKey))), out: SessionStep[] = [];
+  for (const t of plan.rounds) for (const s of t.steps) {
     if (!missed.has(stepKey(s))) continue;
     const back = comeBack(c, s, asked);
     if (back) { out.push(back); asked.add(stepKey(back)); break; }

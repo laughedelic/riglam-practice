@@ -1,8 +1,12 @@
-// Daily practice: a session of mixed practice in the app. The plan is made by src/domain/session.ts (threads of questions that hang together); this
+// Daily practice: a session of mixed practice in the app. The plan is made by src/domain/session.ts (rounds of questions that hang together); this
 // runs it. Each step is a given question (practice/given.ts): it is shown in its own exercise, which asks, checks and keeps it like any other, and
 // Next goes on to the step after it, whatever exercise that is in. When the plan's last step is left, the steps that were missed come back, each as
 // another exercise on the same terms, and after the last of those the session's last station is in front (path/daily.tsx): how it went, and one more
-// thread for the days that want more. From there the roadmap is back, with the stop saying that a session was done today.
+// round for the days that want more. From there the roadmap is back, with the stop saying that a session was done today.
+//
+// A session has no clock by itself: Sprint is off for its questions, whatever the switch of each exercise says (an exercise with Sprint on would put a clock
+// on a question here and there). The clock is the learner's choice: the last station offers the round that is added as a Sprint round, and the stopwatch in
+// the top bar switches Sprint for the questions that follow, up to the last station. Neither touches an exercise's own switch (practice/given.ts, `sprint`).
 //
 // A session under way waits when the learner goes elsewhere (the roadmap, an exercise, Review): its stop on the roadmap says "continue" and puts its
 // question back as it was left. It is kept in memory only: a cold start forgets it. What the device keeps (`rd-daily`) is the day of the last
@@ -21,7 +25,7 @@ import type { GivenHooks } from "./given.ts";
 import { openNow, unmetNow } from "./stops.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { givenQuestion } from "../../domain/given.ts";
-import { SESSION_QUESTIONS, comeBacks, planSession, sessionMiss, stepKey, threadName } from "../../domain/session.ts";
+import { SESSION_QUESTIONS, comeBacks, planSession, sessionMiss, stepKey, roundName } from "../../domain/session.ts";
 import type { SessionOptions, SessionPlan, SessionStep } from "../../domain/session.ts";
 
 /** The name of the mode, on the roadmap and wherever it is said. */
@@ -37,31 +41,33 @@ const KEY = "rd-daily";
 /** How a step went: "" not answered (yet), the grade of its kept answer (ok, part, bad, pend), or "skip". */
 export type DailyMark = "" | "ok" | "part" | "bad" | "pend" | "skip";
 
-/** The steps that are asked one after another as a group: a thread of the plan, or what came back. */
+/** The steps that are asked one after another as a group: a round of the plan, or what came back. */
 export interface DailyGroup {
   /** how many steps it has */
   n: number;
-  /** what it is about, as the learner reads it: the thread's term or terms, or `DAILY_BACK` */
+  /** what it is about, as the learner reads it: the round's term or terms, or `DAILY_BACK` */
   name: string;
 }
 /** A session under way. */
 export interface DailyRun {
   plan: SessionPlan;
-  /** the steps in the order they are asked: the plan's, then the ones that came back (and the same again for each thread added at the last station) */
+  /** the steps in the order they are asked: the plan's, then the ones that came back (and the same again for each round added at the last station) */
   steps: SessionStep[];
   /** the groups the steps fall into, in order */
   groups: DailyGroup[];
   marks: DailyMark[];
   /** the step on screen, or the one to go on with */
   at: number;
-  /** the first step of the part under way: the plan's first, or the first of a thread added at the last station */
+  /** the first step of the part under way: the plan's first, or the first of a round added at the last station */
   from: number;
   /** the misses of the part under way have been brought back: nothing more is added to it */
   back: boolean;
   /** the last step has been left: the last station is in front, until it is left */
   end: boolean;
-  /** the session is counted among the day's: once, however many threads are added to it */
+  /** the session is counted among the day's: once, however many rounds are added to it */
   counted: boolean;
+  /** Sprint for the questions of the part under way: a Sprint round from the last station, or the stopwatch switched on one of its questions */
+  sprint: boolean;
   /** what the step on screen (or set aside) was opened with: tells the session's question from another given one */
   hooks: GivenHooks | null;
 }
@@ -98,7 +104,7 @@ export const dailyToday = (): number => { const d = done(); return d.day === tod
 
 /** What the plan and the steps that come back are made for: the learner's stages and terms, and the categories of the session before to pass over. */
 const options = (): SessionOptions => ({ stages: state.stages, words: { unmet: unmetNow(), open: openNow() }, pool: state.POOL ?? undefined, avoid: new Set(done().cats) });
-const groupsOf = (plan: SessionPlan): DailyGroup[] => plan.threads.map((t) => ({ n: t.steps.length, name: threadName(ix(), t) }));
+const groupsOf = (plan: SessionPlan): DailyGroup[] => plan.rounds.map((t) => ({ n: t.steps.length, name: roundName(ix(), t) }));
 
 /**
  * Whether the session's last station is in front. Once anything else is (the roadmap, by the top bar or by Back), the session is over: it is forgotten here,
@@ -133,6 +139,8 @@ function open(k: number): boolean {
     const hooks: GivenHooks = {
       line: st.tie,
       get next() { return last(s, i) ? "Finish" : undefined; },
+      get sprint() { return s.sprint; },
+      onSprint: (on) => { s.sprint = on; },
       // (the answer is kept after its result is drawn, and again when Claude's check changes it: the row on the result is drawn again with it)
       onChecked: (grade) => { if (MARKS.includes(grade) && s.marks[i] !== grade) { s.marks[i] = grade as DailyMark; if (dailyShown()) render(); } },
       onNext: ({ skipped }) => { if (skipped && !s.marks[i]) s.marks[i] = "skip"; go(i + 1); },
@@ -152,9 +160,9 @@ function go(k: number): void {
   if (k >= s.steps.length && !s.back) {
     s.back = true;
     const missed = new Set(s.steps.filter((x, i) => i >= s.from && !x.again && sessionMiss(s.marks[i])).map(stepKey));
-    // what came back before is asked already: it stands with the plan as a thread of its own, so that nothing comes back as the same question twice
+    // what came back before is asked already: it stands with the plan as a round of its own, so that nothing comes back as the same question twice
     const before = s.steps.filter((x) => x.again);
-    const plan: SessionPlan = before.length ? { threads: [...s.plan.threads, { kind: "pair", cats: [], steps: before }] } : s.plan;
+    const plan: SessionPlan = before.length ? { rounds: [...s.plan.rounds, { kind: "pair", cats: [], steps: before }] } : s.plan;
     const back = missed.size ? comeBacks(ix(), plan, missed, options()) : [];
     if (back.length) { s.steps.push(...back); s.marks.push(...back.map((): DailyMark => "")); s.groups.push({ n: back.length, name: DAILY_BACK }); }
   }
@@ -164,7 +172,7 @@ function go(k: number): void {
 function end(): void {
   const s = state.daily; if (!s) return;
   if (s.hooks && state.given && state.given.hooks === s.hooks) closeGiven();
-  const d: DailyDone = { day: today(), n: dailyToday() + (s.counted ? 0 : 1), cats: [...new Set(s.plan.threads.flatMap((t) => t.steps.flatMap((x) => x.cats)))] };
+  const d: DailyDone = { day: today(), n: dailyToday() + (s.counted ? 0 : 1), cats: [...new Set(s.plan.rounds.flatMap((t) => t.steps.flatMap((x) => x.cats)))] };
   state.dailyDone = d;
   try { localStorage.setItem(KEY, JSON.stringify(d)); } catch { /* not kept: the next session may meet the same categories */ }
   s.counted = true; s.end = true; s.hooks = null;
@@ -178,17 +186,18 @@ export function leaveDaily(): void {
   toggleMenu(true);
 }
 /**
- * From the last station: one more thread, on terms the session has not had while there are others. What is missed in it comes back after it, and the last
- * station again. Whether its first question is on screen: not when the data has no thread left to make for the learner.
+ * From the last station: one more round, on terms the session has not had while there are others, against the clock when it is taken as a Sprint round
+ * (`sprint`). What is missed in it comes back after it, and the last station again. Whether its first question is on screen: not when the data has no round
+ * left to make for the learner.
  */
-export function moreDaily(): boolean {
+export function moreDaily(sprint = false): boolean {
   const s = state.daily; if (!s || !s.end) return false;
-  const more = planSession(ix(), { ...options(), threads: 1, avoid: new Set(s.steps.flatMap((x) => x.cats)) }), steps = more.threads.flatMap((t) => t.steps);
+  const more = planSession(ix(), { ...options(), rounds: 1, avoid: new Set(s.steps.flatMap((x) => x.cats)) }), steps = more.rounds.flatMap((t) => t.steps);
   if (!steps.length) return false;
   const from = s.steps.length;
-  s.plan = { threads: [...s.plan.threads, ...more.threads] };
+  s.plan = { rounds: [...s.plan.rounds, ...more.rounds] };
   s.steps.push(...steps); s.marks.push(...steps.map((): DailyMark => "")); s.groups.push(...groupsOf(more));
-  s.from = from; s.back = false; s.end = false;
+  s.from = from; s.back = false; s.end = false; s.sprint = sprint;
   state.view = null;
   if (open(from)) return true;
   end();
@@ -210,9 +219,9 @@ export function startDaily(): boolean {
     if (!open(s.at)) end();
     return true;
   }
-  const plan = planSession(ix(), options()), steps = plan.threads.flatMap((t) => t.steps);
+  const plan = planSession(ix(), options()), steps = plan.rounds.flatMap((t) => t.steps);
   if (!steps.length) return false;
-  state.daily = { plan, steps, groups: groupsOf(plan), marks: steps.map((): DailyMark => ""), at: 0, from: 0, back: false, end: false, counted: false, hooks: null };
+  state.daily = { plan, steps, groups: groupsOf(plan), marks: steps.map((): DailyMark => ""), at: 0, from: 0, back: false, end: false, counted: false, sprint: false, hooks: null };
   if (open(0)) return true;
   state.daily = null; render();
   return false;

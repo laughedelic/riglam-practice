@@ -1,14 +1,15 @@
 // Daily practice on the Path (practice/daily.ts runs the session). Two things are drawn here.
 //
 // What a question of a session has at the top of its thread, in the first section and above its heading: a small walked stop on the line holds the
-// session's questions as small diamonds, a group for each thread and one for what came back, colored as they went, the one being asked in gold; under
+// session's questions as small diamonds, a group for each round and one for what came back, colored as they went, the one being asked in gold; under
 // them the line that says what this question carries over from the one before. Its result has the same row without that line, the question's own
 // diamond in the color of its answer. The exercise below it and the top bar are as they always are. A question that is not a session's has the gap
 // every first section starts with.
 //
 // And the session's last station, after its last question: a screen of its own, drawn like the station of a new stage (paper and ink, not a question's
-// gold). It says how it went (how many were right, then each thread by what it was about with its questions as they went, and what came back), and
-// offers one more thread. Its station at the foot goes back to the roadmap, as the top bar does.
+// gold). It says how it went (how many were right, then each round by what it was about with its questions as they went, and what came back), and
+// offers one more round, at the learner's own pace or as a Sprint round, against the clock: the Sprint round first, as a challenge, when every question was
+// right. Its station at the foot goes back to the roadmap, as the top bar does.
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { DAILY_NAME, dailyRun, dailyShown, leaveDaily, moreDaily } from "../practice/daily.ts";
@@ -60,7 +61,7 @@ function restOf(t: SessionTally): string {
   return (parts.length ? parts.join(", ") + " and " + last : last) + ".";
 }
 
-/** The last station: how the session went, and one more thread. */
+/** The last station: how the session went, and one more round. */
 function DailyEnd({ s }: { s: DailyRun }) {
   // the station at the foot has the focus, as after a check, so that Enter goes on (quiet: the app moved it there, so no ring is drawn on it until a Tab)
   useEffect(() => {
@@ -68,19 +69,22 @@ function DailyEnd({ s }: { s: DailyRun }) {
     st.dataset.quiet = "1"; st.addEventListener("blur", () => { delete st.dataset.quiet; }, { once: true }); st.focus({ preventScroll: true });
   }, []);
   const t = sessionTally(s.marks), rest = restOf(t);
-  const more = () => { if (!moreDaily()) pathNote("Nothing more to practice for now"); };
+  const more = (sprint: boolean) => () => { if (!moreDaily(sprint)) pathNote("Nothing more to practice for now"); };
+  const round = (name: string, sprint: boolean) => <button type="button" class="plnk" onClick={more(sprint)}>{name}</button>;
   return <>
     <TopBar title={DAILY_NAME} back={{ label: "Back to the roadmap", go: leaveDaily }} />
     <Scroll>
       <Sx cls="cur first tstop dend"><Gap h={14} /><Head d={<D cls="sec tsd" mark="check" />} h="Session done" sub={t.n + (t.n === 1 ? " question" : " questions")} /><Gap h={4} />
         <St d={<D cls="sub done" />} cls="stm thing"><FitTerm text={t.right + " of " + t.n + " right"} whole /></St>
         <div class="wtext tup">
-          <ul class="dlyg" aria-label="How each thread went">
+          <ul class="dlyg" aria-label="How each round went">
             {byGroup(s).map((g) => <li><span class="dlygn">{g.name}</span>
               <span role="img" aria-label={g.marks.map((m) => SAID[m]).join(", ")}><Minis list={g.marks.map((m) => MINI[m])} /></span></li>)}
           </ul>
           {rest ? <p class="tup-note">{rest}</p> : null}
-          <p class="tup-note">Want more today? <span class="nw"><button type="button" class="plnk" onClick={more}>One more thread</button>.</span></p>
+          {t.right === t.n
+            ? <p class="tup-note">Everything right. Up for a challenge? <span class="nw">{round("Sprint round", true)},</span> or <span class="nw">{round("one more round", false)}</span> without the clock.</p>
+            : <p class="tup-note">Want more today? <span class="nw">{round("One more round", false)},</span> or a <span class="nw">{round("Sprint round", true)}</span> against the clock.</p>}
         </div>
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />

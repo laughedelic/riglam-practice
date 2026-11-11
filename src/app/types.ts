@@ -502,6 +502,8 @@ export interface State {
   carry: { offer: Ui["offer"]; guideDown: Ui["guideDown"] } | null;
   /** a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts) */
   given: GivenState | null;
+  /** Sprint (`blitz`) is as the giver of the question on screen says, not as its exercise's own switch (practice/given.ts) */
+  givenSprint: boolean;
   /** a session of daily practice under way (practice/daily.ts) */
   daily: DailyRun | null;
   /** what the device keeps of the sessions done (`rd-daily`), once it was read */
