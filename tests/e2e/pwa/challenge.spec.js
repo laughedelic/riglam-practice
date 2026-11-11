@@ -414,10 +414,10 @@ test("questions about what the data does not have bring their answers: the app c
   await expect(title(page)).toHaveText("Pervasions");
   await expect(mark(page)).toHaveText("2 of 3");
   expect(await now(page)).toMatchObject({ tab: "debate", shown: true, at: 1, pair: "birds | things that fly" });
-  const said = (await page.locator("#path .sb.now").innerText()).replace(/\s+/g, " ");
-  expect(said).toContain("a bird");
-  expect(said).toContain("something that flies");
-  expect(said).not.toMatch(/is (not )?(birds|things that fly)/);
+  const said = page.locator("#path .sb.now");
+  await expect(said).toContainText("a bird");
+  await expect(said).toContainText("something that flies");
+  await expect(said).not.toContainText(/is (not )?(birds|things that fly)/);
   // Why? to each of the four, with an example: the answers give four possibilities, which is the relation it brought
   for (const thing of ["a sparrow", "a penguin", "a bat", "a stone"]) {
     await page.locator("#path .chs .crow").filter({ hasText: "Why?" }).first().click();
