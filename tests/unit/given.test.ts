@@ -133,7 +133,7 @@ test("givenPair: every pair the draw can make at a learner's stages can be given
   let outside = 0;
   for (const a of ids) for (const b of ids) if (!keys.has(a + "|" + b) && !keys.has(b + "|" + a)) { outside++; expect(givenPair(real, a, b, { rng: seeded(1) }), a + " | " + b).toBeNull(); }
   expect(outside).toBeGreaterThan(0);
-});
+}, 15_000); // every pair of the open data at three sets of stages, and every two categories outside it: a few seconds on a busy machine
 
 // ---- Find a pair ----
 
@@ -180,7 +180,7 @@ test("givenSyllogism: every syllogism the drill draws can be given again, with t
       expect(g).toMatchObject({ id: c.id, answer: c.answer, situation: c.situation });
     }
   }
-});
+}, 15_000); // 120 draws on the open data, each made again: a few seconds on a busy machine
 
 // ---- Categories ----
 
