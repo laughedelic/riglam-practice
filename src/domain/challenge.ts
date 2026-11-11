@@ -47,8 +47,9 @@ function givenOf(raw: unknown): Given | null {
       if (!str(raw.a) || !str(raw.b)) return null;
       const l = raw.labels;
       if (l !== undefined && !(Array.isArray(l) && l.length <= 2 && l.every(label))) return null;
-      if (raw.neg !== undefined && !isNeg(raw.neg)) return null;
-      return { exercise: raw.exercise, a: raw.a, b: raw.b, ...(l ? { labels: [l[0] ?? null, l[1] ?? null] as const } : {}), ...(raw.neg ? { neg: raw.neg } : {}) };
+      const neg = raw.neg === undefined ? undefined : isNeg(raw.neg) ? raw.neg : null;
+      if (neg === null) return null;
+      return { exercise: raw.exercise, a: raw.a, b: raw.b, ...(l ? { labels: [l[0] ?? null, l[1] ?? null] as const } : {}), ...(neg ? { neg } : {}) };
     }
     case "find": {
       const relation = FIND_RELS.find((r) => r === raw.relation);
@@ -57,9 +58,10 @@ function givenOf(raw: unknown): Given | null {
     case "syllogism":
       return str(raw.subject) && str(raw.reason) && str(raw.predicate) ? { exercise: "syllogism", subject: raw.subject, reason: raw.reason, predicate: raw.predicate } : null;
     case "categories": {
-      if (!str(raw.thing) || (raw.cats !== undefined && !strs(raw.cats))) return null;
+      const cats = raw.cats === undefined ? undefined : strs(raw.cats) ? raw.cats : null;
+      if (!str(raw.thing) || cats === null) return null;
       if (raw.size !== undefined && !(Number.isInteger(raw.size) && (raw.size as number) >= 2 && (raw.size as number) <= 8)) return null;
-      return { exercise: "categories", thing: raw.thing, ...(raw.cats ? { cats: raw.cats } : {}), ...(raw.only === true ? { only: true } : {}), ...(raw.size !== undefined ? { size: raw.size as number } : {}) };
+      return { exercise: "categories", thing: raw.thing, ...(cats ? { cats } : {}), ...(raw.only === true ? { only: true } : {}), ...(raw.size !== undefined ? { size: raw.size as number } : {}) };
     }
     case "instance":
       return strs(raw.cats) ? { exercise: "instance", cats: raw.cats } : null;
@@ -125,6 +127,22 @@ export function itemLine(q: GivenQuestion): ItemLine {
     case "syllogism": return { text: syllogismText(q.syllogism) };
     case "categories": return { text: cap(q.place.thing.n) };
     case "instance": return { text: q.instance.labels.join(" · ") };
+  }
+}
+
+/** The replies of Syllogisms as the app says them. */
+const REPLY_SAID: Record<string, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
+/**
+ * What the data answers to a question that was made, in a line: for whoever writes a challenge, to check it before it is given out. "" where the
+ * question has no one answer (Find a pair: the pair is the learner's own).
+ */
+export function itemAnswer(q: GivenQuestion): string {
+  switch (q.exercise) {
+    case "practice": case "debate": return REL[q.pair.relation].name;
+    case "find": return "";
+    case "syllogism": return REPLY_SAID[q.syllogism.answer] || "";
+    case "categories": return q.place.rows.filter((r) => r.answer).map((r) => r.phrase).join(", ") || "none of the rows";
+    case "instance": return q.instance.possible ? (q.instance.known.length ? "for example " + q.instance.known.slice(0, 3).join(", ") : "something is in all of them") : "nothing is";
   }
 }
 
