@@ -22,11 +22,11 @@ import { RoadPin } from "./news.tsx";
 
 // where each stop stands on the tree: a stop's name, and "continue" under it, are 54 px tall, and the line to the stop below starts under them
 const PLACES: Record<string, { x: number; y: number }> = {
-  practice: { x: 74, y: 198 }, find: { x: 74, y: 282 }, debate: { x: 74, y: 366 }, syllogism: { x: 195, y: 240 }, categories: { x: 316, y: 198 }, instance: { x: 316, y: 282 },
+  practice: { x: 74, y: 270 }, find: { x: 74, y: 354 }, debate: { x: 74, y: 438 }, syllogism: { x: 195, y: 312 }, categories: { x: 316, y: 270 }, instance: { x: 316, y: 354 },
 };
-const PLANNED = { name: "Debate", x: 195, y: 470 };
-// Daily practice stands on the trunk, above the fork: the fork and everything below it are drawn `SHIFT` lower than their places say (one <g> moves them)
-const DAILY = { x: 195, y: 132 }, SHIFT = 72;
+const PLANNED = { name: "Debate", x: 195, y: 542 };
+// Daily practice stands on the trunk, above the fork (the trunk parts at y 196)
+const DAILY = { x: 195, y: 132 };
 const MINI: Record<string, string> = { ok: "ok", part: "part", bad: "bad", pend: "pend" };
 
 /** Today's answers in an exercise, oldest first. */
@@ -97,20 +97,18 @@ export function Roadmap() {
   const n = todayCount().n, back = state.mode === "quiz" && isEx() && (unfinished(state.tab) || givenUnderWay());
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
     <div class="rbody">
-      <svg class="tree" viewBox={"0 0 390 " + (590 + SHIFT)} role="group" aria-label="The exercises">
-        <defs><linearGradient id="rdfade" gradientUnits="userSpaceOnUse" x1="0" y1="526" x2="0" y2="584"><stop offset="0" style="stop-color:var(--ink3)" /><stop offset="1" style="stop-color:var(--ink3);stop-opacity:0" /></linearGradient></defs>
+      <svg class="tree" viewBox="0 0 390 662" role="group" aria-label="The exercises">
+        <defs><linearGradient id="rdfade" gradientUnits="userSpaceOnUse" x1="0" y1="598" x2="0" y2="656"><stop offset="0" style="stop-color:var(--ink3)" /><stop offset="1" style="stop-color:var(--ink3);stop-opacity:0" /></linearGradient></defs>
         <svg class="rhead rfig" x="177" y="6" width="36" height="48" viewBox="100 50 312 412" aria-hidden="true" dangerouslySetInnerHTML={{ __html: BRAND }} />
         <Lockup x={195} y={NAME_Y} />
-        <path class="ln" d={"M195 " + (NAME_Y + NAME_BOTTOM + 5) + " V" + (DAILY.y - 9)} /><path class="ln" d={"M195 " + (DAILY.y + 54) + " V" + (124 + SHIFT)} />
+        <path class="ln" d={"M195 " + (NAME_Y + NAME_BOTTOM + 5) + " V" + (DAILY.y - 9)} /><path class="ln" d={"M195 " + (DAILY.y + 54) + " V196"} />
         <DailyNode />
-        <g transform={"translate(0," + SHIFT + ")"}>
-        <path class="ln" d="M195 124 C195 142 74 136 74 156 V189" /><path class="ln" d="M195 124 V231" /><path class="ln" d="M195 124 C195 142 316 136 316 156 V189" />
-        <path class="ln" d="M74 252 V273" /><path class="ln" d="M74 336 V357" /><path class="ln" d="M316 252 V273" />
-        <path class="lnp" d="M74 420 C74 444 195 436 195 461" /><path class="lnp" d="M195 294 V461" /><path class="lnp" d="M316 336 V420 C316 444 195 436 195 461" />
-        <path class="lnp fade" d="M195 526 V584" style={{ stroke: "url(#rdfade)" }} />
+        <path class="ln" d="M195 196 C195 214 74 208 74 228 V261" /><path class="ln" d="M195 196 V303" /><path class="ln" d="M195 196 C195 214 316 208 316 228 V261" />
+        <path class="ln" d="M74 324 V345" /><path class="ln" d="M74 408 V429" /><path class="ln" d="M316 324 V345" />
+        <path class="lnp" d="M74 492 C74 516 195 508 195 533" /><path class="lnp" d="M195 366 V533" /><path class="lnp" d="M316 408 V492 C316 516 195 508 195 533" />
+        <path class="lnp fade" d="M195 598 V656" style={{ stroke: "url(#rdfade)" }} />
         {EXERCISES.map((e) => <Node k={e.k} name={e.name} />)}
         <Planned {...PLANNED} />
-        </g>
       </svg>
     </div>
     {state.leaveAsk ? <div class="rnote" role="status"><span>Back again to close</span></div> : null}
