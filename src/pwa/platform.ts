@@ -7,6 +7,7 @@
 //           only to a device that has the Magic Key. Otherwise the page has no Quorum.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts; the page asks on its Magic Key page); the definitions come from the server (./course.ts)
 //   examples the reference examples kept on this device, fetched from the server in the background once the key is known to fit (./course.ts)
+//   challenge the challenge that everyone gets now, kept on this device the same way, and looked for again when the page asks (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
@@ -20,7 +21,7 @@ import dataUrl from "../data/drill-data.json?url";
 import { merge, lock } from "../data/course.js";
 import type { Account, DrillData, Platform, Sample } from "../platform/types";
 import { createPwaAccount } from "./account";
-import { fetchCourse, fetchExamples, forgetCourse, keepCourse, keepExamples, keptCourse, keptExamples, whyNot, type Definitions } from "./course";
+import { fetchChallenge, fetchCourse, fetchExamples, forgetCourse, keepChallenge, keepCourse, keepExamples, keptChallenge, keptCourse, keptExamples, whyNot, type Definitions } from "./course";
 import { createAccountClient } from "../account/client";
 import { aboutThisBuild } from "./about";
 import { updates } from "./updates";
@@ -46,6 +47,9 @@ let openData: Promise<DrillData> | null = null; // the open part of the term dat
 const readOpenData = () => (openData ??= fetch(dataUrl).then((r) => r.json()));
 let unlocked: DrillData | null = null; // the term data with the definitions, once a key was taken into the running page: loadData answers with it from then on
 const exampleListeners = new Set<() => void>(); // the page, which reads the examples again when a newer copy was kept
+const challengeListeners = new Set<() => void>(); // the page, which reads the challenge again when another one was kept, or the kept one is no more
+let challengeAsked = 0; // when the server was last asked for the challenge: the page may look for it often (each time the roadmap opens)
+let challengeRefused = false; // the server did not take the key for it: the definitions' check deals with the key, this stops asking
 const keyListeners = new Set<() => void | Promise<void>>(); // the page, which reads the capabilities and the data again when a key was taken in place
 
 // The open data comes with the app. The definitions come from the server to a device that has the Magic Key (from the link, or kept
@@ -72,6 +76,7 @@ async function loadData(): Promise<DrillData> {
       storeKey(key);
       keepCourse({ version: got.version, definitions: got.definitions });
       void refreshExamples(key);
+      void refreshChallenge(key);
       return merge(data, got.definitions);
     }
     if (!got.ok && got.reason === "not_granted") {
@@ -107,6 +112,7 @@ async function refresh(key: string, have: string) {
   if (got.ok) {
     if ("definitions" in got) keepCourse({ version: got.version, definitions: got.definitions as Definitions });
     void refreshExamples(key);
+    void refreshChallenge(key);
   } else if (got.reason === "not_granted") {
     forgetKey();
     forgetCourse();
@@ -128,6 +134,31 @@ async function refreshExamples(key: string) {
     keepExamples({ version: got.version, examples: got.examples });
     for (const tell of exampleListeners) tell();
   }
+}
+
+/** How long after a request for the challenge the next one may go out. */
+const CHALLENGE_EVERY_MS = 60_000;
+
+/**
+ * Fetches the challenge that everyone gets now, or asks whether the kept one still is it. As with the examples, it is asked only with a key
+ * the server took (or one kept with the definitions), and a failure leaves things as they are: a device offline goes on with what it kept.
+ */
+async function refreshChallenge(key: string) {
+  challengeAsked = Date.now();
+  const kept = keptChallenge();
+  const got = await fetchChallenge(key, kept?.version);
+  if (storedKey() !== key) return; // the key changed meanwhile: this belongs to the old one
+  if (got.ok && "challenge" in got) {
+    keepChallenge({ version: got.version, challenge: got.challenge });
+    for (const tell of challengeListeners) tell();
+  } else if (!got.ok && got.reason === "not_granted") challengeRefused = true;
+}
+
+/** The page asks to look for another challenge (the roadmap opened): online, with the key, and not more often than once a minute. */
+function lookForChallenge() {
+  if (!groupKey || challengeRefused || Date.now() - challengeAsked < CHALLENGE_EVERY_MS) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  void refreshChallenge(groupKey);
 }
 
 /** The key the server stopped accepting may have been changed: an account that carries the key (and is signed in here) has the new one. */
@@ -170,6 +201,7 @@ async function applyKey(key: string): Promise<boolean> {
   unlocked = merge(await readOpenData(), kept.definitions);
   groupKey = key;
   void refreshExamples(key);
+  void refreshChallenge(key);
   link.key = null; // a key from the link that did not fit is out of the way now
   link.present = false;
   await Promise.all([...keyListeners].map((tell) => tell()));
@@ -236,6 +268,13 @@ export const pwaPlatform: Platform = {
     exampleListeners.add(tell);
     return () => void exampleListeners.delete(tell);
   },
+  // What was kept of the challenge (an earlier visit's, or this one's once the background fetch is done); nothing without the key.
+  challenge: async () => (groupKey ? keptChallenge()?.challenge ?? null : null),
+  onChallenge(tell) {
+    challengeListeners.add(tell);
+    return () => void challengeListeners.delete(tell);
+  },
+  lookForChallenge,
   // Made on first ask and then kept; it finds out for itself whether the server has accounts, so the page can show its row at once.
   account: async () => (account ??= createPwaAccount(db, { read: () => groupKey ?? storedKey(), adopt: takeAccountKey, declined: keyDeclined, allow: allowKey })),
 };

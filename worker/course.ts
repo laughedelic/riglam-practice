@@ -1,6 +1,7 @@
 // The course data as the Worker reads it: rows of the `course_data` table (worker/migrations/0003_course_data.sql).
 // The definitions go to a device that has the Magic Key (GET /api/course); the notes are only for the tutor's kit. The reference
 // examples are optional rows: `examples` for the tutor's kit, `examples_device` for a device with the key (GET /api/course/examples).
+// The challenge that everyone gets now is one more optional row, `challenge` (GET /api/course/challenge): loading another replaces it.
 
 export interface CourseRows {
   /** JSON text: { [term]: { d?, d_ru? } } */
@@ -51,6 +52,19 @@ export async function readCourseRow(db: D1Database | undefined, kind: "examples"
     return (await db.prepare("SELECT body, updated_at AS at FROM course_data WHERE kind = ?1").bind(kind).first<CourseRow>()) ?? null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * The row of the challenge, null when there is none now, or "failed" when the database cannot be read. The two are told apart because a device
+ * forgets the challenge it kept when there is none, and keeps it when the server could not say.
+ */
+export async function readChallengeRow(db: D1Database | undefined): Promise<CourseRow | null | "failed"> {
+  if (!db) return "failed";
+  try {
+    return (await db.prepare("SELECT body, updated_at AS at FROM course_data WHERE kind = 'challenge'").first<CourseRow>()) ?? null;
+  } catch {
+    return "failed";
   }
 }
 

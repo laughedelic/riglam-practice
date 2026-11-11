@@ -11,6 +11,8 @@ export const API = {
   course: "/api/course",
   /** GET, with the same headers: the reference examples a device may keep (`?have=<version>` as for the definitions) */
   examples: "/api/course/examples",
+  /** GET, with the same headers: the challenge that everyone gets now (`?have=<version>` as for the definitions) */
+  challenge: "/api/course/challenge",
   /** POST, with the same headers: what the server already knows of examples the page could not check (`KnownRequest`, answered with `KnownResponse`) */
   known: "/api/known",
   /** POST, with the same headers: a sentence to read aloud (`SpeakRequest`); the answer is the audio itself (`audio/mpeg`), or an `ErrorBody` */
@@ -52,6 +54,14 @@ export type CourseResponse = { version: string; definitions: Record<string, { d?
 
 /** The answer of `GET /api/course/examples`: the device part of the reference examples (src/ai-shared/examples.ts) with its version, or only the version when `have` named it. */
 export type ExamplesResponse = { version: string; examples: Examples } | { version: string; unchanged: true };
+
+/** The version a server gives when it has no challenge: a device that asks with it is told `unchanged`, any other is told `challenge: null`. */
+export const NO_CHALLENGE = "none";
+/**
+ * The answer of `GET /api/course/challenge`: the challenge as it was loaded (the app reads it with src/domain/challenge.ts, `readChallenge`) with its
+ * version, `null` with the version `NO_CHALLENGE` when there is none now, or only the version when `have` named it.
+ */
+export type ChallengeResponse = { version: string; challenge: unknown } | { version: string; unchanged: true };
 
 export interface Turn {
   role: "user" | "assistant";

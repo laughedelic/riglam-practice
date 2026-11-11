@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HEADER } from "../../src/ai/protocol";
 import { DEVICE_ID, checkProof } from "../../src/ai/proof";
-import { fetchCourse, fetchExamples, forgetCourse, keepCourse, keepExamples, keptCourse, keptExamples, whyNot } from "../../src/pwa/course";
+import { fetchChallenge, fetchCourse, fetchExamples, forgetCourse, keepChallenge, keepCourse, keepExamples, keptChallenge, keptCourse, keptExamples, whyNot } from "../../src/pwa/course";
 import { testMagicKey } from "../support/magic-key";
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -87,6 +87,33 @@ describe("fetchExamples", () => {
   });
 });
 
+describe("fetchChallenge", () => {
+  const WRITTEN = { id: "2026-11-07-colors", date: "2026-11-07", title: "Colors and shapes", items: [{ exercise: "practice", a: "col", b: "shape" }] };
+  const challenge = (respond: () => Response, have?: string) => {
+    const seen: string[] = [];
+    const doFetch = (async (url: string) => (seen.push(url), respond())) as unknown as typeof fetch;
+    return { seen, got: () => fetchChallenge(testMagicKey(), have, doFetch, () => "d".repeat(22)) };
+  };
+
+  it("asks its own route with the kept version, and reads the challenge, that it still is the one, or that there is none", async () => {
+    const fresh = challenge(() => json(200, { version: "c1", challenge: WRITTEN }));
+    expect(await fresh.got()).toEqual({ ok: true, version: "c1", challenge: WRITTEN });
+    expect(fresh.seen).toEqual(["/api/course/challenge"]);
+    const current = challenge(() => json(200, { version: "c1", unchanged: true }), "c1");
+    expect(await current.got()).toEqual({ ok: true, version: "c1", unchanged: true });
+    expect(current.seen).toEqual(["/api/course/challenge?have=c1"]);
+    expect(await challenge(() => json(200, { version: "none", challenge: null }), "c1").got()).toEqual({ ok: true, version: "none", challenge: null });
+  });
+
+  it("takes an answer that is not a challenge, and a server that could not say, as unavailable: not as none", async () => {
+    expect(await challenge(() => json(200, { version: "v1", definitions: {} })).got()).toEqual({ ok: false, reason: "unavailable" });
+    expect(await challenge(() => json(200, { version: "c1", challenge: [WRITTEN] })).got()).toEqual({ ok: false, reason: "unavailable" });
+    expect(await challenge(() => json(200, { version: "c1", challenge: "soon" })).got()).toEqual({ ok: false, reason: "unavailable" });
+    expect(await challenge(() => json(503, { error: { code: "unavailable" } })).got()).toEqual({ ok: false, reason: "unavailable" });
+    expect(await challenge(() => json(401, { error: { code: "not_granted" } })).got()).toEqual({ ok: false, reason: "not_granted" });
+  });
+});
+
 describe("the kept parts", () => {
   afterEach(() => vi.unstubAllGlobals());
   const storage = () => {
@@ -105,6 +132,20 @@ describe("the kept parts", () => {
     forgetCourse();
     expect(kept.size).toBe(0);
     expect(keptExamples()).toBeNull();
+  });
+
+  it("keeps the challenge, and that there is none, and forgets it with the key", () => {
+    const kept = storage();
+    expect(keptChallenge()).toBeNull();
+    keepChallenge({ version: "c1", challenge: { id: "x" } });
+    expect(keptChallenge()).toEqual({ version: "c1", challenge: { id: "x" } });
+    keepChallenge({ version: "none", challenge: null });
+    expect(keptChallenge()).toEqual({ version: "none", challenge: null });
+    expect([...kept.keys()]).toEqual(["riglam.challenge"]);
+    kept.set("riglam.challenge", JSON.stringify({ version: "c1", challenge: "soon" }));
+    expect(keptChallenge()).toBeNull();
+    forgetCourse();
+    expect(kept.size).toBe(0);
   });
 
   it("reads nothing from a kept copy that is not the format, or from storage that throws", () => {

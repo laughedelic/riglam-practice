@@ -2,6 +2,7 @@
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
 //   GET  /api/course/examples  the reference examples a device may keep, for a device that has the Magic Key
+//   GET  /api/course/challenge the challenge that everyone gets now, for a device that has the Magic Key
 //   POST /api/known    what the server already knows of examples the page could not check (learned facts, worker/learned.ts), where it is set to
 //   POST /api/speak    one sentence read aloud with Google's Chirp 3 HD voices; the audio comes back as it is (worker/speak.ts), where a Google key is set
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
@@ -16,13 +17,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { API, HEADER, LIMITS, QUORUM, SPEAK, type BudgetScope, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
+import { API, HEADER, LIMITS, NO_CHALLENGE, QUORUM, SPEAK, type BudgetScope, type ChallengeResponse, type CourseResponse, type ErrorCode, type ExamplesResponse, type Health, type KnownResponse, type TutorEvent } from "../src/ai/protocol";
 import { accountRoutes, accountsOn } from "./accounts";
 import { adminRoutes } from "./admin";
 import { exampleAdminRoutes } from "./examples-admin";
 import { dayOf, prune, reserve, settle, switchedOn, tutorSwitchedOn, type Pool } from "./budget";
 import { SPEAK_MICRO_PER_CHAR, readConfig, readFactsConfig, readQuorumConfig, readSpeakConfig } from "./config";
-import { readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
+import { readChallengeRow, readCourseRow, readCourseRows, usableDefinitions, usableRow } from "./course";
 import type { Env } from "./env";
 import type { Kit } from "./kit";
 import { callerOf, gate, magicKeyOf, type Gate } from "./magic";
@@ -133,6 +134,21 @@ export function createApp(deps: Deps) {
     const headers = { "content-type": "application/json", "cache-control": "no-store" };
     if (c.req.query("have") === row.at) return new Response(JSON.stringify({ version: row.at, unchanged: true } satisfies ExamplesResponse), { headers });
     return new Response(`{"version":${JSON.stringify(row.at)},"examples":${row.body}}`, { headers });
+  });
+
+  // The challenge that everyone gets now, the same way. There may be none: that is an answer too (the device then forgets the one it kept), unlike
+  // a database that cannot be read (the device keeps what it has).
+  app.get(API.challenge, async (c) => {
+    const env = c.env;
+    const checked = await gate(env, now(), await callerOf(c.req.header("cf-connecting-ip")), c.req.header(HEADER.device) ?? "", c.req.header(HEADER.proof) ?? "");
+    if (!checked.ok) return refusal(checked, "the Magic Key does not match");
+    const row = await readChallengeRow(env.DB);
+    if (row === "failed") return fail("unavailable", "the challenge cannot be read");
+    const headers = { "content-type": "application/json", "cache-control": "no-store" };
+    const there = row && usableRow("challenge", row) ? row : null;     // a row that is not a JSON object is no challenge
+    const version = there ? there.at : NO_CHALLENGE;
+    if (c.req.query("have") === version) return new Response(JSON.stringify({ version, unchanged: true } satisfies ChallengeResponse), { headers });
+    return new Response(`{"version":${JSON.stringify(version)},"challenge":${there ? there.body : "null"}}`, { headers });
   });
 
   // What the learned facts answer of the examples the page could not check: no model call, so no budget, but the Magic Key as for the tutor.
