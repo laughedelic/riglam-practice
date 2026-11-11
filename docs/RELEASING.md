@@ -22,7 +22,7 @@ The repository is squash-merged, so what counts is the **pull request title**: i
 3. Merging that pull request creates the tag `vX.Y.Z` and a GitHub release with the notes.
 4. The `publish` job then builds the PWA from the tag and attaches `riglam-practice-pwa-vX.Y.Z.zip` to the release. The same merge to `main` changes `.release-please-manifest.json`, which is what starts the production deploy on Cloudflare (see [DEPLOY.md](DEPLOY.md#production-deploy)). The artifact page is not attached: it holds the definitions in the clear.
 
-The first release is `0.1.0` (`initial-version` in `release-please-config.json`; the manifest value `0.0.0` means that nothing is released yet). Versions stay below 1.0.0: a breaking change bumps the minor version, a `feat:` too, a `fix:` the patch. To release 1.0.0 deliberately, put `Release-As: 1.0.0` in a commit footer. Because the repository squash-merges with the pull request title as the message, the footer has to be typed into the extended description of the merge dialog; a pull request description does not reach `main`. The other way is `"release-as": "1.0.0"` for the package in `release-please-config.json` (release-please marks it deprecated): the open release pull request then becomes that version, and the key must be removed again right after the release, because it pins every later release.
+The first release was `0.1.0` (`initial-version` in `release-please-config.json`; the manifest value `0.0.0` means that nothing is released yet). Below 1.0.0 a breaking change bumps the minor version, a `feat:` too, a `fix:` the patch; 1.0.0 itself was released deliberately, and from there a breaking change bumps the major version, a `feat:` the minor and a `fix:` the patch. To choose a version, put `Release-As: X.Y.Z` in a commit footer. Because the repository squash-merges with the pull request title as the message, the footer has to be typed into the extended description of the merge dialog; a pull request description does not reach `main`. The other way is `"release-as": "X.Y.Z"` for the package in `release-please-config.json` (release-please marks it deprecated): the open release pull request then becomes that version, and the key must be removed again right after the release, because it pins every later release (a unit test fails while it is there).
 
 The release type is `node`, so the version lives in `package.json` (the app shows it) and the manifest; do not edit it by hand. There is no `CHANGELOG.md` (`skip-changelog`; release-please would write one if it existed, so do not add it). Tags are plain `vX.Y.Z`.
 
@@ -38,7 +38,7 @@ Because the release pull request is created by a workflow, GitHub does not start
 
 ## Dependencies
 
-Dependabot opens weekly pull requests for npm (dev dependencies grouped, title prefix `chore(deps)`) and for GitHub Actions (`ci(deps)`). Neither triggers a release by itself. `@playwright/test` is excluded because it is pinned to the browser version preinstalled in Claude's cloud container.
+Dependabot opens weekly pull requests for npm (dev dependencies grouped, title prefix `chore(deps)`) and for GitHub Actions (`ci(deps)`). Neither triggers a release by itself. `@playwright/test` is excluded because it is bumped by hand: a new release changes the browser the specs run in, and the pin has to support the operating system of CI's `ubuntu-latest` (`docs/TESTING.md`).
 
 ## Artifact versions are separate
 

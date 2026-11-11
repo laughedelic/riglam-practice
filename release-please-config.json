@@ -8,8 +8,7 @@
   "skip-changelog": true,
   "packages": {
     ".": {
-      "package-name": "riglam-practice",
-      "release-as": "1.0.0"
+      "package-name": "riglam-practice"
     }
   },
   "changelog-sections": [
