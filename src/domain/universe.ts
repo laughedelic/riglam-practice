@@ -112,7 +112,7 @@ function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: Re
   }
   const t: Record<RelKey, string> = {
     mi: '"' + p.a + '" and "' + p.b + '" pick out the same class: ' + p.typeA + ".",
-    con: stated ? stated + " So there is no common locus." : sameType(p) ? "No common locus: nothing in the reference is both " + p.a + " and " + p.b + "." : cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
+    con: stated ? stated + " So “" + p.a + "” and “" + p.b + "” have no common locus." : sameType(p) ? "No common locus: nothing in the reference is both " + p.a + " and " + p.b + "." : cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
     "3ab": "Whatever falls under “" + p.a + "” also falls under “" + p.b + "”, but not the reverse.",
     "3ba": "Whatever falls under “" + p.b + "” also falls under “" + p.a + "”, but not the reverse.",
     "4": cap(p.a) + " and " + p.b + " overlap without either containing the other.",
@@ -149,6 +149,17 @@ function groundsOf(ix: DataIndex) {
  */
 export function settled(ix: DataIndex, a: string, b: string): boolean {
   return judgeable(ix, a, b) && !groundsOf(ix).open.has([a, b].sort().join("|"));
+}
+
+/**
+ * Whether a pair kept from before (a mistake to retry, a skipped pair, a favorite, an attempt put away) can still be asked and graded as it
+ * was made: a kept pair carries the relation and the reasons it was drawn with, and the reference may since have left its relation open.
+ * A pair of the learner's own, and one whose categories the data does not know, stay as they were.
+ */
+export function stillSettled(ix: DataIndex, p: { catA?: string | null; catB?: string | null; own?: boolean }): boolean {
+  const a = p.catA, b = p.catB;
+  if (p.own || !a || !b || a === b || !ix.CAT[a] || !ix.CAT[b]) return true;
+  return !groundsOf(ix).open.has([a, b].sort().join("|"));
 }
 
 /** The reason the reference states for nothing being in both of two categories ("These are different kinds of things."), or null where it states none in words. */

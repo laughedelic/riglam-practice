@@ -6,6 +6,7 @@
 import { state } from "../state.js";
 import { begun } from "./tabs.js";
 import { usePerExercise } from "../practice/per-exercise.ts";
+import { stillAsked } from "../practice/universe.js";
 
 const KEY = "rd-attempt";
 const EXERCISES = ["practice", "debate", "find", "syllogism", "categories", "instance"];
@@ -39,6 +40,9 @@ export function takeAttempt(): boolean {
     if (!kept || kept.v !== 1 || !EXERCISES.includes(kept.tab) || !kept.cur || !kept.ui || typeof kept.ui !== "object") return false;
     const ui: Record<string, unknown> = { ...kept.ui, tid: null, tq: null, tph: null, rest: null, ck: null, hold: null, chat: null, chatErr: "", pop: null, dterm: null, late: false, exLate: false };
     if (!begun(ui)) return false;
+    // an attempt at a pair whose relation the reference has since left open is not put back: it would be graded by the relation it was drawn with
+    const pair = (kept.cur as { p?: { a?: string; b?: string; catA?: string | null; catB?: string | null; own?: boolean } | null }).p;
+    if (pair && typeof pair.a === "string" && typeof pair.b === "string" && !stillAsked(pair)) return false;
     state.tab = state.own = kept.tab; usePerExercise(kept.tab); state.cur = kept.cur as typeof state.cur; state.ui = ui as typeof state.ui; state.mode = "quiz";
     try { localStorage.setItem("rd-ex", kept.tab); } catch { /* the exercise is still the one on screen */ }
     return true;

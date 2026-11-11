@@ -1,6 +1,6 @@
 // The pair-finding mode: the usual exercise the other way round. The learner is given a relation and names the two phenomena that stand in it,
 // then gives an example for each combination the relation leaves possible, as in the usual exercise. When both phenomena are categories of the
-// practice data (and the data can judge the pair) the answer is graded exactly like the usual exercise's, with the relation asked for taken as
+// practice data (and the reference settles the relation of the pair: universe.ts, settled) the answer is graded exactly like the usual exercise's, with the relation asked for taken as
 // the relation "chosen". Otherwise the page can settle nothing itself: the pair is the learner's own (`own`), and the relation and the examples
 // wait for the tutor (see `applyRelationVerdict` in verdict.ts).
 import { categoryOf, spelled, stemmed, stripDet } from "../ai-shared/lookup";

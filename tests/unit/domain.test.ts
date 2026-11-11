@@ -9,14 +9,14 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, placeFacts, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing, settled, statedApart,
+  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing, settled, statedApart, stillSettled,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, paceSpacing, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
-import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
+import { apartOf, instanceGraded, instanceQuestion } from "../../src/domain/instance";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guidanceByRight, guidanceOf, guidanceStep, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -31,7 +31,7 @@ import { examplePair } from "../../src/domain/find";
 import { instanceExample } from "../../src/domain/instance";
 import { timeUpView } from "../../src/domain/sprint";
 import { guideSteps } from "../../src/domain/stages";
-import { checksShown, syllogismCounts } from "../../src/domain/syllogism";
+import { checksShown, syllogismCounts, syllogismOf } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -2779,12 +2779,26 @@ test("a pair the reference leaves open is neither drawn nor graded, and a stated
   const p = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at);
   expect(p.relation).toBe("con");
   expect(p.why!.both).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
-  expect(p.note).toBe("Gray things are not minds. So there is no common locus.");
+  expect(p.note).toBe("Gray things are not minds. So “gray things” and “minds” have no common locus.");
   expect(pairOf(ix, "gray", "mind", "gray things", "minds", seeded(1), at).why!.both).toBe("“gray things” are form; “minds” are mind. Nothing is both.");
   // with a side negated the empty cell moves, and keeps the reason of the plain pair
   const n = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at, undefined, undefined, "b");
   expect(n.why!.anb).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
-  expect(n.note).toContain("Gray things are not minds. So there is no common locus.");
+  expect(n.note).toBe("“non-minds” takes in everything outside “minds”, what does not exist included. Gray things are not minds. So “gray things” and “minds” have no common locus.");
+  // each side negated, and both: the reason stands only in the cell that is the plain pair's Both, and the note names the plain pair
+  for (const [neg, cell] of [["a", "bna"], ["b", "anb"], ["ab", "nei"]] as const) {
+    const q = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at, undefined, undefined, neg);
+    expect(Object.keys(q.why!).filter((c) => q.why![c as CellId]!.startsWith("Gray things are not minds.")), neg).toEqual([cell]);
+    expect(q.note, neg).toContain("So “gray things” and “minds” have no common locus.");
+  }
+  // a pair kept from before the reference left its relation open is not one to ask again; the learner's own pairs and unknown ones stay
+  expect(stillSettled(ox, { catA: "mind", catB: "wooden" })).toBe(false);
+  expect(stillSettled(ox, { catA: "wooden", catB: "mind" })).toBe(false);
+  expect(stillSettled(ox, { catA: "gray", catB: "mind" })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: "wooden", own: true })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: null })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: "no-such-category" })).toBe(true);
+  expect(stillSettled(ix, { catA: "mind", catB: "wooden" })).toBe(true);
 });
 
 test("the real data: open pairs and stated exclusions name pairs of categories, none twice, and agree with the things", () => {
@@ -2827,9 +2841,63 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(pool.get("form|white")).toBe("3");
   expect(pool.get("furn|wooden")).toBe("4");
   expect(pool.get("clothes|furn")).toBe("con");
-  expect(statedApart(rx, "furn", "clothes")).toBe("These are different kinds of things.");
-  expect(statedApart(rx, "sp", "furn")).toMatch(/outside a person's continuum/);
+  expect(statedApart(rx, "furn", "clothes")).toMatch(/^Furniture is made for/);
+  expect(statedApart(rx, "sp", "furn")).toMatch(/^A sense power is a subtle clear form/);
+  expect(statedApart(rx, "sp", "metal")).toMatch(/^A sense power is a subtle clear form/);
   expect(statedApart(rx, "emotion", "furn")).toBeNull(); // the classes say it: a consciousness is not a form
   const at = () => 1_700_000_000_000, p = pairOf(rx, "intf", "furn", "internal matter", "furniture", seeded(2), at);
-  expect(p.why!.both).toBe("Made things and plants are outside a person's continuum, so they are not internal form. Nothing is both “internal matter” and “furniture”.");
+  expect(p.why!.both).toBe("Internal form is form that belongs to a living being's continuum. Furniture, kitchen things and clothes are made things, outside any being's continuum. Nothing is both “internal matter” and “furniture”.");
+  expect(p.note).toBe("Internal form is form that belongs to a living being's continuum. Furniture, kitchen things and clothes are made things, outside any being's continuum. So “internal matter” and “furniture” have no common locus.");
+  // what an independent review broke stays open: a made thing put into the body, one thing hot and cold in its parts, a grown-up child,
+  // a pilot, a teacher who is no human, an inedible fruit, a spoon played as an instrument
+  for (const k of ["intf|metal", "cold|hot", "round|square", "children|men", "fly|human", "human|teacher", "food|fruit", "instr|kitchen", "body|instr"]) expect(pool.has(k), k).toBe(false);
+  // settled by a class and left open all the same, where the general statement is what a debater would contest
+  for (const k of ["memory|nonas", "emotion|nonas", "perm|thought"]) expect(pool.has(k), k).toBe(false);
+  // food is a functional thing and nothing narrower: it exists and is impermanent, and whether all of it is form is left open
+  expect(pool.get("food|ft")).toBe("3");
+  expect(pool.get("exist|food")).toBe("3");
+  expect(pool.get("food|perm")).toBe("con");
+  for (const k of ["food|form", "food|pers", "cons|food", "extf|food", "food|intf"]) expect(pool.has(k), k).toBe(false);
+  // no pair of the pool is left with only "nothing in the reference is both" for a reason
+  for (const e of buildPool(rx)) {
+    if (e.a === e.b || e.r !== "con") continue;
+    const q = pairOf(rx, e.a, e.b, rx.CAT[e.a].labels[0], rx.CAT[e.b].labels[0], seeded(3), at);
+    expect(q.why!.both, pairKey(e)).not.toMatch(/Nothing in the reference is both/);
+  }
+});
+
+test("the real data: Syllogisms and Find an instance prove nothing of an open pair, and Find takes it as the learner's own", () => {
+  const rx = makeIndex(real), at = () => 1_700_000_000_000, first = (c: string) => real.items.find((i) => !i.ne && i.c.includes(c));
+  let made = 0;
+  for (const [a, b] of real.open ?? []) {
+    // no exclusion is given for it: "nothing is both" is never the right answer of a set that holds it
+    expect(apartOf(rx, a, b), a + "|" + b).toBeNull();
+    // a pervasion between the two is never proved to hold or to be opposite: only a thing can show that it fails
+    for (const [r, p] of [[a, b], [b, a]]) {
+      for (const it of [first(r), first(p)]) {
+        const c = it ? syllogismOf(rx, it.n, r, p, seeded(5)) : null;
+        if (!c) continue;
+        made++;
+        expect(c.pervasion, `${it!.n}: ${r} > ${p}`).toBe("fails");
+        expect(c.witness, `${it!.n}: ${r} > ${p}`).toBeTruthy();
+      }
+    }
+  }
+  expect(made).toBeGreaterThan(100); // the things of an open pair still disprove a pervasion
+  // the pairs of food with persons and minds were proved "opposite" from its gloss; a red apple is impermanent because it is food, by the chain
+  expect(apartOf(rx, "food", "women")).toBeNull();
+  expect(syllogismOf(rx, "a red apple", "food", "ft", seeded(5))?.pervasion).toBe("holds");
+  expect(syllogismOf(rx, "a red apple", "food", "form", seeded(5))).toBeNull(); // neither proved nor disproved: not asked
+  expect(apartOf(rx, "emotion", "furn")?.why).toMatch(/nothing is both/); // a settled pair keeps its exclusion
+  // Find: an open pair of two categories of the app is the learner's own, and the card says why it gives no relation
+  const own = findPair(rx, "con", nameThing(rx, "white things"), nameThing(rx, "black things"), seeded(4), at);
+  expect(own).toMatchObject({ own: true, catA: "white", catB: "black", ex: {}, why: {} });
+  const cells = { both: { t: "", none: true }, anb: { t: "snow" }, bna: { t: "coal" }, nei: { t: "a red rose" } };
+  const card = cardBody(rx, own, { find: true, rel: "con", cells, res: gradeFind(rx, own, { rel: "con", cells }) } as never);
+  expect(card).toContain("the reference does not settle their relation");
+  expect(card).not.toContain("Correct relation of this pair");
+  expect(card).not.toContain("is not among its practice items");
+  const known = findPair(rx, "con", nameThing(rx, "furniture"), nameThing(rx, "clothes"), seeded(4), at);
+  expect(known.own).toBeUndefined();
+  expect(cardBody(rx, known, { find: true, rel: "con", cells, res: gradeFind(rx, known, { rel: "con", cells }) } as never)).toContain("Correct relation of this pair: Mutually exclusive.");
 });

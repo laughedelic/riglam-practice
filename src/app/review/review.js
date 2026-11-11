@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { CELLS, REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, pairsOf } from "../core/util.js";
 import { advance } from "../practice/queue.js";
-import { answerList } from "../practice/universe.js";
+import { answerList, stillAsked } from "../practice/universe.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
@@ -24,7 +24,8 @@ export function overview(all){
 // what a mistake says under its pair: the relation chosen and the right one, the wrong cells, the time that ran out
 export function mistakeLine(a){
   const bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad");
-  return (a.correct?"Relation right ("+lcRel(REL[a.key].name)+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+"; correct: "+(REL[a.key]?lcRel(REL[a.key].name):a.key)+". ")+
+  const was=REL[a.key]?lcRel(REL[a.key].name):a.key, kept=stillAsked(a);       // not kept: the reference has since left this pair's relation open
+  return (a.correct?(kept?"Relation right (":"Relation as it was asked then (")+was+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+(kept?"; correct: "+was+". ":"; the answer then was "+was+", which the reference no longer gives. "))+
     (bad.length?(a.correct?"w":"W")+"rong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"");
 }
 // the categories of the pairs missed most often, at most six, each in two pairs or more
@@ -42,7 +43,7 @@ export function uniqueMistakePairs(miss){
   const seen=new Set(), out=[];
   for(const a of miss){
     if(a.retryOf&&answerList().some(x=>x.retryOf===a.retryOf&&x.at>a.at&&gradeOf(x)==="ok")) continue;
-    const p=pairFromAnswer(a); if(!p) continue;
+    const p=pairFromAnswer(a); if(!p||!stillAsked(p)) continue;       // a pair the reference has since left open is not asked again
     const k=p.a+"|"+p.b; if(seen.has(k)) continue;
     // skip pairs already put right in a later retry
     if(answerList().some(x=>x.retryOf===p.id&&x.at>a.at&&gradeOf(x)==="ok")) continue;

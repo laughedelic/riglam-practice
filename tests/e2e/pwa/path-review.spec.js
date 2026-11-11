@@ -87,6 +87,39 @@ test("Review on the Path: Practice this pair on an answer of Pervasions starts i
   await expect(page.locator("#path")).toContainText("round things");
 });
 
+// Pairs kept from before the reference left their relation open (docs/DATA.md): two colors, two materials. They carry the relation they were drawn with.
+const gone = (id, a, b, catA, catB) => ({ id, a, b, catA, catB, relation: "con", ex: { anb: "snow", bna: "coal", nei: "a thought" }, why: { both: "Nothing in the reference is both." } });
+const goneAnswer = {
+  pairId: "r-gone1", a: "white things", b: "black things", catA: "white", catB: "black", chosen: "4", key: "con", correct: false, grade: "bad",
+  cells: { both: { text: "a zebra", none: false, verdict: "bad" }, anb: { text: "snow", none: false, verdict: "ok" }, bna: { text: "coal", none: false, verdict: "ok" }, nei: { text: "a thought", none: false, verdict: "ok" } },
+  at: now, pair: gone("r-gone1", "white things", "black things", "white", "black"),
+};
+const goneFav = { key: "c_black__white", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", at: now, pair: gone("r-gone2", "white things", "black things", "white", "black") };
+const goneSkip = { key: "c_metal__wooden", a: "wooden things", b: "metal things", catA: "wooden", catB: "metal", relation: "con", at: now, from: "practice", n: 1,
+  pair: gone("r-gone3", "wooden things", "metal things", "wooden", "metal") };
+
+test("Review on the Path: a pair the reference has since left open is kept as it was saved and is not asked again", async ({ page }) => {
+  await seed(page, { answers: [goneAnswer], favorites: [goneFav], skips: [goneSkip] });
+  await openReview(page);
+  await section(page, "Mistakes");
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).first()).toContainText("the answer then was mutually exclusive, which the reference no longer gives");
+  await expect(page.getByRole("button", { name: /^Retry \d+ mistake/ })).toHaveCount(0);
+  await rows(page).first().locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("the reference no longer settles this pair");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  await section(page, "Favorites");
+  await rows(page).first().locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("The reference no longer settles this pair, so it is not asked again.");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Remove" })).toBeVisible();
+  await section(page, "Skipped");
+  await expect(rows(page).first()).toContainText("no longer asked");
+  await expect(rows(page).first().getByRole("button", { name: "Practice" })).toHaveCount(0);
+  await rows(page).first().getByRole("button", { name: "Remove" }).click();
+  await expect.poll(async () => Object.keys(await stored(page, "skips"))).toEqual([]);
+});
+
 test("Review on the Path: the totals, the mistakes with Retry, a favorite and a pair skipped", async ({ page }) => {
   await seed(page, { answers: [answer], favorites: [fav], skips: [skip] });
   await openReview(page);

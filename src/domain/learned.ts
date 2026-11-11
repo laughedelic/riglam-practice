@@ -10,7 +10,7 @@ import type { Answer, Side } from "./verdict";
  * The version of the prompts and the term data the analyses were made with. Raise it when a change could change the answers (the instructions,
  * the explain request, the term data's chains): a row of an older version is then not served, and the next analysis starts it again.
  */
-export const FACTS_EPOCH = 2;
+export const FACTS_EPOCH = 3;
 
 export const FACT_LIMITS = {
   /** an example longer than this is not kept (it is more likely a sentence with personal words than a thing) */

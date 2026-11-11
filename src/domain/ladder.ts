@@ -17,8 +17,9 @@ export function termPhrase(name: string): string {
 }
 const bareOf = (name: string) => termPhrase(name).replace(/^(a|an) /, "");
 
-// an everyday category says which of the three kinds of functional thing (or a person) its things are: "form: liquid substances"
-const TOP: Record<string, string> = { form: "Form", person: "Person", consciousness: "Consciousness" };
+// an everyday category says which of the three kinds of functional thing (or a person) its things are: "form: liquid substances";
+// one whose things are not all of one kind says only that they are functional things ("functional thing: things eaten as food")
+const TOP: Record<string, string> = { form: "Form", person: "Person", consciousness: "Consciousness", "functional thing": "Functional thing" };
 /** The classes a category's things are in, lowest first: a Dudra category's term and its parents; for an everyday one, its kind and up. */
 export function catChain(ix: DataIndex, cat: Cat): string[] {
   if (cat.kind === "dudra") return cat.term ? upChain(ix, cat.term) : [];

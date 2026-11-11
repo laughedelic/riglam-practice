@@ -8,6 +8,7 @@ import { freshUi } from "../practice/queue.js";
 import { clearSkip } from "../practice/skips.js";
 import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, unmetNow } from "../practice/stops.ts";
+import { stillAsked } from "../practice/universe.js";
 import { guidance } from "../practice/guided.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
@@ -119,6 +120,8 @@ export function resumeFind(pair,rel){
   switchTo("find");
   const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
   p.id=findId();
+  // the reference has since left this pair's relation open: it comes back as the learner's own pair, as one named afresh would be (domain/find.ts, findPair)
+  if(!stillAsked(p)){ Object.assign(p,{own:true,typeA:"",typeB:"",ex:{},why:{},relation:rel||p.relation}); delete p.note; delete p.generated; }
   state.cur=/** @type {any} */({p,find:true});
   state.ui=Object.assign(freshFindUi(asked(rel||p.relation)),{step:1, wordA:p.a, wordB:p.b, own:!!p.own, focusA:false});
   state.mode="quiz"; render(); top0();

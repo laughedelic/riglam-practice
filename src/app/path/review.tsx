@@ -12,7 +12,7 @@ import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
 import { removeFav, startFav, typesLine } from "../practice/favorites.js";
 import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
-import { answerList } from "../practice/universe.js";
+import { answerList, stillAsked } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
 import { noteContext, practiceAgain } from "../review/exercise.js";
 import { findLine, findStats } from "../review/find-stats.js";
@@ -57,7 +57,7 @@ const allEntries = () => [...Object.values(state.answers).map((a) => entryOf(a, 
 
 /** A row of a trail: the stop's color is the verdict; a checked pair unfolds into its answer, with the way to practice it again. */
 function TrailRow({ e, when }: { e: Entry; when: string }) {
-  const k = "r:" + e.key, open = !!e.doc && isOpen(k), p = e.doc && e.mode !== "find" ? pairFromAnswer(e.doc) : e.doc && e.doc.pair && !e.doc.pair.own ? e.doc.pair : null;
+  const k = "r:" + e.key, open = !!e.doc && isOpen(k), kept = e.doc && e.mode !== "find" ? pairFromAnswer(e.doc) : e.doc && e.doc.pair && !e.doc.pair.own ? e.doc.pair : null, p = kept && stillAsked(kept) ? kept : null;     // a pair the reference has since left open is not offered again
   const head = <><span class="ex2">{when} · {NAME[e.mode] || e.mode}</span><b>{e.title}</b>
     <span class={"rs " + e.v}>{WORD[e.v] || WORD.bad}{e.minis.length ? <Minis list={e.minis} /> : null}</span>{e.sub ? <small class="tsub">{e.sub}</small> : null}</>;
   return <>
@@ -132,11 +132,13 @@ function Mistakes() {
 }
 
 /* ---------- the favorites and the pairs skipped ---------- */
+// under a favorite whose relation the reference has since left open: it is shown as it was saved, and is not practiced again
+const GONE = "Saved as it was then. The reference no longer settles this pair, so it is not asked again.";
 function Favs() {
   const list = Object.values(state.favs).sort((x, y) => (y.at || "").localeCompare(x.at || "")) as FavDoc[];
   if (!list.length) return <Empty>Press the star (or F) on a pair while you practice. It stays here with its relation and examples, whether or not you answered it right.</Empty>;
   return <><Trail>{list.map((f) => {
-    const p = (f.pair || { a: f.a, b: f.b, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k);
+    const p = (f.pair || { a: f.a, b: f.b, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), kept = stillAsked(p);
     return <>
       <St d={<span class="pmk fav"><Icon n="star" /></span>} cls={"trow can" + (open ? " open" : "")}><button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
         <span class="ex2">{f.at ? "saved " + dayOf(f.at) : "saved"}</span><b>{p.a} · {p.b}</b><span class="rs">{rel ? rel.name : ""}</span><span class="arr"><Icon n="chev" /></span></button></St>
@@ -145,7 +147,8 @@ function Favs() {
         {(CELLS as CellId[]).map((c) => { const ref = refOf(p, c); return <St d={<D cls={"sub " + (ref ? "done" : "nil")} />} cls="sb exr"><span class="lab">{CASE[c]}</span>
           <div class="line1">{ref ? <span class="ans2 ref">{ref}</span> : <span class="ans2 nil">nothing goes here</span>}</div>{!ref && p.why && p.why[c] ? <p class="xnote">{p.why[c]}</p> : null}</St>; })}
         {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) && typesLine(p) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}
-        <St d={<span />} cls="pacts"><button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button><button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
+        {kept ? null : <St d={<span />} cls="pnote2"><p class="xnote">{GONE}</p></St>}
+        <St d={<span />} cls="pacts">{kept ? <button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button> : null}<button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
       </div> : null}
     </>;
   })}</Trail>{state.favErr ? <p class="pnoteline bad perr">{state.favErr}</p> : null}</>;
@@ -157,9 +160,10 @@ function Skips() {
     <p class="pempty">{"Skipped pairs stay out of the drill for " + SKIP_DAYS + " days. Practice one from here when you want it. A pair you answer is no longer skipped." + (list.some((f) => f.from === "find") ? " A pair skipped in Find a pair is only kept here." : "")}</p>
     <Trail>{list.map((f) => {
       const p = f.pair || { a: f.a, b: f.b }, until = new Date(Date.parse(f.at) + SKIP_DAYS * 864e5).toISOString(), asked = REL[(f.asked || f.relation) as RelKey];
-      const sub = "skipped " + dayOf(f.at) + (f.n > 1 ? ", " + f.n + " times" : "") + " · " + (f.from === "find" ? "Find a pair, " + (asked ? asked.name : "") : skipActive(f) ? "back in the drill after " + dayOf(until) : "back in the drill");
+      const kept = f.from === "find" || stillAsked(p);     // Find takes a pair the reference has since left open as the learner's own (find/flow.js, resumeFind)
+      const sub = "skipped " + dayOf(f.at) + (f.n > 1 ? ", " + f.n + " times" : "") + " · " + (f.from === "find" ? "Find a pair, " + (asked ? asked.name : "") : !kept ? "no longer asked" : skipActive(f) ? "back in the drill after " + dayOf(until) : "back in the drill");
       return <St d={<span class="pmk skp"><Icon n="skipped" /></span>} cls="trow"><span class="ex2">{sub}</span><b>{p.a} · {p.b}</b>
-        <span class="pacts in"><button type="button" class="pbtn" onClick={() => startSkipped(f)}>Practice</button><button type="button" class="pbtn quiet" onClick={() => unskipKey(f.key)}>Remove</button></span></St>;
+        <span class="pacts in">{kept ? <button type="button" class="pbtn" onClick={() => startSkipped(f)}>Practice</button> : null}<button type="button" class="pbtn quiet" onClick={() => unskipKey(f.key)}>Remove</button></span></St>;
     })}</Trail>
     {state.skipErr ? <p class="pnoteline bad perr">{state.skipErr}</p> : null}
   </>;
