@@ -15,6 +15,7 @@ import { startStops } from "./practice/stops.ts";
 import { closeGiven, givenAside, givenLine, givenNow, givenShown, openGiven, resumeGiven } from "./practice/given.ts";
 import { givenQuestion } from "../domain/given.ts";
 import { dailyEnded, dailyOptions, dailyShown, dailyToday, leaveDaily, moreDaily, startDaily } from "./practice/daily.ts";
+import { challengePageOn, challengeShown, challengeView, loadChallenge, openItem, setChallenge, showChallenge } from "./practice/challenge.ts";
 import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
@@ -77,6 +78,9 @@ async function bootSteps(platform){
   // (listening first, so that a copy that arrives while this reads is not missed)
   if(platform.onExamples) platform.onExamples(()=>{ loadExamples(platform).then(()=>{ if(state.mode!=="loading") render(); }); });   // the menu and Categories show what the examples allow
   await loadExamples(platform);
+  // the challenge that everyone gets now arrives the same way, and may be taken away again (practice/challenge.ts): the roadmap has its stop while there is one
+  if(platform.onChallenge) platform.onChallenge(()=>{ loadChallenge(platform); });
+  await loadChallenge(platform);
   await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   state.withdrawLater=platform.withdrawReport||null;
@@ -133,6 +137,7 @@ async function rekey(platform){
   try{ state.tutor=platform.tutor?await platform.tutor():null; }catch(e){ state.tutor=null; }
   await loadSpeaker(platform);
   await loadExamples(platform);
+  await loadChallenge(platform);
   await loadKnown(platform);
   try{ state.reports=platform.reports?await platform.reports():null; }catch(e){ state.reports=null; }
   try{ setQuorumOffer(state.tutor&&platform.quorum?await platform.quorum():false); }catch(e){ setQuorumOffer(false); }
@@ -172,6 +177,8 @@ if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){retur
   // the kept answers of Relations and of the exercises kept with them: a spec adds one to stand for an earlier miss
   get answers(){return state.answers},
   // the storage the app was started with: a spec takes it away (null) to stand for a device that has none
-  get db(){return state.db},set db(v){state.db=v}});
+  get db(){return state.db},set db(v){state.db=v},
+  // the challenge (practice/challenge.ts): what the page has of it, a way to give it one without a server, its page and its questions
+  challenge:{get now(){return state.chal},view:challengeView,set:setChallenge,show:showChallenge,open:openItem,shown:challengeShown,page:challengePageOn}});
 }
 /* ---------- test hook (end) ---------- */
