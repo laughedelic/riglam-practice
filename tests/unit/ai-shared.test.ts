@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, stageLine, termNamed, tutorCard, tutorTools, upChain,
+  CARRIED_CARD, CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, stageLine, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -598,6 +598,38 @@ test("a card for every pair of the real data, named by the learner and asked in 
       for (const q of [p, { ...p, own: true, ex: {}, why: {} }]) expect(tutorCard(rix, q, find({ rel: "mi" })), `${a} ${b}`).not.toMatch(/undefined|NaN|\[object/);
     }
   }
+});
+
+test("the card of a pair that came with its answer says where the answer is from, gives it as the reference, and holds what the data says of each side's words", () => {
+  const p = pair({
+    a: "Hues", b: "things that fly", catA: null, catB: null, typeA: undefined, typeB: undefined, relation: "3ab",
+    ex: { both: "the red of a kite in the air", anb: null, bna: "a wooden chair thrown across a room", nei: "a gray stone" }, why: { anb: "In this task every hue flies." }, note: "A made-up pair.",
+    carried: true, sing: ["a hue", "something that flies"],
+  });
+  const u = practice({ rel: "3ab", cells: { both: { t: "a red balloon" }, anb: { t: "", none: true }, bna: { t: "a wooden chair" }, nei: { t: "" } }, res: noRes(["cmp", "ok", "cmp", "bad"]) });
+  const body = cardBody(ix, p, u);
+  expect(body.startsWith("CARD (" + CARRIED_CARD + "):\n")).toBe(true);
+  expect(body).not.toContain("computed from classified examples");
+  // a side whose words the data knows carries that term's facts, the other is said to be outside the data; neither is given a category of its own
+  expect(body).toMatch(/"A":\{"label":"Hues"[^}]*"term":"Color"/);
+  expect(body).toContain('"B":{"label":"things that fly","not_in_the_reference_data":true}');
+  // the answer it brought stands where the computed one stands on a pair of the data
+  expect(body).toContain("Correct relation: Three possibilities, A in B. Learner chose: Three possibilities, A in B.");
+  expect(body).toContain("Reference note: A made-up pair.");
+  expect(body).toContain('- both: learner wrote "a red balloon"; reference "the red of a kite in the air"; app verdict cmp');
+  expect(body).toContain("- Hues, not things that fly: learner wrote NONE; reference EMPTY (In this task every hue flies.); app verdict ok");
+  expect(body).toContain('- things that fly, not Hues: learner wrote "a wooden chair" [in the practice items as: a wooden chair, type Form]; reference "a wooden chair thrown across a room"; app verdict cmp');
+  expect(body).toContain('- neither: learner wrote (blank); reference "a gray stone"; app verdict bad');
+  expect(body).not.toMatch(/undefined|NaN|\[object/);
+  expect(tutorCard(ix, p, u)).toBe(GUIDE + "\n\n" + body + cardNotes(ix, p));
+  // the same pair without the mark is taken for one of the data, computed
+  expect(cardBody(ix, { ...p, carried: false }, u)).toContain("computed from classified examples");
+  // the request to explain says the relation came with the task, where it says of the data's that it is computed
+  const res = noRes(["cmp", "ok", "cmp", "bad"]);
+  expect(explainAsk(practice({ res }), false, true)).toContain("use the correct relation above: it came with the task and is right, so if whatever is B is A, a B belongs in Both");
+  expect(explainAsk(practice({ res }), false, true)).not.toContain("is computed and right");
+  expect(explainAsk(practice({ res }))).toContain("use the correct relation above: it is computed and right");
+  expect(explainAsk(practice({ res: noRes(["ok", "ok", "ok", "bad"]) }), false, true)).toBe(FIRST_ASK);     // nothing left to check: the plain request
 });
 
 // ---- the code stays free of the page and the browser ----

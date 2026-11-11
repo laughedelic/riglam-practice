@@ -25,6 +25,11 @@ export interface SyllogismView {
   /** a thing that is the reason and is not the predicate, kept for the explanation of a pervasion that fails */
   witness?: string;
   checks: { e: Check; v: Check; t: Check };
+  /**
+   * a syllogism the term data cannot settle, which came with its answer (a challenge's, src/domain/challenge.ts): the three checks, their lines and the
+   * counter-example were written for it from the reference, and its reason and predicate have no categories (`catR` and `catP` are empty)
+   */
+  carried?: boolean;
 }
 
 /** The learner's answer as the card reads it. */
@@ -56,6 +61,12 @@ export const SYLLOGISM_ASK = `Explain this answer. The app shows the learner its
 - "Explanation:" only if the reply was wrong or the time ran out (not when a right reply came with a counter-example that is not one): two sentences on what to look at to get it right, without repeating the lines above;
 - "Misconception:" only if the learner gave a wrong reply, one sentence; never when the time ran out.`;
 
+/**
+ * What the card says in its heading of a syllogism that came with its answer (`carried`): where the checks are from, so that the tutor explains them as it explains
+ * the ones the app settles and does not look for the parts in the data.
+ */
+export const CARRIED_SYLLOGISM = "this syllogism is not from the reference's term data: it was set as a task, and its three checks, their lines, the right reply and the counter-example were written for it from the reference. They are right in the same way as the ones the app settles: explain them, never question or reverse them. A part the data does not have is given by its words alone";
+
 const SAID: Record<Reply, string> = { accept: "Accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
 const THESIS_NOTE = `The learner practices thesis first: the thesis came alone ("Take S. It follows it is P."), answered with "I accept" or "Why?". A true thesis is to be accepted, and that ends the attempt, whatever its reason; after "Why?" the reason came, answered with one of the two denials.`;
 /** What the card says of the thesis reply (thesis first), and, when the attempt ended there, which lines to write instead of the checks of the reason. */
@@ -81,7 +92,7 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
     P: catFacts(ix, c.catP, c.predicate) ?? { label: c.predicate },
   };
   const pervasion = c.checks.v.ok ? "HOLDS"
-    : c.pervasion === "opposite" ? "DOES NOT HOLD: it is the opposite, nothing that is the reason is the predicate (the term chain shows it)"
+    : c.pervasion === "opposite" ? "DOES NOT HOLD: it is the opposite, nothing that is the reason is the predicate" + (c.carried ? "" : " (the term chain shows it)")
     : "DOES NOT HOLD: some things that are the reason are not the predicate" + (c.witness ? "; the counter-example kept for you: " + JSON.stringify(c.witness) : "");
   const checks = [
     `1 Reason (is S the reason?): ${c.checks.e.ok ? "ESTABLISHED" : "NOT ESTABLISHED"}. The app's line: ${JSON.stringify(c.checks.e.line)}`,
@@ -96,16 +107,16 @@ export function syllogismBody(ix: DataIndex, c: SyllogismView, a: SyllogismAnswe
     ? `\nThe learner's counter-example: ${JSON.stringify(cut(a.ex.text, 200))}; app verdict ${a.ex.v === "ok" ? "ok (it is the reason and is not the predicate)" : a.ex.v === "bad" ? "bad (it is not the reason, or it is the predicate too)" : "cmp (the app does not know it well enough to say)"}.`
     : "";
   return `${SYLLOGISM_NOTE}
-CARD (from the reference's term data; S is the subject, R the reason, P the predicate):
+CARD (${c.carried ? CARRIED_SYLLOGISM : "from the reference's term data"}; S is the subject, R the reason, P the predicate):
 ${JSON.stringify(card)}
 Syllogism: ${JSON.stringify(a.sentence)}
-Checks (the app settled them):
+Checks (${c.carried ? "they came with the task" : "the app settled them"}):
 ${checks}
 ${ended ? "" : `Right reply: ${JSON.stringify(SAID[c.answer])}. ${replied}`}${a.thesis ? thesisPart(c, a.thesis) : ""}${a.grade.confusion ? "\nWhat the app says was mixed up: " + a.grade.confusion : ""}${ex}${stageLine(a.stage)}`;
 }
 
-/** The categories the tutor's fine points are taken from: the reason's and the predicate's (the same one once). */
-export const syllogismCats = (c: Pick<SyllogismView, "catR" | "catP">): string[] => (c.catR === c.catP ? [c.catR] : [c.catR, c.catP]);
+/** The categories the tutor's fine points are taken from: the reason's and the predicate's (the same one once; none for a part that has no category, as on a syllogism that came with its answer). */
+export const syllogismCats = (c: Pick<SyllogismView, "catR" | "catP">): string[] => (c.catR === c.catP ? [c.catR] : [c.catR, c.catP]).filter(Boolean);
 
 /** The fine points of the reason's and the predicate's categories as the tail of the card; empty when there are none. */
 export function syllogismNotes(ix: DataIndex, c: Pick<SyllogismView, "catR" | "catP">): string {

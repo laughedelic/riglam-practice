@@ -8,7 +8,7 @@
 // (and the few pervasions stated by hand below) prove that a pervasion holds or is opposite; the items only disprove one, with a thing
 // that is the reason and is not the predicate. Pairs that neither can settle are never drawn.
 import type { DrillData, Item } from "../ai-shared/data";
-import { matchItem, sameNames, upChain } from "../ai-shared/lookup";
+import { matchItem, sameNames, spelled, stripDet, upChain } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
 import type { CellId } from "../ai-shared/relations";
 import { catChain, termPhrase } from "./ladder";
@@ -286,6 +286,8 @@ export interface Syllogism {
   checks: { e: Check; v: Check; t: Check };
   /** a thing that is the reason and is not the predicate, when the pervasion fails: kept for the tutor's explanation, the result does not show it */
   witness?: string;
+  /** it came with its answer (a challenge's, challenge.ts): the data did not settle it, `catR` and `catP` are empty, and the checks are as they were written */
+  carried?: boolean;
 }
 
 const is = (yes: boolean, phrase: string) => (yes ? "is " : "is not ") + phrase;
@@ -533,6 +535,11 @@ export interface ExampleVerdict { v: "ok" | "bad" | "cmp" | "self"; line: string
  */
 export function gradeExample(ix: DataIndex, c: Syllogism, text: string): ExampleVerdict {
   const t = text.trim().replace(/[.!]+$/, "");
+  // a syllogism that came with its answer has no categories to place a thing in: the subject is told by its words, and anything else is not checked here
+  if (!ix.CAT[c.catR] || !ix.CAT[c.catP]) {
+    return t && stripDet(spelled(t)) === stripDet(spelled(c.subject)) ? { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` }
+      : { v: "cmp", line: `Not checked: the app does not know ${t || "that"} well enough to say.` };
+  }
   const it = t ? matchItem(ix, t, FEATURE.has(c.catR) || FEATURE.has(c.catP)) : null;
   if (it && it.n === c.subject) return { v: "self", line: `That is the subject itself. Name another thing that is ${c.reason} and is not ${c.predicate}.` };
   // a thing whose name leaves the reason or the predicate open ("a car" for black things) is asked to be named, as in the pairs (vague.ts): the reason yes, the predicate no

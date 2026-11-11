@@ -4,7 +4,7 @@
 // Sprint is its own there, switched by the stopwatch, and no exercise's switch is touched by it.
 import { test, expect } from "../../support/test.js";
 import { giveKey } from "../../support/data-key.js";
-import { answerFirst, openMenu, relOptions, roadmap } from "../../support/page.js";
+import { answerFirst, explainChoice, openMenu, overflow, relOptions, roadmap } from "../../support/page.js";
 
 const DOC = {
   id: "2026-11-07-colors-and-shapes", date: "2026-11-07", title: "Colors and shapes", note: "From Friday's practice: color and shape, the two kinds of visible form.",
@@ -12,6 +12,17 @@ const DOC = {
     { exercise: "debate", a: "vis", b: "col", labels: ["visible forms", "colors"] },
     { exercise: "practice", a: "col", b: "shape", labels: ["colors", "shapes"] },
     { exercise: "practice", a: "vis", b: "col", labels: ["visible forms", "colors"] },
+  ],
+};
+// questions about what the app's data does not have: each brings its answer
+const OUTSIDE = {
+  id: "2026-11-11-outside-the-data", date: "2026-11-11", title: "Birds and things that fly", note: "",
+  items: [
+    { exercise: "practice", terms: [{ many: "penguins", one: "a penguin" }, { many: "things that fly", one: "something that flies" }],
+      answer: { relation: "con", ex: { anb: "an emperor penguin", bna: "a bat", nei: "a stone" }, why: { both: "No penguin flies." }, note: "Penguins are birds that swim." } },
+    { exercise: "debate", terms: [{ many: "birds", one: "a bird" }, { many: "things that fly", one: "something that flies" }],
+      answer: { relation: "4", ex: { both: "a sparrow", anb: "a penguin", bna: "a bat", nei: "a stone" } } },
+    { exercise: "syllogism", says: { subject: "a bat", predicate: "a bird", reason: "something that flies" }, answer: { reason: true, pervasion: false, thesis: false, witness: "a dragonfly" } },
   ],
 };
 const NEXT = { ...DOC, id: "2026-11-14-sounds", date: "2026-11-14", title: "Sounds", note: "", items: [{ exercise: "practice", a: "col", b: "shape" }] };
@@ -353,4 +364,100 @@ test("the same challenge said anew while one of its questions is on screen goes 
   await expect(station(page)).toHaveAccessibleName(/^Next question/);
   await station(page).click();
   await expect(mark(page)).toHaveText("3 of 3");
+});
+
+test("questions about what the data does not have bring their answers: the app checks the relation and the reply against them, and Claude checks the examples with the answer in hand", async ({ page }) => {
+  // the app's server stands in for Claude: it answers the pair's examples, each with what it is of the two sides
+  const sse = (...events) => events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+  const lines = ['A not B: "a king penguin" | class: none | A yes: it is a penguin | B no: it swims and does not fly', 'B not A: "a kite" | class: none | A no: it is a toy | B yes: it flies on the wind', 'Neither: "a red apple" | class: none | A no: it is a fruit | B no: it does not fly', "Common locus: no.", "Pervasion: neither way."].join("\n");
+  const asked = [];
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on" }) }));
+  await page.route("**/api/tutor", (route) => { asked.push(route.request().postDataJSON()); return route.fulfill({ status: 200, contentType: "text/event-stream", body: sse({ type: "delta", text: lines }, { type: "done", truncated: false }) }); });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await open(page, { version: "c1", doc: OUTSIDE });
+  const before = await progression(page);
+  await openMenu(page);
+  await stop(page).click();
+  // the page names them like the others: a pair by its two sides, a syllogism by its sentence
+  await expect(rows(page).locator(".chl")).toHaveText(["Relations", "Pervasions", "Syllogisms"]);
+  await expect(rows(page).locator(".cht")).toHaveText(["penguins and things that fly", "birds and things that fly", "Take a bat. It follows it is a bird because it is something that flies."]);
+  await station(page).click();
+
+  // Relations: the relation it brought is the right one, with its examples as the reference, and an example of the learner's waits for Claude
+  await expect(title(page)).toHaveText("Relations");
+  await expect(mark(page)).toHaveText("1 of 3");
+  expect(await now(page)).toMatchObject({ tab: "practice", shown: true, at: 0, pair: "penguins | things that fly" });
+  await answerFirst(page, { own: true, text: (i, cell) => ({ anb: "a king penguin", bna: "a kite", nei: "a red apple" })[cell] });
+  const cells = () => page.evaluate(() => { const r = window.__t.ui.res; return { relOk: r.relOk, ...Object.fromEntries(Object.entries(r.cells).map(([c, x]) => [c, x.v])) }; });
+  expect(await cells()).toEqual({ relOk: true, both: "ok", anb: "cmp", bna: "cmp", nei: "cmp" });
+  await expect(page.locator("#path")).toContainText("Unchecked. Reference example: an emperor penguin");
+  await expect.poll(async () => (await now(page)).marks).toEqual({ 0: "pend" });
+  await expect(explainChoice(page)).toBeVisible();
+  await explainChoice(page).click();
+  await expect.poll(cells).toEqual({ relOk: true, both: "ok", anb: "ok", bna: "ok", nei: "ok" });
+  await expect.poll(async () => (await now(page)).marks).toEqual({ 0: "ok" });
+  // what Claude was sent: the card that says the answer came with the task, with it as the reference; no categories, and no examples for the server to keep
+  expect(asked).toHaveLength(1);
+  expect(asked[0].cats).toEqual([]);
+  expect(asked[0].examples).toBeUndefined();
+  const card = asked[0].turns[0].content;
+  expect(card.startsWith("CARD (this pair is not in the reference's term data: it was set as a task")).toBe(true);
+  expect(card).toContain("Correct relation: Mutually exclusive.");
+  expect(card).toContain('- penguins, not things that fly: learner wrote "a king penguin"; reference "an emperor penguin"; app verdict cmp');
+  expect(card).toContain("reference EMPTY (No penguin flies.)");
+  expect(card).toContain("use the correct relation above: it came with the task and is right");
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  // Pervasions: the four statements say one of each side in the task's words ("a bird", not "birds")
+  await station(page).click();
+  await expect(title(page)).toHaveText("Pervasions");
+  await expect(mark(page)).toHaveText("2 of 3");
+  expect(await now(page)).toMatchObject({ tab: "debate", shown: true, at: 1, pair: "birds | things that fly" });
+  const said = (await page.locator("#path .sb.now").innerText()).replace(/\s+/g, " ");
+  expect(said).toContain("a bird");
+  expect(said).toContain("something that flies");
+  expect(said).not.toMatch(/is (not )?(birds|things that fly)/);
+  // Why? to each of the four, with an example: the answers give four possibilities, which is the relation it brought
+  for (const thing of ["a sparrow", "a penguin", "a bat", "a stone"]) {
+    await page.locator("#path .chs .crow").filter({ hasText: "Why?" }).first().click();
+    await expect(page.locator("#dex")).toBeVisible();
+    await page.locator("#dex").fill(thing);
+    await page.locator("#dex").press("Enter");
+    await expect(page.locator("#dex")).toHaveCount(0);
+  }
+  await expect(relOptions(page)).toHaveCount(5);
+  await page.locator('#path .chs [data-k="4"]').click();
+  await expect(page.locator("#path .pvline")).toBeVisible();
+  expect(await page.evaluate(() => window.__t.ui.res.relOk)).toBe(true);
+  await expect.poll(async () => (await now(page)).marks).toMatchObject({ 1: "pend" });
+
+  // Syllogisms: the reply is checked against the three checks it brought, each with its line; the counter-example is left unchecked
+  await station(page).click();
+  await expect(title(page)).toHaveText("Syllogisms");
+  await expect(mark(page)).toHaveText("3 of 3");
+  await expect(page.locator("#path .stm")).toHaveCount(3);
+  await page.locator("#path .chs .crow").filter({ has: page.getByText("There is no pervasion", { exact: true }) }).click();
+  await expect(page.locator("#sylex")).toBeVisible();
+  await page.locator("#sylex").fill("an airplane");
+  await page.locator("#sylex").blur();
+  await station(page).click();
+  await expect(page.locator("#path .pvline")).toContainText("Right");
+  await expect(page.locator("#path .chk")).toHaveCount(3);
+  await expect(page.locator("#path")).toContainText("A bat is something that flies.");
+  await expect(page.locator("#path")).toContainText("Just because it is something that flies, doesn't necessarily mean that it is a bird.");
+  await expect(page.locator("#path")).toContainText("A bat is not a bird.");
+  await expect(page.locator("#path")).toContainText("Not checked: the app does not know an airplane well enough to say.");
+  await expect.poll(async () => (await now(page)).marks).toMatchObject({ 0: "ok", 2: "ok" });
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+
+  // nothing of the progression moved, the page is back after the last one, and the answers are in Review like any other
+  expect(await progression(page)).toBe(before);
+  await expect(station(page)).toHaveAccessibleName(/^Back to the challenge/);
+  await station(page).click();
+  await expect(title(page)).toHaveText("Challenge");
+  await expect(rows(page).locator(".chv")).toHaveCount(3);
+  await page.goBack();
+  await expect(roadmap(page).getByRole("button", { name: /^Review/ })).toHaveText("Review · 3 today");
+  expect(errors).toEqual([]);
 });

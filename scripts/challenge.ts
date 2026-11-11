@@ -1,5 +1,5 @@
 // The challenge that everyone gets (docs/SERVER.md, "The challenge"): one JSON file, as src/domain/challenge.ts reads it. This checks a written one against
-// the app's data, shows how each question will be asked and what the data answers, and loads it into the course_data table, from where the Worker gives
+// the app's data, shows how each question will be asked and what answers it (the data, or the answer a question brings), and loads it into the course_data table, from where the Worker gives
 // it to the devices that have the Magic Key. Loading another one replaces it; a challenge that changes its questions takes a new id.
 //
 //   npm run challenge -- check <challenge.json>                                 what is wrong with it, or how it will be asked
