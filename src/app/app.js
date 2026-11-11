@@ -14,7 +14,7 @@ import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { startStops } from "./practice/stops.ts";
 import { closeGiven, givenAside, givenLine, givenNow, givenShown, openGiven, resumeGiven } from "./practice/given.ts";
 import { givenQuestion } from "../domain/given.ts";
-import { dailyEnded, dailyShown, dailyToday, leaveDaily, moreDaily, startDaily } from "./practice/daily.ts";
+import { dailyEnded, dailyOptions, dailyShown, dailyToday, leaveDaily, moreDaily, startDaily } from "./practice/daily.ts";
 import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
@@ -168,6 +168,8 @@ if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){retur
   // a given question (practice/given.ts): made from what is written down, with the learner's stages and terms unless `o` says others, then opened, set aside, resumed, closed
   given:{make:(g,o)=>givenQuestion(state,g,{...givenNow(),...o}),open:openGiven,resume:resumeGiven,close:closeGiven,shown:givenShown,aside:givenAside,line:givenLine},
   // Daily practice (practice/daily.ts): the session under way, whether its question is on screen, how many were done today, and the roadmap stop's action
-  daily:{get run(){return state.daily},shown:dailyShown,ended:dailyEnded,today:dailyToday,start:startDaily,more:moreDaily,leave:leaveDaily}});
+  daily:{get run(){return state.daily},get options(){return dailyOptions()},shown:dailyShown,ended:dailyEnded,today:dailyToday,start:startDaily,more:moreDaily,leave:leaveDaily},
+  // the kept answers of Relations and of the exercises kept with them: a spec adds one to stand for an earlier miss
+  get answers(){return state.answers}});
 }
 /* ---------- test hook (end) ---------- */

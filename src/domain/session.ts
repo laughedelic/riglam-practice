@@ -4,6 +4,11 @@
 // term round meets one course term from several sides, each time beside another partner. A question that was missed comes back before the
 // session ends, as another exercise on the same terms (`comeBacks`).
 //
+// What a session is made of can be set (`mix`, `from`): the exercises it asks, two of them at the least, and what its rounds are drawn from. A round
+// has a place for one example, one for the two terms and one to close with, and each place has two exercises that can fill it; where the mix has
+// none for a place, the second exercise of another place steps in, so that a round is three questions while the mix has three exercises, and two
+// with a mix of two.
+//
 // A plan holds no questions, only what each is about, written down as given.ts takes it (`Given`): the page makes the question when its turn
 // comes, by the exercise's own rules, so it is shown and graded like any other. The planner makes each once, to know that the data can make it
 // for this learner (the stages, the terms met), and reads from a syllogism which reply is right, so that the three replies come about as often.
@@ -22,7 +27,7 @@ import type { Reply } from "./syllogism";
 import type { PoolEntry, PoolRel } from "./types";
 import { buildPool, cellsFor, relOfCells } from "./universe";
 import type { PairWords, Rng } from "./universe";
-import { cap, pick } from "./util";
+import { cap, isMiss, pick } from "./util";
 
 /** One question of a session. */
 export interface SessionStep {
@@ -61,6 +66,79 @@ export interface SessionOptions {
   rounds?: number;
   /** categories to pass over while others remain: those of the sessions before, so that the next one is about something else */
   avoid?: ReadonlySet<string>;
+  /** the exercises the session asks (default `SESSION_MIX`): no question is of another */
+  mix?: readonly SessionExercise[];
+  /** what the rounds are drawn from (default `all`) */
+  from?: SessionFrom;
+  /** with `from: "missed"`: what the learner got wrong lately, as the categories of each question (`sessionMisses`); with none, the rounds are drawn as from `all` */
+  missed?: readonly (readonly string[])[];
+  /**
+   * The rounds are added to a session under way that has had this many pair rounds: no term round opens them, and the pair rounds go on taking turns
+   * from there.
+   */
+  turn?: number;
+  /** with `turn`: the categories the session has had. They are passed over before anything else is looked at, also what was missed, while the data has others. */
+  had?: ReadonlySet<string>;
+}
+
+/** An exercise a session can ask. */
+export type SessionExercise = Given["exercise"];
+/** The exercises a session can mix, in the order they are offered: the two terms, the reasons, the one example, and Find a pair. */
+export const SESSION_EXERCISES: readonly SessionExercise[] = ["practice", "debate", "syllogism", "categories", "instance", "find"];
+/** The mix where none was chosen: every exercise but Find a pair, the longest question (the learner names a pair of their own), which is in a session only once it is added. */
+export const SESSION_MIX: readonly SessionExercise[] = SESSION_EXERCISES.filter((x) => x !== "find");
+/** The fewest exercises a mix has: with one, nothing would move between the exercises. */
+export const SESSION_MIX_MIN = 2;
+/** What the rounds of a session are drawn from: everything the learner practices, the newest stage first, or what was missed lately first. */
+export type SessionFrom = "all" | "new" | "missed";
+export const SESSION_FROM: readonly SessionFrom[] = ["all", "new", "missed"];
+
+/**
+ * The mix as it was kept (the exercises that are in it, with commas between), in the order they are offered. `SESSION_MIX` when nothing was kept, or
+ * what was is no mix: a name that is no exercise is passed over, and fewer than `SESSION_MIX_MIN` are none.
+ */
+export function sessionMix(kept: string | null | undefined): SessionExercise[] {
+  const names = typeof kept === "string" ? kept.split(",") : null, mix = names ? SESSION_EXERCISES.filter((x) => names.includes(x)) : [];
+  return mix.length >= SESSION_MIX_MIN ? mix : [...SESSION_MIX];
+}
+/** What a session is drawn from as it was kept; `all` when nothing was, or what was is none of the three. */
+export const sessionFrom = (kept: string | null | undefined): SessionFrom => SESSION_FROM.find((x) => x === kept) ?? "all";
+
+/** A kept answer, as far as a session reads it: when it was given, how it went, and the categories it was about (by the exercise that kept it). */
+export interface SessionAnswer {
+  at?: string;
+  mode?: string;
+  grade?: string;
+  correct?: boolean;
+  /** the two terms of Relations and Pervasions, the reason and the predicate of a syllogism */
+  catA?: string | null;
+  catB?: string | null;
+  /** Find an instance: the categories asked */
+  cats?: readonly string[];
+  /** Categories: each category offered, whether the thing is in it, and what the learner said */
+  rows?: readonly { cat: string; yes: boolean; said: boolean }[];
+}
+/** How many of the last misses a session draws from. */
+export const SESSION_MISSES = 40;
+/**
+ * What the learner got wrong lately, as the categories of each question, the newest first, at most `SESSION_MISSES`. Of the same categories the
+ * last answer counts, whatever exercise asked them, so that what was put right since is no miss. A thing judged by categories is a question of each
+ * category by itself: the ones it was judged wrongly by are missed.
+ */
+export function sessionMisses(answers: readonly SessionAnswer[]): string[][] {
+  const last = new Map<string, { cats: string[]; miss: boolean; n: number }>();
+  let n = 0;
+  const say = (cats: readonly (string | null | undefined)[], miss: boolean) => {
+    const of = [...new Set(cats.filter((x): x is string => !!x))].sort();
+    if (of.length) last.set(of.join("|"), { cats: of, miss, n: n++ });
+  };
+  for (const a of [...answers].sort((x, y) => (x.at || "").localeCompare(y.at || ""))) {
+    if (a.mode === "categories") { for (const r of a.rows ?? []) say([r.cat], r.yes !== r.said); continue; }
+    const cats = a.cats ?? [a.catA, a.catB];
+    // (a pair is its two categories: an answer that names one alone says nothing of it)
+    if (a.cats || (a.catA && a.catB)) say(cats, isMiss(a));
+  }
+  return [...last.values()].filter((x) => x.miss).sort((x, y) => y.n - x.n).slice(0, SESSION_MISSES).map((x) => x.cats);
 }
 
 /** The rounds of a session: with three steps each, nine questions. */
@@ -70,6 +148,16 @@ export const TERM_STEPS = 3;
 
 /** The questions of a session where nothing is missed. */
 export const SESSION_QUESTIONS = SESSION_ROUNDS * 3;
+/** The exercises a term round has a step of. */
+const TERM_EXERCISES: readonly SessionExercise[] = ["categories", "instance", "practice", "debate", "syllogism"];
+/**
+ * How many questions a session of this mix has where nothing is missed and the data has enough for the learner: three to a round, fewer where the mix has
+ * fewer exercises for it (a term round has no step of Find a pair, and needs two of the others).
+ */
+export function sessionSize(mix: readonly SessionExercise[] = SESSION_MIX, rounds = SESSION_ROUNDS): number {
+  const pair = Math.min(3, new Set(mix).size), term = Math.min(TERM_STEPS, TERM_EXERCISES.filter((x) => mix.includes(x)).length);
+  return rounds > 1 && term >= 2 ? term + (rounds - 1) * pair : rounds * pair;
+}
 
 /** Whether a step with this grade (of its kept answer: ok, part, bad, pend) was missed, so that it comes back: as Review counts a miss (util.ts, isMiss). */
 export const sessionMiss = (grade: string | null | undefined): boolean => grade === "bad" || grade === "part";
@@ -101,7 +189,14 @@ interface Ctx {
   pairs: readonly StagedEntry[];
   /** how often each reply to a syllogism is the right one in the plan so far */
   said: Record<Reply, number>;
+  /** the exercises in the mix */
+  can: ReadonlySet<SessionExercise>;
+  from: SessionFrom;
+  /** what was missed lately, with `from: "missed"`: the pairs (`pairKey`), every category of a missed question, and the categories of the misses that are no pair */
+  missed: { pairs: ReadonlySet<string>; cats: ReadonlySet<string>; alone: ReadonlySet<string> };
 }
+
+const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
 
 const pools = new WeakMap<object, readonly PoolEntry[]>();
 function context(ix: DataIndex, o: SessionOptions): Ctx {
@@ -109,7 +204,12 @@ function context(ix: DataIndex, o: SessionOptions): Ctx {
   let pool = o.pool ?? pools.get(ix.DATA);
   if (!pool) pools.set(ix.DATA, (pool = buildPool(ix)));
   const pairs = poolAt(ix, pool, o.stages).filter((e) => e.a !== e.b && !unmet?.has(e.a) && !unmet?.has(e.b));
-  return { ix, on: o.stages, rng, given: { stages: o.stages, words: o.words, rng, now: () => 0 }, pairs, said: { accept: 0, reason: 0, pervasion: 0 } };
+  const from = o.from ?? "all", missed = from === "missed" ? o.missed ?? [] : [];
+  return {
+    ix, on: o.stages, rng, given: { stages: o.stages, words: o.words, rng, now: () => 0 }, pairs, said: { accept: 0, reason: 0, pervasion: 0 },
+    can: new Set(o.mix ?? SESSION_MIX), from,
+    missed: { pairs: new Set(missed.filter((m) => m.length === 2).map((m) => pairKey(m[0], m[1]))), cats: new Set(missed.flat()), alone: new Set(missed.filter((m) => m.length !== 2).flat()) },
+  };
 }
 
 function shuffle<T>(xs: readonly T[], rng: Rng): T[] {
@@ -180,39 +280,78 @@ function telling(c: Ctx, a: string, b: string): Item[] {
   return shuffle(TELLING[relOfCells(cells)].flatMap((k) => shuffle(things(c, cells[k], a, b), c.rng).slice(0, 6)), c.rng);
 }
 
-/** How a pair round is walked; what is left out is drawn. */
+/** How a pair round is walked: the exercise of each of its three places, where the mix has it (else the other of the place); what is left out is drawn. */
 export interface PairRoundOptions {
   /** the exercise of the one example */
   first?: "categories" | "instance";
   /** the exercise of the two terms */
   two?: "practice" | "debate";
-  /** a fourth step: Find a pair for the relation of the pair, the other way round */
-  find?: boolean;
+  /** the exercise the round closes with: a reason, or the relation of the pair the other way round, for a pair of the learner's own (default: a reason) */
+  last?: "syllogism" | "find";
+}
+
+/** The three places of a pair round, and the two exercises that can fill each. */
+const PLACES: readonly (readonly [SessionExercise, SessionExercise])[] = [["categories", "instance"], ["practice", "debate"], ["syllogism", "find"]];
+/**
+ * The order of the exercises in a round. Where a place has both of its exercises: the thing is named before a thing is judged (so that the thing judged
+ * is not there to be named), the relation is said before it is walked statement by statement (Pervasions ends on the relation), and the pair of the
+ * learner's own comes last.
+ */
+const ORDER: readonly SessionExercise[] = ["instance", "categories", "practice", "debate", "syllogism", "find"];
+
+/**
+ * The exercises of a pair round, in the order they are asked: of each place the one asked for where the mix has it, else the other; with a place the
+ * mix has nothing for, the other exercise of another place steps in (of the two terms first, then of the example, then of the close), up to three.
+ */
+function walkOf(c: Ctx, o: PairRoundOptions): SessionExercise[] {
+  const want: SessionExercise[] = [o.first ?? pick(["categories", "instance"] as const, c.rng), o.two ?? (c.rng() < 0.6 ? "practice" : "debate"), o.last ?? "syllogism"];
+  const walk: SessionExercise[] = [], spare: (SessionExercise | undefined)[] = [];
+  PLACES.forEach(([x, y], i) => {
+    const first = want[i], other = first === x ? y : x;
+    if (c.can.has(first)) { walk.push(first); if (c.can.has(other)) spare[i] = other; } else if (c.can.has(other)) walk.push(other);
+  });
+  for (const i of [1, 0, 2]) { const x = spare[i]; if (x && walk.length < PLACES.length) walk.push(x); }
+  return ORDER.filter((x) => walk.includes(x));
 }
 
 function pairRoundOf(c: Ctx, a: string, b: string, o: PairRoundOptions = {}): SessionRound | null {
   if (a === b || !c.ix.CAT[a] || !c.ix.CAT[b]) return null;
-  const rel = relOfCells(cellsFor(c.ix, a, b));
-  // 1 one example: a telling thing judged by categories with both terms among them, or something that is both, named
-  const place = () => placeStep(c, telling(c, a, b), [a, b]), name = () => { const s = instanceStep(c, [a, b]); return s && { step: s, thing: undefined }; };
-  const one = (o.first ?? pick(["categories", "instance"] as const, c.rng)) === "categories" ? place() ?? name() : name() ?? place();
-  if (!one) return null;
-  // 2 the two terms: their relation, by Relations or by the four statements
-  const two = pairStep(c, o.two ?? (c.rng() < 0.6 ? "practice" : "debate"), a, b, one.thing ? "Two of the categories you just judged " + one.thing + " by, now side by side." : "The same two terms, now as a pair.");
-  if (!two) return null;
-  // 3 a reason: one of the two as the reason for the other
-  const three = reasonStep(c, a, b, (s) => (s === one.thing ? cap(s) + " comes back as the subject. " : "") + "The same two terms: one is now the reason for the other.", one.thing);
-  if (!three) return null;
-  const steps = [one.step, two, three];
-  // 4 the other way round: another pair with the same relation, named by the learner
-  const relation = o.find ? givenRelation(rel) : null;
-  if (relation) steps.push(step({ exercise: "find", relation }, [a, b], "The same relation, the other way round: you name a pair that has it."));
+  const walk = walkOf(c, o), steps: SessionStep[] = [];
+  if (walk.length < 2) return null;
+  // what the steps so far hand on: the thing that was judged, and whether the two terms have stood side by side (their relation was said)
+  let thing: string | undefined, sided = false;
+  const place = (tie: string) => { const p = placeStep(c, telling(c, a, b), [a, b], tie); if (p) thing = p.thing; return p ? p.step : null; };
+  for (const ex of walk) {
+    const first = !steps.length;
+    let s: SessionStep | null;
+    if (ex === "instance") {
+      // something that is both, named; where the data asks no such thing of the pair, a thing judged instead (unless that comes anyway)
+      s = instanceStep(c, [a, b]) ?? (c.can.has("categories") && !walk.includes("categories") ? place("") : null);
+    } else if (ex === "categories") {
+      // a telling thing judged by categories with both terms among them; where there is none, something that is both, named (unless that came already)
+      s = place(first ? "" : "The same two terms are now among the categories you judge a thing by.") ?? (c.can.has("instance") && !walk.includes("instance") ? instanceStep(c, [a, b]) : null);
+    } else if (ex === "practice" || ex === "debate") {
+      // the two terms: their relation, by Relations or by the four statements
+      s = pairStep(c, ex, a, b, first ? "" : sided ? "The same pair, now statement by statement." : thing ? "Two of the categories you just judged " + thing + " by, now side by side." : "The same two terms, now as a pair.");
+      sided = true;
+    } else if (ex === "syllogism") {
+      // a reason: one of the two as the reason for the other
+      s = reasonStep(c, a, b, (subject) => (first ? "" : (subject === thing ? cap(subject) + " comes back as the subject. " : "") + "The same two terms: one is now the reason for the other."), thing);
+    } else {
+      // the other way round: another pair with the same relation, named by the learner (the line says that the relation is the same only once it was said)
+      const relation = givenRelation(relOfCells(cellsFor(c.ix, a, b)));
+      s = relation ? step({ exercise: "find", relation }, [a, b], first ? "" : sided ? "The same relation, the other way round: you name another pair that has it." : "Now the other way round: you are given a relation, and name a pair that has it.") : null;
+    }
+    if (!s) return null;
+    steps.push(s);
+  }
   return { kind: "pair", cats: [a, b], steps };
 }
 
 /**
- * A round on one pair of categories: one example, the two terms, a reason (and with `find`, a pair of the learner's own). Null when the data
- * cannot make all three for the learner: a category it lacks or the learner has not met, a pair it does not judge, no syllogism it can settle.
+ * A round on one pair of categories: one example, the two terms, and a reason (or with `last: "find"`, a pair of the learner's own), as far as the
+ * mix has the exercises for them. Null when the data cannot make every step for the learner (a category it lacks or the learner has not met, a
+ * pair it does not judge, no syllogism it can settle), or the mix leaves fewer than two.
  */
 export function pairRound(ix: DataIndex, a: string, b: string, o: SessionOptions & PairRoundOptions): SessionRound | null {
   return pairRoundOf(context(ix, o), a, b, o);
@@ -233,43 +372,56 @@ function termRoundOf(c: Ctx, id: string, max: number): SessionRound | null {
     return hit;
   };
   // 1 a thing that is one, judged by categories with the term among them
-  const one = placeStep(c, shuffle(things(c, c.ix.DATA.items.filter((it) => it.c.includes(id)), id, id), c.rng).slice(0, 10), [id]);
+  const one = c.can.has("categories") && placeStep(c, shuffle(things(c, c.ix.DATA.items.filter((it) => it.c.includes(id)), id, id), c.rng).slice(0, 10), [id]);
   if (one) steps.push(one.step);
   // 2 a thing the learner names, together with a term that crosses it or holds it
   const cross = take(["4"]) ?? take(["3ab", "3ba"]);
-  const two = cross && instanceStep(c, [id, cross.other], name + " again: this time you name the thing.");
+  const two = cross && c.can.has("instance") && instanceStep(c, [id, cross.other], name + " again: this time you name the thing.");
   if (two) steps.push(two);
   // 3 beside what holds it or what it holds
   const up = take(["3ab", "3ba"]);
-  const three = up && pairStep(c, "practice", id, up.other, name + " again, now as one of a pair.");
+  const three = up && c.can.has("practice") && pairStep(c, "practice", id, up.other, name + " again, now as one of a pair.");
   if (three) steps.push(three);
   // 4 beside what it shuts out
   const out = take(["con"]);
-  const four = out && pairStep(c, "debate", id, out.other, name + " again, beside another term, statement by statement.");
+  const four = out && c.can.has("debate") && pairStep(c, "debate", id, out.other, name + " again, beside another term, statement by statement.");
   if (four) steps.push(four);
   // 5 in a reason, with the first of the partners the data can make one for
-  for (const p of [up, cross, out]) {
+  if (c.can.has("syllogism")) for (const p of [up, cross, out]) {
     const five = p && reasonStep(c, id, p.other, () => name + " again, now in a reason.");
     if (five) { steps.push(five); break; }
   }
   // a short round keeps its ends: a thing first, a reason last
   const kept = steps.length > max ? [...steps.slice(0, max - 1), steps[steps.length - 1]] : steps;
-  return kept.length >= 3 ? { kind: "term", cats: [id], steps: kept } : null;
+  // as many as a session's term round has, or as the mix has exercises for; two at the least
+  if (kept.length < Math.max(2, Math.min(TERM_STEPS, TERM_EXERCISES.filter((x) => c.can.has(x)).length))) return null;
+  // (each line is written for a step that follows another: the first of the round carries nothing over)
+  return { kind: "term", cats: [id], steps: kept.map((x, i) => (i ? x : { ...x, tie: "" })) };
 }
 
 /**
  * A round on one course term, at most `steps` questions (default 5): a thing that is one, a thing the learner names, the term beside a wider or
- * narrower one, beside one it shuts out, and in a reason. Null when the data makes fewer than three of them for the learner.
+ * narrower one, beside one it shuts out, and in a reason, each where the mix has its exercise. Null when the data makes fewer than three of them
+ * for the learner (two, with a mix that has only two of these exercises).
  */
 export function termRound(ix: DataIndex, id: string, o: SessionOptions & { steps?: number }): SessionRound | null {
   return termRoundOf(context(ix, o), id, o.steps ?? 5);
 }
 
-/** The course terms a term round can be about, in the order to try them: the open ones (met, the last answer not right yet), then those of the highest stage, then the others; those to avoid last. */
+/**
+ * The course terms a term round can be about, in the order to try them: the open ones (met, the last answer not right yet), then those of the highest
+ * stage, then the others; those to avoid last. Drawn from the newest stage, its terms come before every other, the open ones first among them and
+ * those to avoid last. Drawn from what was missed, the open terms and then the terms missed by themselves come first, also the ones to avoid (the
+ * terms of a missed pair are left for the round on that pair: no category of one round is in another).
+ */
 function termOrder(c: Ctx, avoid?: ReadonlySet<string>): string[] {
   const top = topStage(c.on), unmet = c.given.words?.unmet, open = c.given.words?.open?.size ? termCats(c.given.words.open) : null;
   const ids = shuffle(Object.values(c.ix.CAT).filter((x) => x.kind === "dudra" && !!x.term && c.on.includes(catStage(x)) && !unmet?.has(x.id)).map((x) => x.id), c.rng);
-  const rank = (id: string) => (avoid?.has(id) ? 3 : open?.has(id) ? 0 : catStage(c.ix.CAT[id]) === top ? 1 : 2);
+  const high = (id: string) => catStage(c.ix.CAT[id]) === top;
+  const rank = (id: string) =>
+    c.from === "new" ? (high(id) ? 0 : 4) + (avoid?.has(id) ? 2 : 0) + (open?.has(id) ? 0 : 1)
+    : c.from === "missed" && (open?.has(id) || c.missed.alone.has(id)) ? (open?.has(id) ? -2 : -1)
+    : avoid?.has(id) ? 3 : open?.has(id) ? 0 : high(id) ? 1 : 2;
   return ids.map((id, i) => ({ id, i })).sort((x, y) => rank(x.id) - rank(y.id) || x.i - y.i).map((x) => x.id);
 }
 
@@ -278,13 +430,21 @@ function termOrder(c: Ctx, avoid?: ReadonlySet<string>): string[] {
 /**
  * A pair for a round: none of the categories the plan has (`seen`), those to `avoid` and the relations it has (`rels`) only when nothing else is
  * left. A pair new at the highest stage half the time, then a relation, each as likely, then a pair, one with a course term most of the time.
+ * Drawn from the newest stage, a pair new at it while there is one. Drawn from what was missed, a pair that was missed while there is one, then a
+ * pair with a category of a miss, also among those to avoid. What a session under way has `had` is passed over first of all, while there are others.
  */
-function drawPair(c: Ctx, seen: ReadonlySet<string>, failed: ReadonlySet<StagedEntry>, rels: ReadonlySet<PoolRel>, avoid?: ReadonlySet<string>): StagedEntry | null {
-  const free = c.pairs.filter((e) => !seen.has(e.a) && !seen.has(e.b) && !failed.has(e));
-  const fresh = free.filter((e) => !avoid?.has(e.a) && !avoid?.has(e.b)), all = fresh.length ? fresh : free;
-  const other = all.filter((e) => !rels.has(e.r)), left = other.length ? other : all;
+function drawPair(c: Ctx, seen: ReadonlySet<string>, failed: ReadonlySet<StagedEntry>, rels: ReadonlySet<PoolRel>, avoid?: ReadonlySet<string>, had?: ReadonlySet<string>): StagedEntry | null {
+  const top = topStage(c.on);
+  let left = c.pairs.filter((e) => !seen.has(e.a) && !seen.has(e.b) && !failed.has(e));
+  /** Keeps the pairs that are so, while there are any. Whether there were. */
+  const prefer = (so: (e: StagedEntry) => boolean): boolean => { const kept = left.filter(so); if (kept.length) left = kept; return kept.length > 0; };
+  if (had) prefer((e) => !had.has(e.a) && !had.has(e.b));
+  const missed = c.from === "missed" && (prefer((e) => c.missed.pairs.has(pairKey(e.a, e.b))) || prefer((e) => c.missed.cats.has(e.a) || c.missed.cats.has(e.b)));
+  const newest = c.from === "new" && prefer((e) => e.st === top);
+  if (!missed) prefer((e) => !avoid?.has(e.a) && !avoid?.has(e.b));
+  prefer((e) => !rels.has(e.r));
   if (!left.length) return null;
-  const top = topStage(c.on), high = left.filter((e) => e.st === top), of = high.length && c.rng() < 0.5 ? high : left;
+  const high = newest ? [] : left.filter((e) => e.st === top), of = high.length && c.rng() < 0.5 ? high : left;
   const r = pick([...new Set(of.map((e) => e.r))], c.rng), ofRel = of.filter((e) => e.r === r);
   const course = ofRel.filter((e) => c.ix.CAT[e.a].kind === "dudra" || c.ix.CAT[e.b].kind === "dudra");
   return pick(course.length && c.rng() < 0.7 ? course : ofRel, c.rng);
@@ -295,22 +455,23 @@ const PAIR_TRIES = 200;
 
 /**
  * The plan of a session: a short term round first, where the learner has met a course term it can be about (an open one before the others),
- * then pair rounds, each about other categories and, while the data has them, another relation; the example and the two terms of the pairs
- * come by turns from the two exercises that can ask them. Fewer rounds than asked for, or none, when the data has no more for the learner.
+ * then pair rounds, each about other categories and, while the data has them, another relation; the example, the two terms and the close of the
+ * pairs come by turns from the two exercises that can ask them, where the mix has both. Fewer rounds than asked for, or none, when the data has
+ * no more for the learner. With `turn`, the rounds are added to a session under way: pair rounds only, taking turns from there.
  */
 export function planSession(ix: DataIndex, o: SessionOptions): SessionPlan {
   const c = context(ix, o), n = Math.max(0, o.rounds ?? SESSION_ROUNDS), rounds: SessionRound[] = [], seen = new Set<string>();
   const add = (t: SessionRound) => { rounds.push(t); for (const s of t.steps) for (const x of s.cats) seen.add(x); };
-  if (n > 1) for (const id of termOrder(c, o.avoid)) {
+  if (n > 1 && o.turn === undefined) for (const id of termOrder(c, o.avoid)) {
     const t = termRoundOf(c, id, TERM_STEPS);
     if (t) { add(t); break; }
   }
   const failed = new Set<StagedEntry>(), rels = new Set<PoolRel>();
-  for (let tries = 0, pairs = 0; tries < PAIR_TRIES && rounds.length < n; tries++) {
-    const e = drawPair(c, seen, failed, rels, o.avoid);
+  for (let tries = 0, turn = o.turn ?? 0; tries < PAIR_TRIES && rounds.length < n; tries++) {
+    const e = drawPair(c, seen, failed, rels, o.avoid, o.turn === undefined ? undefined : o.had);
     if (!e) break;
-    const t = pairRoundOf(c, e.a, e.b, pairs % 2 ? { first: "instance", two: "debate" } : { first: "categories", two: "practice" });
-    if (t) { add(t); rels.add(e.r); pairs++; } else failed.add(e);
+    const t = pairRoundOf(c, e.a, e.b, turn % 2 ? { first: "instance", two: "debate", last: "find" } : { first: "categories", two: "practice", last: "syllogism" });
+    if (t) { add(t); rels.add(e.r); turn++; } else failed.add(e);
   }
   return { rounds };
 }
@@ -330,7 +491,7 @@ const BACK: Record<Given["exercise"], readonly Way[]> = {
   instance: ["placed", "pair", "stated", "reason"],
 };
 
-/** What a missed step comes back as: another exercise on the same categories, one the session has not asked of them (`asked`: step keys). */
+/** What a missed step comes back as: another exercise of the mix on the same categories, one the session has not asked of them (`asked`: step keys). */
 function comeBack(c: Ctx, missed: SessionStep, asked: ReadonlySet<string>): SessionStep | null {
   const [a, b] = missed.cats, ex = missed.given.exercise;
   if (!a || !c.ix.CAT[a] || (b && !c.ix.CAT[b])) return null;
@@ -344,12 +505,12 @@ function comeBack(c: Ctx, missed: SessionStep, asked: ReadonlySet<string>): Sess
     stated: () => (b ? pairStep(c, "debate", a, b, lead + ", statement by statement.") : null),
   };
   for (const way of BACK[ex] ?? []) {
-    if (asked.has(WAY_EXERCISE[way] + "|" + [...cats].sort().join("|"))) continue;
+    if (!c.can.has(WAY_EXERCISE[way]) || asked.has(WAY_EXERCISE[way] + "|" + [...cats].sort().join("|"))) continue;
     const s = make[way]();
     if (s) return { ...s, again: true };
   }
   // one term alone, and the data asks nothing more of it by itself: beside one of its partners
-  if (!b) for (const e of shuffle(c.pairs.filter((p) => p.a === a || p.b === a), c.rng).slice(0, 6)) {
+  if (!b && c.can.has("practice")) for (const e of shuffle(c.pairs.filter((p) => p.a === a || p.b === a), c.rng).slice(0, 6)) {
     const s = pairStep(c, "practice", e.a, e.b, lead + ", now as one of a pair.");
     if (s && !asked.has(stepKey(s))) return { ...s, again: true };
   }

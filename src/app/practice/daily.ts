@@ -12,6 +12,10 @@
 // question back as it was left. It is kept in memory only: a cold start forgets it. What the device keeps (`rd-daily`) is the day of the last
 // session done, how many were done that day, and the categories of the last one, which the next plan passes over while it has others.
 //
+// What a session is made of is the learner's to set (the Daily practice page of the practice options, path/options.tsx): the exercises in the mix, at least
+// two of them (Find a pair only once it is added), and what the rounds are drawn from. Both are kept on the device with the other settings (`rd-daily-mix`,
+// `rd-daily-from`). A change holds from the next round on: the rounds of a session under way that have not begun are planned anew, the one being asked stays.
+//
 // The last station is a screen of its own over the exercise the last question was in, whose own attempt waits under it untouched: while it is in front
 // the page's view is `DAILY_VIEW`, which keeps the keys and the voice off the attempt under it (shell/keys.js, shell/voice.js), its clock still
 // (shell/timers.js) and the thread from being pulled back (practice/trail.ts). Going anywhere else from it leaves the session for good.
@@ -25,18 +29,16 @@ import type { GivenHooks } from "./given.ts";
 import { openNow, unmetNow } from "./stops.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { givenQuestion } from "../../domain/given.ts";
-import { SESSION_QUESTIONS, comeBacks, planSession, sessionMiss, stepKey, roundName } from "../../domain/session.ts";
-import type { SessionOptions, SessionPlan, SessionStep } from "../../domain/session.ts";
+import { SESSION_EXERCISES, SESSION_MIX_MIN, comeBacks, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, stepKey, roundName } from "../../domain/session.ts";
+import type { SessionAnswer, SessionExercise, SessionFrom, SessionOptions, SessionPlan, SessionStep } from "../../domain/session.ts";
 
 /** The name of the mode, on the roadmap and wherever it is said. */
 export const DAILY_NAME = "Daily practice";
-/** What the roadmap says under the name before a session: how many questions it has when nothing is missed. */
-export const DAILY_SIZE = SESSION_QUESTIONS + " questions";
 /** The page's view while the session's last station is in front (state.js, `view`). */
 export const DAILY_VIEW = "daily";
 /** What the group of the questions that came back is called at the last station. */
 export const DAILY_BACK = "Came back";
-const KEY = "rd-daily";
+const KEY = "rd-daily", MIX_KEY = "rd-daily-mix", FROM_KEY = "rd-daily-from";
 
 /** How a step went: "" not answered (yet), the grade of its kept answer (ok, part, bad, pend), or "skip". */
 export type DailyMark = "" | "ok" | "part" | "bad" | "pend" | "skip";
@@ -81,6 +83,14 @@ export interface DailyDone {
   cats: string[];
 }
 
+/** What a session is made of, as the learner set it. */
+export interface DailyOptions {
+  /** the exercises in the mix, in the order they are offered */
+  mix: SessionExercise[];
+  /** what the rounds are drawn from */
+  from: SessionFrom;
+}
+
 const ix = () => state as unknown as DataIndex;
 const MARKS: readonly string[] = ["ok", "part", "bad", "pend"];
 
@@ -102,9 +112,72 @@ function done(): DailyDone {
 /** How many sessions were done today. */
 export const dailyToday = (): number => { const d = done(); return d.day === today() ? d.n : 0; };
 
-/** What the plan and the steps that come back are made for: the learner's stages and terms, and the categories of the session before to pass over. */
-const options = (): SessionOptions => ({ stages: state.stages, words: { unmet: unmetNow(), open: openNow() }, pool: state.POOL ?? undefined, avoid: new Set(done().cats) });
+/** What a session is made of: what the device keeps, read once; the mix without Find a pair and everything to draw from where nothing was set. */
+export function dailyOptions(): DailyOptions {
+  if (!state.dailyOptions) {
+    let mix: string | null = null, from: string | null = null;
+    try { mix = localStorage.getItem(MIX_KEY); from = localStorage.getItem(FROM_KEY); } catch { /* not to be read: as if nothing was set */ }
+    state.dailyOptions = { mix: sessionMix(mix), from: sessionFrom(from) };
+  }
+  return state.dailyOptions;
+}
+/** What the roadmap says under the name before a session: how many questions it has when nothing is missed. */
+export const dailySize = (): string => sessionSize(dailyOptions().mix) + " questions";
+const keep = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* the choice holds for this visit */ } };
+/** Puts an exercise in the mix or takes it out. Whether it was done: not when fewer than two would be left. */
+export function setDailyExercise(ex: SessionExercise, on: boolean): boolean {
+  const o = dailyOptions(), mix = SESSION_EXERCISES.filter((x) => (x === ex ? on : o.mix.includes(x)));
+  if (mix.length < SESSION_MIX_MIN) return false;
+  if (mix.length !== o.mix.length) { o.mix = mix; keep(MIX_KEY, mix.join(",")); replan(); }
+  render();
+  return true;
+}
+/** Sets what the rounds are drawn from. */
+export function setDailyFrom(from: SessionFrom): void {
+  const o = dailyOptions();
+  if (o.from !== from) { o.from = from; keep(FROM_KEY, from); replan(); }
+  render();
+}
+
+/** What the learner got wrong lately, over every exercise: the last answer to each question counts (domain/session.ts, `sessionMisses`). */
+const missed = (): string[][] => sessionMisses([...Object.values(state.answers), ...Object.values(state.debates)] as SessionAnswer[]);
+/**
+ * What the plan and the steps that come back are made for: the learner's stages and terms, the categories of the session before to pass over, and what
+ * the session is made of as the learner set it.
+ */
+function options(): SessionOptions {
+  const o = dailyOptions();
+  return {
+    stages: state.stages, words: { unmet: unmetNow(), open: openNow() }, pool: state.POOL ?? undefined, avoid: new Set(done().cats),
+    mix: o.mix, from: o.from, missed: o.from === "missed" ? missed() : undefined,
+  };
+}
 const groupsOf = (plan: SessionPlan): DailyGroup[] => plan.rounds.map((t) => ({ n: t.steps.length, name: roundName(ix(), t) }));
+/** The pair rounds a session has had: the rounds added to it go on taking turns from there. */
+const turn = (s: DailyRun): number => s.plan.rounds.filter((t) => t.kind === "pair").length;
+/** The categories a session has had: the rounds added to it are about others while there are any, also when it is drawn from the mistakes. */
+const had = (s: DailyRun): Set<string> => new Set(s.steps.flatMap((x) => x.cats));
+/** Adds rounds to the session, after the steps it has. */
+function add(s: DailyRun, more: SessionPlan): void {
+  const steps = more.rounds.flatMap((t) => t.steps);
+  s.plan = { rounds: [...s.plan.rounds, ...more.rounds] };
+  s.steps.push(...steps); s.marks.push(...steps.map((): DailyMark => "")); s.groups.push(...groupsOf(more));
+}
+/**
+ * What a session is made of has changed: the rounds of the session under way that have not begun are planned anew, as many as there were (fewer when
+ * the data has no more for the learner), on terms the session has not had while there are others. The round being asked stays as it is, and what
+ * comes back is made when its turn comes, for the mix as it is then.
+ */
+function replan(): void {
+  const s = state.daily; if (!s || s.end || s.back) return;
+  let upto = 0, g = 0;
+  for (; g < s.groups.length; g++) { upto += s.groups[g].n; if (s.at < upto) break; }
+  const ahead = s.groups.length - 1 - g;
+  if (ahead <= 0) return;
+  s.steps.length = upto; s.marks.length = upto; s.groups.length = g + 1;
+  s.plan = { rounds: s.plan.rounds.slice(0, s.plan.rounds.length - ahead) };
+  add(s, planSession(ix(), { ...options(), rounds: ahead, turn: turn(s), had: had(s) }));
+}
 
 /**
  * Whether the session's last station is in front. Once anything else is (the roadmap, by the top bar or by Back), the session is over: it is forgotten here,
@@ -192,11 +265,10 @@ export function leaveDaily(): void {
  */
 export function moreDaily(sprint = false): boolean {
   const s = state.daily; if (!s || !s.end) return false;
-  const more = planSession(ix(), { ...options(), rounds: 1, avoid: new Set(s.steps.flatMap((x) => x.cats)) }), steps = more.rounds.flatMap((t) => t.steps);
-  if (!steps.length) return false;
+  const more = planSession(ix(), { ...options(), rounds: 1, turn: turn(s), had: had(s) });
+  if (!more.rounds.length) return false;
   const from = s.steps.length;
-  s.plan = { rounds: [...s.plan.rounds, ...more.rounds] };
-  s.steps.push(...steps); s.marks.push(...steps.map((): DailyMark => "")); s.groups.push(...groupsOf(more));
+  add(s, more);
   s.from = from; s.back = false; s.end = false; s.sprint = sprint;
   state.view = null;
   if (open(from)) return true;

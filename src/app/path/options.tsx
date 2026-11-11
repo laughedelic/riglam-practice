@@ -1,6 +1,7 @@
 // The practice options of the exercise on screen (the Design Lab's "Settings and options", round 3): a sheet from the top bar, its lines in groups
 // (path/lines.tsx): under the exercise's name what is its own, under Practice what every exercise has where it is built, then the way on to Settings;
-// a line's own page opens in the sheet. The settings themselves are kept and stored on the device by shell/session.js, stages.js and voice.js. The stages and the difficulty are not among them: they live on the Progression page, behind the top bar's ring (path/progression.tsx).
+// a line's own page opens in the sheet. While a question of a session of Daily practice is on screen the list starts with the session's own line, and its page
+// (the exercises in the mix, what the rounds are drawn from: practice/daily.ts) also opens by itself from the session's last station. The settings themselves are kept and stored on the device by shell/session.js, stages.js and voice.js. The stages and the difficulty are not among them: they live on the Progression page, behind the top bar's ring (path/progression.tsx).
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -11,17 +12,21 @@ import { canAsk } from "../core/ask.js";
 import { WORDINGS } from "../debate/text.js";
 import { exName } from "../shell/exercises.js";
 import { GUIDANCE_NAMES, GUIDES, guidance, setGuidance } from "../practice/guided.ts";
+import { DAILY_NAME, dailyOptions, dailyShown, setDailyExercise, setDailyFrom } from "../practice/daily.ts";
 import { PACE_NAME } from "../practice/difficulty.ts";
 import { progressNow } from "../practice/stage-offer.ts";
 import { toggleOpts } from "../shell/options.js";
 import { SYMS, openPage, quorumNote, setAutoExplain, setNota, setShow, setSyllogismCounter, setSyllogismThesis, setSyllogismWording, setWording, toggleSess } from "../shell/session.js";
 import { kindMs, setBlitz, setTimer } from "../shell/timers.js";
 import { ANSWER_PICKS, BEST, CONFIRM_PICKS, RESULT_PICKS, RATES, ANSWER_LEAD, READ_LEAD, READ_NOTE, REMOTE_NOTE, SAMPLE, VOICE_SAY, WHERE, answerShown, hookVoices, readOut, remoteRests, serverId, setVoice, voiceGroups, voiceShown } from "../shell/voice.js";
+import { SESSION_EXERCISES, SESSION_MIX_MIN } from "../../domain/session.ts";
+import type { SessionExercise, SessionFrom } from "../../domain/session.ts";
 import { GUIDANCE, LADDER_TOP, guideSteps } from "../../domain/stages.ts";
 import type { Guidance } from "../../domain/stages.ts";
 import { type TimeKind, timesOf } from "../../domain/sprint.ts";
 import { canSpeak, voiceList } from "../../ui/speech";
 import { ProgressPage } from "./progress.tsx";
+import { pathNote } from "./shell.tsx";
 import { D, Icon, Knob, Toggle, Words, NOFILL } from "./ui.tsx";
 import { Group, Intro, Line } from "./lines.tsx";
 import { DEFAULT_LOOK, currentLook, setLook } from "./look.ts";
@@ -87,6 +92,16 @@ const ANSWER_WORDS: [string, string][] = (ANSWER_PICKS as [string, string, strin
 const TUTOR: [string, string][] = [["every", "Every answer"], ["ask", "When I ask"]];
 const setTutor = (k: string) => setAutoExplain(k === "every");
 
+/** What a session of Daily practice is drawn from: the name of each choice, the same in a few words for the session's line, and what it does. */
+const FROM: Record<SessionFrom, [name: string, short: string, note: string]> = {
+  all: ["Everything", "everything", "Everything you practice so far, the newest stage a little more often."],
+  new: ["Newest stage", "the newest stage", "The terms and pairs of the stage you reached last, while it has enough of them."],
+  missed: ["Mistakes", "my mistakes", "The terms and pairs you got wrong lately come first, then everything else."],
+};
+const FROM_NAMES = (Object.keys(FROM) as SessionFrom[]).map((k) => [k, FROM[k][0]] as [SessionFrom, string]);
+/** What a session is set to, in a line. */
+const dailyLine = () => { const o = dailyOptions(); return o.mix.length + " exercises · from " + FROM[o.from][1]; };
+
 /** The levels of guidance, as the line and its page name them (practice/guided.ts). */
 const LEVELS: [Guidance, string][] = GUIDANCE.map((g) => [g, GUIDANCE_NAMES[g]]);
 /** The list: under the exercise's name what is its own, under Practice what every exercise has where it is built, and the way on to Settings. */
@@ -94,6 +109,7 @@ function List() {
   const tab = state.tab;
   const guide = GUIDES[tab] ? <Line title="Guidance" go={() => openPage("guidance")}><Words label="Guidance" items={LEVELS} cur={guidance(tab)} on={(g) => setGuidance(tab, g)} /></Line> : null;
   return <>
+    {dailyShown() ? <Group name={DAILY_NAME}><Line title="Exercises and questions" sub={dailyLine()} go={() => openPage("daily")} /></Group> : null}
     <Group name={exName(tab)}>
       {guide}
       {tab === "categories" ? <Line title="One category at a time" sub="a yes or a no for each, in turn" sw={{ on: state.catsAsk === "one", toggle: () => setCategoriesAsk(state.catsAsk === "one" ? "all" : "one") }} /> : null}
@@ -162,8 +178,23 @@ function GuidancePage() {
     <p class="sintro">{picked ? GUIDANCE_NAMES[guidance(tab)] + ", as you picked it." : right + (right === 1 ? " right answer" : " right answers") + " here so far."}</p>
   </>;
 }
+/** Daily practice: the exercises a session mixes, and what its rounds are drawn from. */
+function DailyPage() {
+  const o = dailyOptions(), on = (k: SessionExercise) => o.mix.includes(k);
+  const flip = (k: SessionExercise) => () => { if (!setDailyExercise(k, !on(k))) pathNote("A session mixes at least " + (SESSION_MIX_MIN === 2 ? "two" : SESSION_MIX_MIN) + " exercises"); };
+  return <>
+    <Intro>Changes hold from the next round on.</Intro>
+    <Group name="Questions">
+      <Line title="Drawn from" sub={FROM[o.from][2]}><Words label="Drawn from" items={FROM_NAMES} cur={o.from} on={setDailyFrom} /></Line>
+    </Group>
+    <Group name="Exercises in the mix">
+      {SESSION_EXERCISES.map((k) => <Line title={exName(k)} sub={k === "find" ? "the longest question: you name a pair of your own, and its examples" : undefined} sw={{ on: on(k), toggle: flip(k) }} />)}
+    </Group>
+  </>;
+}
 function Page({ id }: { id: string }) {
   if (id === "text") return <TextPage />;
+  if (id === "daily") return <DailyPage />;
   if (id === "guidance") return <GuidancePage />;
   if (id === "times") return <>
     <Intro>{"A clock for each step, switched on and off with the stopwatch in the top bar (each exercise keeps its own); hold the stopwatch to come back here. The bar fills over the time, and when it is full the exercise moves on by itself. " + (TIME_UP[state.tab] || "")}</Intro>
@@ -224,7 +255,7 @@ function TutorPage() {
 }
 
 /** The Path's pages of the practice options, by the names their lines have. */
-const TITLES: Record<string, string> = { guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", read: "Read aloud", answer: "Answer by voice", tutor: "Claude AI", progress: "Progression" };
+const TITLES: Record<string, string> = { daily: DAILY_NAME, guidance: "Guidance", text: "Wording and notation", stages: "Difficulty", times: "Sprint", read: "Read aloud", answer: "Answer by voice", tutor: "Claude AI", progress: "Progression" };
 const sheetOn = () => state.sessOpen && state.mode === "quiz";
 /** The sheet's own page that is open (one of TITLES), or null for the list. */
 const sheetPage = () => sheetOn() && state.sessPage && TITLES[state.sessPage] && (state.sessPage !== "read" || (voiceShown() && canSpeak())) && (state.sessPage !== "answer" || (voiceShown() && answerShown())) && (state.sessPage !== "tutor" || tutorShown()) ? state.sessPage : null;

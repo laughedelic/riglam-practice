@@ -12,7 +12,7 @@ import { toggleMenu } from "../shell/menu.js";
 import { openKey, toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
 import { givenUnderWay } from "../practice/given.ts";
-import { DAILY_NAME, DAILY_SIZE, dailyRun, dailyShown, dailyToday, startDaily } from "../practice/daily.ts";
+import { DAILY_NAME, dailyRun, dailySize, dailyShown, dailyToday, startDaily } from "../practice/daily.ts";
 import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
@@ -60,7 +60,7 @@ function Node({ k, name }: { k: string; name: string }) {
 /** The stop of Daily practice: it starts a session, or goes on with the one under way. */
 function DailyNode() {
   const run = dailyRun(), cur = dailyShown() && !state.optsOpen, cont = !!run && !run.end && !cur, c = cur ? "cur" : "";
-  const sub = cur && run ? (run.at + 1) + " of " + run.steps.length : cont ? "continue" : dailyToday() ? "done today" : DAILY_SIZE;
+  const sub = cur && run ? (run.at + 1) + " of " + run.steps.length : cont ? "continue" : dailyToday() ? "done today" : dailySize();
   const act = () => { if (state.mode === "quiz" && !startDaily()) pathNote("Nothing to practice yet"); };
   return <g role="button" tabIndex={0} aria-label={DAILY_NAME + ", " + (cur ? "here, question " + sub : sub)} aria-current={cur ? "page" : undefined}
     onClick={act} onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); act(); } }}>

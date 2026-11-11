@@ -1,7 +1,8 @@
 // Daily practice (src/app/practice/daily.ts, src/app/path/daily.tsx; the plan is src/domain/session.ts): the stop at the roadmap's fork starts a session of
 // questions that move between the exercises; each stands in its exercise with the session's row at the top of its thread; a missed question of a round comes
 // back at the end; the last station says how it went and offers one more round, and from it the roadmap is back. A session has no clock by itself: Sprint is
-// the session's own there, switched by the stopwatch or taken with a Sprint round at the last station, and no exercise's switch is touched by it.
+// the session's own there, switched by the stopwatch or taken with a Sprint round at the last station, and no exercise's switch is touched by it. What a
+// session is made of is set on its page of the practice options: the exercises in the mix and what the rounds are drawn from.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, relOptions, roadmap } from "../../support/page.js";
 
@@ -29,6 +30,13 @@ const skip = (page) => page.evaluate(() => window.__t.skipPair());
 /** The stopwatch in the top bar, and the step the running clock is on (null when none runs). */
 const stopwatch = (page) => page.getByRole("switch", { name: /^Sprint/ });
 const clock = (page) => page.evaluate(() => (window.__t.ui && window.__t.ui.tq ? window.__t.ui.tq.key : null));
+/** What the last station offers after the tally: one more round, at the learner's pace or against the clock. */
+const offer = (page) => page.locator("#path .tup-note").filter({ hasText: "round" });
+/** The practice options, and a switch of the session's page in them. */
+const sheet = (page) => page.getByRole("dialog", { name: "Practice options" });
+const inMix = (page, name) => sheet(page).getByRole("switch", { name, exact: true });
+/** The session's rounds as planned: what each is about and the exercises of its questions. */
+const rounds = (page) => page.evaluate(() => window.__t.daily.run.plan.rounds.map((t) => ({ kind: t.kind, cats: [...t.cats].sort().join("|"), asks: t.steps.map((s) => s.given.exercise) })));
 /** On a phone the top bar steps aside while a field has the keyboard: the focus is let go before the top bar is used. */
 const calm = (page) => page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
 
@@ -235,7 +243,7 @@ test("a session has no clock where the exercises have Sprint on; the stopwatch a
 
   // everything right: the last station suggests the next round as a Sprint round, and offers one without the clock beside it
   expect(await now(page)).toMatchObject({ ended: true, n: 9 });
-  await expect(page.locator("#path .tup-note").last()).toHaveText("Everything right. Up for a challenge? Sprint round, or one more round without the clock.");
+  await expect(offer(page)).toHaveText("Everything right. Up for a challenge? Sprint round, or one more round without the clock.");
   await page.getByRole("button", { name: "Sprint round" }).click();
   expect(await now(page)).toMatchObject({ ended: false, shown: true, at: 9, n: 12 });
   for (let i = 9; i < 12; i++) {
@@ -245,7 +253,7 @@ test("a session has no clock where the exercises have Sprint on; the stopwatch a
   }
   // not everything was right this time (one was skipped): the last station offers the round without the clock first
   expect(await now(page)).toMatchObject({ ended: true, n: 12 });
-  await expect(page.locator("#path .tup-note").last()).toHaveText("Want more today? One more round, or a Sprint round against the clock.");
+  await expect(offer(page)).toHaveText("Want more today? One more round, or a Sprint round against the clock.");
   await page.getByRole("button", { name: "One more round" }).click();
   expect(await now(page)).toMatchObject({ ended: false, shown: true, at: 12, n: 15 });
   await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
@@ -259,3 +267,112 @@ test("a session has no clock where the exercises have Sprint on; the stopwatch a
   await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
   expect(JSON.parse(await page.evaluate(() => localStorage.getItem("rd-per-ex")))).toEqual({ practice: { blitz: false } });
 });
+
+test("the session's options: the exercises in the mix; a change holds from the next round, and is kept", async ({ page }) => {
+  await start(page);
+  expect(await now(page)).toMatchObject({ shown: true, at: 0, n: 9, groups: [3, 3, 3] });
+  const first = (await rounds(page))[0];
+
+  // the session's line heads the practice options of its question, and opens its page
+  await calm(page);
+  await page.getByRole("button", { name: "Practice options", exact: true }).click();
+  await expect(sheet(page).getByText("5 exercises · from everything")).toBeVisible();
+  await sheet(page).getByRole("button", { name: "Exercises and questions: more" }).click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Daily practice");
+  for (const [name, on] of [["Relations", "true"], ["Pervasions", "true"], ["Syllogisms", "true"], ["Categories", "true"], ["Find an instance", "true"], ["Find a pair", "false"]]) await expect(inMix(page, name), name).toHaveAttribute("aria-checked", on);
+  await expect(sheet(page).getByRole("button", { name: "Everything" })).toHaveAttribute("aria-pressed", "true");
+
+  // Syllogisms and Categories out: the round being asked stays as it is; the two after it are planned anew, three questions each from what is left
+  await inMix(page, "Syllogisms").click();
+  await inMix(page, "Categories").click();
+  await expect(inMix(page, "Categories")).toHaveAttribute("aria-checked", "false");
+  let plan = await rounds(page);
+  expect(plan[0]).toEqual(first);
+  expect(plan.slice(1).map((t) => t.asks)).toEqual([["instance", "practice", "debate"], ["instance", "practice", "debate"]]);
+  expect(await now(page)).toMatchObject({ shown: true, at: 0, n: 9, groups: [3, 3, 3] });
+
+  // one more out: a mix of two is rounds of two; the last two stay in, and the app says why
+  await inMix(page, "Find an instance").click();
+  plan = await rounds(page);
+  expect(plan[0]).toEqual(first);
+  expect(plan.slice(1).map((t) => t.asks)).toEqual([["practice", "debate"], ["practice", "debate"]]);
+  expect(await now(page)).toMatchObject({ at: 0, n: 7, groups: [3, 2, 2] });
+  await inMix(page, "Relations").click();
+  await expect(page.locator("#path .ptoast")).toHaveText("A session mixes at least two exercises");
+  await expect(inMix(page, "Relations")).toHaveAttribute("aria-checked", "true");
+  expect((await rounds(page)).slice(1).map((t) => t.asks)).toEqual([["practice", "debate"], ["practice", "debate"]]);
+
+  // Find a pair in: every other round on a pair closes with it. Both choices are kept with the settings
+  await inMix(page, "Find a pair").click();
+  await sheet(page).getByRole("button", { name: "Newest stage" }).click();
+  await expect(sheet(page).getByRole("button", { name: "Newest stage" })).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => [localStorage.getItem("rd-daily-mix"), localStorage.getItem("rd-daily-from")])).toEqual(["practice,debate,find", "new"]);
+  expect([...new Set((await rounds(page)).slice(1).flatMap((t) => t.asks))].sort()).toEqual(["debate", "find", "practice"]);
+
+  // back to the options, which say what the session is set to, and out: the question is as it was
+  await page.getByRole("button", { name: "Back to the options" }).click();
+  await expect(sheet(page).getByText("3 exercises · from the newest stage")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet(page)).toBeHidden();
+  expect(await now(page)).toMatchObject({ shown: true, at: 0, n: 9 });
+  await expect(row(page)).toHaveAccessibleName("Question 1 of 9 in this session");
+
+  // the session runs to its end in the new mix
+  for (let i = 0; i < 9; i++) {
+    const s = await now(page);
+    expect(s).toMatchObject({ shown: true, at: i });
+    if (i > 2) expect(["practice", "debate", "find"], "question " + (i + 1)).toContain(s.exercise);
+    await answer(page, "ok");
+  }
+  expect(await now(page)).toMatchObject({ ended: true, n: 9 });
+
+  // the last station opens the page by itself: closing it leaves the station, and the round added there is of the mix as it is then
+  await page.getByRole("button", { name: "Change what a session mixes" }).click();
+  await expect(page.locator("#path .ptb-t")).toHaveText("Daily practice");
+  await expect(inMix(page, "Find a pair")).toHaveAttribute("aria-checked", "true");
+  await inMix(page, "Find a pair").click();
+  await page.getByRole("button", { name: "Close the options" }).click();
+  await expect(sheet(page)).toBeHidden();
+  expect(await now(page)).toMatchObject({ ended: true, n: 9 });
+  await expect(page.locator("#path .sechead").first()).toContainText("Session done");
+  await page.getByRole("button", { name: /^one more round$/i }).click();
+  expect(await now(page)).toMatchObject({ ended: false, shown: true, at: 9, n: 11 });
+  expect((await rounds(page))[3].asks).toEqual(["practice", "debate"]);
+
+  // after a reload the options are as they were set
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  expect(await page.evaluate(() => { const o = window.__t.daily.options; return [o.mix.join(","), o.from]; })).toEqual(["practice,debate", "new"]);
+});
+
+test("the stop says how long a session of the mix is; drawn from mistakes, the next round is on the pair that was missed", async ({ page }) => {
+  // before the first stage there is no course term: three rounds on pairs. A mix of two, and a name that is no exercise passed over
+  await page.evaluate(() => { localStorage.setItem("rd-stages", "0"); localStorage.setItem("rd-daily-mix", "nowhere,debate,practice"); });
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await openMenu(page);
+  await expect(stop(page)).toHaveAccessibleName("Daily practice, 6 questions");
+  await stop(page).click();
+  await expect(roadmap(page)).toBeHidden();
+  const plan = await rounds(page);
+  expect(plan.map((t) => t.kind)).toEqual(["pair", "pair", "pair"]);
+  for (const t of plan) expect(t.asks).toEqual(["practice", "debate"]);
+
+  // the pair of the last round was missed a moment ago, as Relations keeps a wrong answer; another pair was missed and put right since
+  const [a, b] = plan[2].cats.split("|"), [c, d] = plan[1].cats.split("|");
+  await page.evaluate(([a, b, c, d]) => {
+    const doc = (id, x, y, grade, ms) => ({ pairId: id, a: x, b: y, catA: x, catB: y, chosen: null, key: "4", grade, correct: grade === "ok", at: new Date(Date.now() - ms).toISOString() });
+    Object.assign(window.__t.answers, { "t-miss": doc("t-miss", a, b, "bad", 3000), "t-miss-2": doc("t-miss-2", c, d, "bad", 2000), "t-right": doc("t-right", d, c, "ok", 1000) });
+  }, [a, b, c, d]);
+  await calm(page);
+  await page.getByRole("button", { name: "Practice options", exact: true }).click();
+  await sheet(page).getByRole("button", { name: "Exercises and questions: more" }).click();
+  await sheet(page).getByRole("button", { name: "Mistakes" }).click();
+  await expect(sheet(page).getByRole("button", { name: "Mistakes" })).toHaveAttribute("aria-pressed", "true");
+  const after = await rounds(page);
+  expect(after[0]).toEqual(plan[0]);
+  expect(after[1].cats).toBe(plan[2].cats);
+  expect(after.length).toBe(3);
+  expect(after[2].cats).not.toBe(plan[2].cats);
+});
+

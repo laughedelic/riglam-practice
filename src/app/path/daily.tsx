@@ -9,13 +9,15 @@
 // And the session's last station, after its last question: a screen of its own, drawn like the station of a new stage (paper and ink, not a question's
 // gold). It says how it went (how many were right, then each round by what it was about with its questions as they went, and what came back), and
 // offers one more round, at the learner's own pace or as a Sprint round, against the clock: the Sprint round first, as a challenge, when every question was
-// right. Its station at the foot goes back to the roadmap, as the top bar does.
+// right. A quiet line under it opens what a session is made of (the Daily practice page of the practice options, path/options.tsx), by itself over the
+// station. Its station at the foot goes back to the roadmap, as the top bar does.
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import { DAILY_NAME, dailyRun, dailyShown, leaveDaily, moreDaily } from "../practice/daily.ts";
 import type { DailyMark, DailyRun } from "../practice/daily.ts";
 import { sessionTally } from "../../domain/session.ts";
 import type { SessionTally } from "../../domain/session.ts";
+import { openDailyOptions } from "../shell/session.js";
 import { FootPin } from "./news.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Station, TopBar, pathNote } from "./shell.tsx";
@@ -85,6 +87,7 @@ function DailyEnd({ s }: { s: DailyRun }) {
           {t.right === t.n
             ? <p class="tup-note">Everything right. Up for a challenge? <span class="nw">{round("Sprint round", true)},</span> or <span class="nw">{round("one more round", false)}</span> without the clock.</p>
             : <p class="tup-note">Want more today? <span class="nw">{round("One more round", false)},</span> or a <span class="nw">{round("Sprint round", true)}</span> against the clock.</p>}
+          <p class="tup-note"><button type="button" class="plnk quiet" onClick={openDailyOptions}>Change what a session mixes</button></p>
         </div>
         <Gap h={6} /></Sx>
       <Sx cls="ptail" />

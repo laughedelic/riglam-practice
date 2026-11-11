@@ -72,6 +72,7 @@ export const state = {
   givenSprint: false, // Sprint (`blitz`) is as the giver of the question on screen says, not as its exercise's own switch (practice/given.ts)
   daily: null,      // a session of daily practice under way: its plan, how each step went and where it stands (practice/daily.ts)
   dailyDone: null,  // what the device keeps of the sessions done: the day of the last one, how many that day, its categories (`rd-daily`; read when first asked for)
+  dailyOptions: null, // what a session of daily practice is made of, as the learner set it: the exercises in the mix and what it draws from (`rd-daily-mix`, `rd-daily-from`; read when first asked for)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
   pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES)

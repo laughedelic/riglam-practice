@@ -22,7 +22,7 @@ import type { Look } from "./path/look.ts";
 import type { Rig } from "./sound/courtyard.ts";
 import type { Trail } from "./practice/trail.ts";
 import type { GivenState } from "./practice/given.ts";
-import type { DailyDone, DailyRun } from "./practice/daily.ts";
+import type { DailyDone, DailyOptions, DailyRun } from "./practice/daily.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -508,6 +508,8 @@ export interface State {
   daily: DailyRun | null;
   /** what the device keeps of the sessions done (`rd-daily`), once it was read */
   dailyDone: DailyDone | null;
+  /** what a session of daily practice is made of (`rd-daily-mix`, `rd-daily-from`), once it was read */
+  dailyOptions: DailyOptions | null;
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;

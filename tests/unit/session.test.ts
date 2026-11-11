@@ -4,9 +4,10 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import { givenQuestion } from "../../src/domain/given";
-import { SESSION_QUESTIONS, SESSION_ROUNDS, comeBacks, pairRound, planSession, sessionMiss, sessionTally, stepKey, termRound, roundName } from "../../src/domain/session";
-import type { SessionOptions, SessionPlan, SessionStep } from "../../src/domain/session";
-import { STAGES } from "../../src/domain/stages";
+import { SESSION_EXERCISES, SESSION_MIX, SESSION_QUESTIONS, SESSION_ROUNDS, comeBacks, pairRound, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, sessionTally, stepKey, termRound, roundName } from "../../src/domain/session";
+import type { SessionExercise, SessionOptions, SessionPlan, SessionStep } from "../../src/domain/session";
+import { STAGES, poolAt, topStage } from "../../src/domain/stages";
+import { buildPool } from "../../src/domain/universe";
 import openData from "../../src/data/drill-data.json";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
@@ -83,12 +84,13 @@ test("pairRound: one example, the two terms, a reason, all on the same two categ
   expect(one.tie).toBe("");
   expect(two.tie).toBe("Two of the categories you just judged " + thing + " by, now side by side.");
   expect(three.tie).toMatch(/The same two terms: one is now the reason for the other\.$/);
-  // the other exercises of the first two steps, and a fourth step on request
-  const other = pairRound(ix, "red", "round", { stages: [0], rng: seeded(1), first: "instance", two: "debate", find: true })!;
-  expect(exercises(other.steps)).toEqual(["instance", "debate", "syllogism", "find"]);
+  // the other exercises of the first two steps
+  const other = pairRound(ix, "red", "round", { stages: [0], rng: seeded(1), first: "instance", two: "debate" })!;
+  expect(exercises(other.steps)).toEqual(["instance", "debate", "syllogism"]);
   expect(other.steps[0].given).toEqual({ exercise: "instance", cats: ["red", "round"] });
   expect(other.steps[1].tie).toBe("The same two terms, now as a pair.");
-  expect(other.steps[3].given).toEqual({ exercise: "find", relation: "4" });
+  // Find a pair is not in the mix unless it is added: asked for without it, the round closes with a reason
+  expect(exercises(pairRound(ix, "red", "round", { stages: [0], rng: seeded(1), first: "instance", two: "debate", last: "find" })!.steps)).toEqual(["instance", "debate", "syllogism"]);
 });
 
 test("pairRound: the thing of the first step returns as the subject when the reply allows, and the tie says so", () => {
@@ -224,7 +226,195 @@ test("comeBacks: a missed step of a term round, and one term alone", () => {
   }
 });
 
+// ---- what a session is made of: the mix, and what it is drawn from ----
+
+test("the mix and what a session is drawn from, as they are kept", () => {
+  expect(SESSION_MIX).toEqual(["practice", "debate", "syllogism", "categories", "instance"]);
+  expect(sessionMix(null)).toEqual(SESSION_MIX);
+  expect(sessionMix(undefined)).toEqual(SESSION_MIX);
+  expect(sessionMix("categories,practice")).toEqual(["practice", "categories"]);
+  expect(sessionMix(SESSION_EXERCISES.join(","))).toEqual(SESSION_EXERCISES);
+  // a name that is no exercise is passed over; fewer than two are no mix
+  expect(sessionMix("find,nowhere,practice")).toEqual(["practice", "find"]);
+  expect(sessionMix("practice")).toEqual(SESSION_MIX);
+  expect(sessionMix("")).toEqual(SESSION_MIX);
+  expect(sessionMix("constructor,__proto__")).toEqual(SESSION_MIX);
+  expect(["all", "new", "missed", "", "newest", null, undefined].map(sessionFrom)).toEqual(["all", "new", "missed", "all", "all", "all", "all"]);
+  // how long a session is: three to a round while the mix has three exercises for it
+  expect(sessionSize()).toBe(SESSION_QUESTIONS);
+  expect(sessionSize(SESSION_EXERCISES)).toBe(9);
+  expect(sessionSize(["categories", "instance", "practice"])).toBe(9);
+  expect(sessionSize(["practice", "debate"])).toBe(6);
+  expect(sessionSize(["syllogism", "find"])).toBe(6);
+  expect(sessionSize(["practice", "debate", "find"])).toBe(8);     // the term round has no step of Find a pair
+  expect(sessionSize(SESSION_MIX, 1)).toBe(3);
+});
+
+test("pairRound: the round is walked by the exercises of the mix, the other of a place stepping in for a place that has none", () => {
+  const walk = (mix: SessionExercise[], o: object = {}) => pairRound(ix, "red", "round", { stages: [0], rng: seeded(1), first: "categories", two: "practice", ...o, mix });
+  // with Find a pair in the mix a round can close with it: the relation was said in the step before, so the line may say that it is the same
+  const found = walk([...SESSION_EXERCISES], { last: "find" })!;
+  expect(exercises(found.steps)).toEqual(["categories", "practice", "find"]);
+  expect(found.steps[2]).toEqual({ given: { exercise: "find", relation: "4" }, cats: ["red", "round"], tie: "The same relation, the other way round: you name another pair that has it." });
+  expect(exercises(walk([...SESSION_EXERCISES])!.steps)).toEqual(["categories", "practice", "syllogism"]);
+  // without the exercise asked for, the other of its place
+  expect(exercises(walk(["instance", "debate", "find"])!.steps)).toEqual(["instance", "debate", "find"]);
+  // a place the mix has nothing for: the second exercise of another place, the relation said before it is walked statement by statement
+  const terms = walk(["categories", "instance", "practice", "debate"], { two: "debate" })!;
+  expect(exercises(terms.steps)).toEqual(["categories", "practice", "debate"]);
+  expect(terms.steps[2].tie).toBe("The same pair, now statement by statement.");
+  expect(exercises(walk(["practice", "debate", "syllogism"])!.steps)).toEqual(["practice", "debate", "syllogism"]);
+  // the thing is named before a thing is judged
+  const things = walk(["categories", "instance", "syllogism"])!;
+  expect(exercises(things.steps)).toEqual(["instance", "categories", "syllogism"]);
+  expect(things.steps[1].tie).toBe("The same two terms are now among the categories you judge a thing by.");
+  // a mix of two is a round of two, and its first step carries nothing over
+  for (const mix of [["practice", "debate"], ["categories", "instance"], ["syllogism", "find"], ["instance", "find"], ["categories", "syllogism"], ["debate", "find"]] as SessionExercise[][]) {
+    const t = walk(mix)!;
+    expect(exercises(t.steps).sort(), mix.join()).toEqual([...mix].sort());
+    expect(t.steps[0].tie, mix.join()).toBe("");
+    expect(t.steps[1].tie, mix.join()).not.toBe("");
+  }
+  // the relation of the pair is not told by the line before it was asked
+  expect(walk(["instance", "find"])!.steps[1].tie).toBe("Now the other way round: you are given a relation, and name a pair that has it.");
+  expect(walk(["debate", "find"])!.steps[1].tie).toMatch(/^The same relation/);
+  // one exercise is no round
+  expect(walk(["practice"])).toBeNull();
+  expect(walk([])).toBeNull();
+});
+
+test("termRound: only the exercises of the mix, two steps at the least", () => {
+  const o = { stages: upTo(5), rng: seeded(2) };
+  const two = termRound(ix, "form", { ...o, mix: ["practice", "debate"] })!;
+  expect(exercises(two.steps)).toEqual(["practice", "debate"]);
+  expect(two.steps[0].tie).toBe("");
+  expect(two.steps[1].tie).toMatch(/^Form again/);
+  const three = termRound(ix, "form", { ...o, steps: 3, mix: ["instance", "practice", "debate", "find"] })!;
+  expect(exercises(three.steps)).toEqual(["instance", "practice", "debate"]);
+  expect(three.steps[0].tie).toBe("");
+  // Find a pair has no step in it: with one other exercise there is no round
+  expect(termRound(ix, "form", { ...o, mix: ["syllogism", "find"] })).toBeNull();
+});
+
+test("planSession: rounds added to a session under way are pair rounds, and go on taking turns", () => {
+  const o: SessionOptions = { stages: upTo(5), rng: seeded(4), rounds: 2 };
+  expect(planSession(ix, o).rounds[0].kind).toBe("term");
+  const odd = planSession(ix, { ...o, rng: seeded(4), turn: 1 });
+  expect(odd.rounds.map((t) => t.kind)).toEqual(["pair", "pair"]);
+  expect(exercises(odd.rounds[0].steps).slice(1)).toEqual(["debate", "syllogism"]);
+  expect(exercises(odd.rounds[1].steps).slice(1)).toEqual(["practice", "syllogism"]);
+  // with Find a pair in the mix, every other pair round closes with it
+  const found = planSession(ix, { stages: [0], rng: seeded(4), rounds: 2, mix: SESSION_EXERCISES });
+  expect(found.rounds.map((t) => t.steps[2].given.exercise)).toEqual(["syllogism", "find"]);
+});
+
+test("planSession: drawn from the newest stage, the pairs are new at it while there are any", () => {
+  const stages = upTo(3), top = topStage(stages), at = new Map(poolAt(ix, buildPool(ix), stages).map((e) => [[e.a, e.b].sort().join("|"), e.st]));
+  const stageOf = (p: SessionPlan) => at.get([...p.rounds[0].cats].sort().join("|"));
+  let other = 0;
+  for (let s = 1; s <= 20; s++) {
+    expect(stageOf(planSession(ix, { stages, rng: seeded(s), rounds: 1, from: "new" })), "seed " + s).toBe(top);
+    if (stageOf(planSession(ix, { stages, rng: seeded(s), rounds: 1 })) !== top) other++;
+  }
+  expect(other).toBeGreaterThan(0);
+  // its terms come first too, before an open term of another stage
+  for (let s = 1; s <= 10; s++) expect(planSession(ix, { stages, rng: seeded(s), from: "new", words: { open: new Set(["form"]) } }).rounds[0].cats).toEqual(["cons"]);
+  // at a stage with nothing new of its own, a plan is still made
+  expect(planSession(ix, { stages: upTo(4), rng: seeded(1), from: "new" }).rounds.length).toBe(SESSION_ROUNDS);
+});
+
+test("planSession: drawn from what was missed, the missed pairs come first, then the pairs with a missed category", () => {
+  const o: SessionOptions = { stages: [0], rounds: 1, from: "missed" };
+  for (let s = 1; s <= 10; s++) {
+    // the pair itself, also when it was in the session before
+    expect([...planSession(ix, { ...o, rng: seeded(s), missed: [["food", "fruit"]], avoid: new Set(["food", "fruit"]) }).rounds[0].cats].sort()).toEqual(["food", "fruit"]);
+    // a category missed by itself, or with what is no pair: a pair that has it
+    expect(planSession(ix, { ...o, rng: seeded(s), missed: [["wooden"]] }).rounds[0].cats).toContain("wooden");
+    expect(planSession(ix, { ...o, rng: seeded(s), missed: [["wooden", "nowhere", "red"]] }).rounds[0].cats.some((x) => x === "wooden" || x === "red")).toBe(true);
+    // with nothing missed, as from everything; and what was missed is not read unless the session is drawn from it
+    expect(planSession(ix, { ...o, rng: seeded(s), missed: [] })).toEqual(planSession(ix, { stages: [0], rounds: 1, rng: seeded(s) }));
+    expect(planSession(ix, { stages: [0], rounds: 1, rng: seeded(s), missed: [["food", "fruit"]] })).toEqual(planSession(ix, { stages: [0], rounds: 1, rng: seeded(s) }));
+  }
+  // a round added to a session passes over what the session has had, also what was missed, while the data has other pairs
+  for (let s = 1; s <= 10; s++) {
+    const more = planSession(ix, { ...o, rng: seeded(s), missed: [["food", "fruit"], ["red", "round"]], turn: 1, had: new Set(["food", "fruit"]) });
+    expect([...more.rounds[0].cats].sort()).toEqual(["red", "round"]);
+    const cats = planSession(ix, { stages: [0], rounds: 1, rng: seeded(s), turn: 1, had: new Set(["red", "round", "wooden"]) }).rounds[0].cats;
+    for (const x of ["red", "round", "wooden"]) expect(cats).not.toContain(x);
+  }
+  expect(planSession(ix, { ...o, rng: seeded(1), turn: 1, had: new Set(DATA.cats.map((c) => c.id)) }).rounds.length).toBe(1);
+  // a term missed by itself opens the session, after the open terms; the terms of a missed pair are left for the round on that pair
+  for (let s = 1; s <= 10; s++) {
+    expect(planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["cons"]], avoid: new Set(["cons"]) }).rounds[0].cats).toEqual(["cons"]);
+    expect(planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["form"]], words: { open: new Set(["cons"]) } }).rounds[0].cats).toEqual(["cons"]);
+    const pair = planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["red", "round"]], avoid: new Set(["red", "round"]) });
+    expect(pair.rounds[0].kind).toBe("term");
+    expect(pair.rounds.filter((t) => t.kind === "pair").map((t) => [...t.cats].sort().join("|")), "seed " + s).toContain("red|round");
+  }
+});
+
+test("sessionMisses: of each question the last answer counts, the newest miss first", () => {
+  const misses = sessionMisses([
+    { at: "2026-01-05", catA: "red", catB: "round", grade: "bad" },
+    { at: "2026-01-01", catA: "food", catB: "fruit", grade: "bad" },
+    { at: "2026-01-02", mode: "debate", catA: "fruit", catB: "food", grade: "ok" },                    // put right since, by another exercise
+    { at: "2026-01-03", mode: "syllogism", catA: "form", catB: "cons", grade: "part", correct: true },
+    { at: "2026-01-04", mode: "instance", cats: ["wooden", "round"], grade: "bad" },
+    { at: "2026-01-06", mode: "instance", cats: ["red", "food"], grade: "pend" },                       // waiting for a check is no miss
+    { at: "2026-01-07", mode: "categories", grade: "part", rows: [{ cat: "col", yes: true, said: false }, { cat: "form", yes: true, said: true }] },
+    { at: "2026-01-08", catA: "ft", catB: null, correct: false },                                       // one category alone says nothing of a pair
+    { at: "2026-01-09", mode: "find", catA: "ft", catB: "form", correct: false },                       // an older answer has no grade
+  ]);
+  expect(misses).toEqual([["form", "ft"], ["col"], ["red", "round"], ["round", "wooden"], ["cons", "form"]]);
+  expect(sessionMisses([])).toEqual([]);
+  // the newest forty
+  const many = sessionMisses(Array.from({ length: 60 }, (_, i) => ({ at: "2026-02-" + String(i).padStart(3, "0"), catA: "a" + i, catB: "b", grade: "bad" })));
+  expect(many.length).toBe(40);
+  expect(many[0]).toEqual(["a59", "b"]);
+});
+
+test("comeBacks: a miss comes back only as an exercise of the mix", () => {
+  const o: SessionOptions = { stages: [0], rng: seeded(3), mix: ["categories", "practice", "syllogism"] };
+  const plan: SessionPlan = { rounds: [pairRound(ix, "red", "round", { ...o, first: "categories", two: "practice" })!] };
+  const [one, two, three] = plan.rounds[0].steps;
+  const back = (s: SessionStep, mix: SessionExercise[]) => exercises(comeBacks(ix, plan, new Set([stepKey(s)]), { stages: [0], rng: seeded(5), mix }));
+  // the mix has had its three exercises on the pair: nothing more to ask of it
+  for (const s of [one, two, three]) expect(back(s, ["categories", "practice", "syllogism"])).toEqual([]);
+  // with one more in the mix, that one
+  expect(back(one, ["categories", "practice", "syllogism", "debate"])).toEqual(["debate"]);
+  expect(back(three, ["categories", "practice", "syllogism", "instance"])).toEqual(["instance"]);
+});
+
 // ---- the open data ----
+
+test("on the open data, a session of any mix asks only its exercises, three to a round while the mix has them", () => {
+  const mixes: SessionExercise[][] = [
+    [...SESSION_EXERCISES], ["practice", "debate"], ["categories", "instance"], ["syllogism", "find"], ["practice", "find"], ["categories", "syllogism"],
+    ["instance", "debate", "find"], ["practice", "debate", "syllogism"], ["categories", "instance", "syllogism"], ["debate", "syllogism", "categories", "instance"],
+  ];
+  for (const mix of mixes) for (const top of [0, 5]) for (let seed = 1; seed <= 2; seed++) {
+    const o: SessionOptions = { stages: upTo(top), rng: seeded(seed * 17 + top), mix };
+    const plan = planSession(real, o), all = steps(plan), at = mix.join() + ", stage " + top + ", seed " + seed;
+    expect(plan.rounds.length, at).toBe(SESSION_ROUNDS);
+    const inTerm = mix.filter((x) => x !== "find").length;
+    for (const t of plan.rounds) {
+      expect(t.steps.length, at).toBe(Math.min(3, t.kind === "pair" ? mix.length : inTerm));
+      expect(t.steps[0].tie, at).toBe("");
+      for (const s of t.steps.slice(1)) expect(s.tie, at).not.toBe("");
+    }
+    if (plan.rounds[0].kind === "term") expect(all.length, at).toBe(sessionSize(mix));
+    for (const s of all) expect(mix, at).toContain(s.given.exercise);
+    expect(new Set(all.map(stepKey)).size, at).toBe(all.length);
+    for (const s of all) expect(givenQuestion(real, s.given, { stages: o.stages, rng: seeded(seed) }), at + ": " + stepKey(s)).not.toBeNull();
+    // what comes back is of the mix too, and no question the session has had
+    const keys = new Set(all.map(stepKey));
+    for (const s of comeBacks(real, plan, keys, { stages: o.stages, rng: seeded(seed), mix })) {
+      expect(mix, at).toContain(s.given.exercise);
+      expect(keys.has(stepKey(s)), at).toBe(false);
+      expect(givenQuestion(real, s.given, { stages: o.stages, rng: seeded(seed) }), at + ": " + stepKey(s)).not.toBeNull();
+    }
+  }
+}, 15_000); // forty plans over the open data: a second here, several on a busy machine
 
 test("on the open data, every step of a plan is a question the data makes for the learner, and none comes twice", () => {
   for (const top of [0, 1, 3, 5, 9, ALL[ALL.length - 1]]) for (let seed = 1; seed <= 6; seed++) {
@@ -259,7 +449,7 @@ test("on the open data, every step of a plan is a question the data makes for th
     expect(every.length, at).toBe(plan.rounds.length);
     expect(new Set([...keys, ...every]).size, at).toBe(keys.size + every.length);
   }
-});
+}, 15_000); // thirty-six plans over the open data, each step and what comes back for it made: a second here, several on a busy machine
 
 test("on the open data, none of the three replies to a syllogism is rare over the sessions", () => {
   const said: Record<string, number> = { accept: 0, reason: 0, pervasion: 0 };
