@@ -1,6 +1,7 @@
 // The challenge (src/app/practice/challenge.ts, src/app/path/challenge.tsx; its rules are src/domain/challenge.ts): a short task that everyone gets, served to
 // a device with the Magic Key. The roadmap has its stop in the corner while there is one; the stop opens its page; each question is asked in its own
-// exercise, apart from the learner's progression, with its place in the top bar; after the last one the page is back.
+// exercise, apart from the learner's progression, with its place in the top bar; after the last one the page is back. A challenge has no clock by itself:
+// Sprint is its own there, switched by the stopwatch, and no exercise's switch is touched by it.
 import { test, expect } from "../../support/test.js";
 import { giveKey } from "../../support/data-key.js";
 import { answerFirst, openMenu, relOptions, roadmap } from "../../support/page.js";
@@ -20,6 +21,10 @@ const title = (page) => page.locator("#path .ptb-t");
 const mark = (page) => page.locator("#path .ptb .gmark");
 const stop = (page) => roadmap(page).getByRole("button", { name: /^Challenge/ });
 const rows = (page) => page.locator("#path .chi");
+const stopwatch = (page) => page.getByRole("switch", { name: /^Sprint/ });
+const clock = (page) => page.evaluate(() => (window.__t.ui && window.__t.ui.tq ? window.__t.ui.tq.key : null));
+/** On a phone the top bar steps aside while a field has the keyboard: the focus is let go before the top bar is used. */
+const calm = (page) => page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
 /** Where the page and the challenge stand. */
 const now = (page) => page.evaluate(() => {
   const t = window.__t, v = t.challenge.view(), p = t.cur && t.cur.p;
@@ -234,4 +239,60 @@ test("all answered, the stop says done and the station asks it again; the next c
   await openMenu(page);
   await expect.poll(() => calls.challenge.at(-1)).toEqual({ have: "c3", fits: true });
   await expect(stop(page)).toHaveCount(0);
+});
+
+test("a challenge has no clock where the exercises have Sprint on; the stopwatch on one of its questions is the challenge's own", async ({ page }) => {
+  // Sprint on in every exercise, with times long enough that none runs out here
+  await page.addInitScript(() => { localStorage.setItem("rd-blitz", "1"); for (const k of ["rd-timer", "rd-timer-rel", "rd-timer-q", "rd-timer-syl", "rd-timer-cats", "rd-timer-cat"]) localStorage.setItem(k, "60000"); });
+  await open(page);
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => clock(page)).not.toBeNull();
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+
+  // its first question, in Pervasions, is asked without the clock
+  await expect(title(page)).toHaveText("Pervasions");
+  expect(await now(page)).toMatchObject({ shown: true, at: 0 });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  expect(await clock(page)).toBeNull();
+  // the stopwatch there is the challenge's: on, the question has its clock, and so has the one after it
+  await stopwatch(page).click();
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => clock(page)).not.toBeNull();
+  await page.evaluate(() => window.__t.skipPair());
+  await expect(title(page)).toHaveText("Relations");
+  expect(await now(page)).toMatchObject({ shown: true, at: 1 });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => clock(page)).not.toBeNull();
+  // off again, none has
+  await calm(page);
+  await stopwatch(page).click();
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  expect(await clock(page)).toBeNull();
+  await page.evaluate(() => window.__t.skipPair());
+  expect(await now(page)).toMatchObject({ shown: true, at: 2 });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  expect(await clock(page)).toBeNull();
+
+  // switched on at the last question and left: the next run of the challenge starts without the clock again
+  await calm(page);
+  await stopwatch(page).click();
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await page.evaluate(() => window.__t.skipPair());
+  await expect(title(page)).toHaveText("Challenge");
+  await expect(station(page)).toHaveAccessibleName("Start");
+  await station(page).click();
+  await expect(title(page)).toHaveText("Pervasions");
+  expect(await now(page)).toMatchObject({ shown: true, at: 0 });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "false");
+  expect(await clock(page)).toBeNull();
+
+  // the exercises have their own switches as they were: gone to Relations, its own attempt is asked against the clock, and nothing was kept for an exercise alone
+  await openMenu(page);
+  await roadmap(page).getByRole("button", { name: /^Relations/ }).click();
+  expect(await now(page)).toMatchObject({ tab: "practice", shown: false });
+  await expect(stopwatch(page)).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => clock(page)).not.toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("rd-per-ex"))).toBeNull();
 });

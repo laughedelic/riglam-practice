@@ -11,6 +11,10 @@
 // learner's progression: it is asked whatever the stages, grades no term and moves no run. The top bar has its place in the challenge where the
 // progression ring stands, which leads back to the page. Next goes on to the next question that has no answer yet, and after the last one back to the
 // page. A skipped question stays without an answer. How each went is kept on the device (`rd-challenge`), not in the account.
+//
+// A challenge has no clock by itself: Sprint is off for its questions, whatever the switch of each exercise says (an exercise with Sprint on would put
+// a clock on a question here and there). The stopwatch in the top bar switches it for the questions that follow, until the last one is left, and
+// touches no exercise's own switch (practice/given.ts, `sprint`).
 import { state } from "../state.js";
 import { toRoad, toggleMenu } from "../shell/menu.js";
 import { isEx, render, top0 } from "../shell/render.js";
@@ -40,6 +44,8 @@ export interface ChallengeNow {
   hooks: GivenHooks | null;
   /** it is asked again from the start: Next goes on to the next question whether it has an answer or not */
   again: boolean;
+  /** Sprint for its questions: off until the stopwatch is switched on one of them, and off again once the last one is left. In memory only. */
+  sprint: boolean;
 }
 
 const ix = () => state as unknown as DataIndex;
@@ -123,7 +129,7 @@ export function setChallenge(raw: unknown): void {
     return;
   }
   if (was && JSON.stringify(was.doc) === JSON.stringify(doc)) return;
-  state.chal = { doc, rec: kept(doc), lines: [], from: [], at: -1, hooks: null, again: false };
+  state.chal = { doc, rec: kept(doc), lines: [], from: [], at: -1, hooks: null, again: false, sprint: false };
   if (state.mode !== "loading") render();
 }
 /** Reads the challenge the platform holds, at the start, after a Magic Key was taken in place, and whenever the platform says it changed. */
@@ -145,6 +151,8 @@ function ask(c: ChallengeNow, i: number): boolean {
     apart: true,
     mark: { text: where, label: CHALLENGE_NAME + ", question " + where + ": back to the challenge", go: () => { showChallenge(); } },
     get next() { return state.chal !== c || nextItem(c.rec, askable(c), i, c.again) < 0 ? CHALLENGE_BACK : undefined; },
+    get sprint() { return c.sprint; },
+    onSprint: (on) => { c.sprint = on; },
     // (the answer is kept when it is checked, and again when Claude's check changes it)
     onChecked: (grade) => { if (state.chal === c) { c.rec = marked(c.rec, i, grade); keep(c); } },
     onNext: () => {
@@ -152,7 +160,7 @@ function ask(c: ChallengeNow, i: number): boolean {
       if (k >= 0 && ask(c, k)) return;
       // the last one is left (or another challenge took this one's place meanwhile): the page is back, and from it the roadmap
       closeGiven();
-      c.at = -1; c.hooks = null; c.again = false;
+      c.at = -1; c.hooks = null; c.again = false; c.sprint = false;
       if (!showChallenge(true)) toRoad();
     },
   };
