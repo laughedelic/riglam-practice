@@ -1,4 +1,4 @@
-// The Path's frame: the top bar (the way back to the roadmap, the exercise's name with the progression ring after it, the tools), the station at the edge,
+// The Path's frame: the top bar (the way back to the roadmap, the exercise's name with the progression ring after it, or the mark of a given question, and the tools), the station at the edge,
 // the side stations, and the short note at the foot.
 import { createContext } from "preact";
 import type { ComponentChildren } from "preact";
@@ -6,6 +6,7 @@ import { useContext, useRef } from "preact/hooks";
 import { state } from "../state.js";
 import { setBlitz } from "../shell/timers.js";
 import { skipAsks, skipPair } from "../practice/skips.js";
+import { givenMark } from "../practice/given.ts";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
 import { openBlitzOptions, pageAlone, sessBack, toggleSess } from "../shell/session.js";
@@ -33,6 +34,8 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
   const prog = state.mode === "quiz" && isEx() && progressOn(), away = !!shown || prog;
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined), held = useRef(false);
   const ex = state.mode === "quiz" && isEx(), u = state.ui;
+  // a given question may put a mark of its own where the progression ring stands (practice/given.ts): where it is in a task, and the way to the task's page
+  const mark = ex ? givenMark() : null;
   // on a page of the practice options the bar's back goes to the list of the options, not out to the roadmap
   const subpage = !!shown && !!state.sessPage;
   const roadmap = subpage ? sessBack : back ? back.go : toRoad;
@@ -45,7 +48,7 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
     <header class="ptb">
       <button type="button" class="tstn" aria-label={subpage ? (pageAlone() ? "Close the options" : "Back to the options") : back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
       <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
-      {tools && !shown && ex ? <ProgressRing /> : null}
+      {tools && !shown && ex ? (mark ? <button type="button" class="gmark" aria-label={mark.label} onClick={mark.go}><i aria-hidden="true" />{mark.text}</button> : <ProgressRing />) : null}
       <span class="spc" />
       {tools && !away && ex && voiceSwitchShown() ? <button type="button" class={"pib" + (state.voice.hush ? "" : " on")} role="switch" aria-checked={state.voice.hush ? "false" : "true"}
         aria-label={state.voice.hush ? "Voice off" : "Voice on"} title={state.voice.hush ? "Voice off: nothing is read or listened to" : "Voice on: tap to turn it off for now"}

@@ -10,6 +10,7 @@ import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { negationOffer, negationSuggested, type NegOutcome } from "../../domain/stages.ts";
 import { openNow } from "./stops.ts";
+import { givenApart } from "./given.ts";
 import type { PairLike } from "../../ai-shared/relations.ts";
 import type { NegResult } from "../types.ts";
 
@@ -28,6 +29,7 @@ function results(): NegOutcome[] {
 }
 /** A pair was checked (practice/grading.js): it joins the run, and the offer due after it, if any, is what the result shows. */
 export function afterRelation(pairId: string, p: PairLike, ok: boolean): NegOffer | null {
+  if (givenApart()) return null;     // a given question set apart from the progression is no part of the run (practice/given.ts)
   state.relSession = [...state.relSession, { pairId, at: new Date().toISOString(), ok, neg: !!p.neg }].slice(-RECENT_RUN);
   if (!negationSuggested(state.stages, openNow().size, state.pace)) return null;     // they are suggested from a stage on, and not while the terms are hard going
   const step = negationOffer(results(), state.negation);

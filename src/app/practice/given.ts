@@ -9,6 +9,8 @@
 //   - When its answer is kept (checked, and again when what Claude says changes it), the one who gave it is told the grade (`onChecked`).
 //   - Its clock can be the giver's (`sprint`): Sprint is then on or off for it as the giver says, whatever its exercise's own switch is, and the stopwatch
 //     switched while it is on screen is the giver's to keep (`givenSprint`, `sprintGiven`).
+//   - The one who gives it may set it apart from the progression (`apart`: no term graded, no run moved, no stop or stage after it) and put a mark
+//     of its own in the top bar (`mark`), where the progression ring stands.
 //
 // Going to an exercise by any other way (the roadmap, Review's "again") sets the given question aside as it is, and `resumeGiven` puts it back; a cold start
 // forgets it (shell/keep.ts keeps no attempt while one is on screen). One given question at a time: opening another leaves the one before.
@@ -55,6 +57,17 @@ export interface GivenHooks {
   sprint?: boolean;
   /** with `sprint`: the stopwatch was switched while the question was on screen. The giver keeps the new value; the exercise's own switch is not touched. */
   onSprint?: (on: boolean) => void;
+  /**
+   * The answer stands apart from the learner's progression: it grades no course term and moves no run (towards a stage, an offer of negations, the
+   * exercise's guidance), and Next from its result brings neither a term's stop nor a stage. For a task that everyone gets, whatever their stages.
+   * The answer is kept and shown in Review like any other.
+   */
+  apart?: boolean;
+  /**
+   * What stands in the top bar after the exercise's name while the question is on screen, in the place of the progression ring: a few words
+   * ("1 of 3"), what a screen reader is told of it, and where a tap on it goes (the giver's own page).
+   */
+  mark?: { text: string; label: string; go: () => void };
 }
 
 /** The given question the page holds: on screen in its exercise (`on`), or set aside. */
@@ -81,6 +94,10 @@ export function ownAttempt(): { cur: Current | null; ui: Ui | null } {
   const g = live();
   return g && g.back ? g.back : { cur: state.cur, ui: state.ui };
 }
+/** Whether the question on screen is a given one whose answer stands apart from the progression (`GivenHooks.apart`). */
+export const givenApart = (): boolean => !!live()?.hooks.apart;
+/** The mark of the given question on screen for the top bar (`GivenHooks.mark`), or null: none was given, or the question on screen is the exercise's own. */
+export const givenMark = (): GivenHooks["mark"] | null => live()?.hooks.mark ?? null;
 /** Whether a given question is on screen with something to continue: begun, or checked and its result not left yet (what the roadmap's Continue goes back to). */
 export function givenUnderWay(): boolean {
   const g = live();

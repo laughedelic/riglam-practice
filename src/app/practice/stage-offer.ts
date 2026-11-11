@@ -11,6 +11,7 @@ import { state } from "../state.js";
 import { DEPTH_NAME, isDepth } from "./difficulty.ts";
 import { guideStep } from "./guided.ts";
 import { saveProgress } from "./progress.ts";
+import { givenApart } from "./given.ts";
 import { render } from "../shell/render.js";
 import { setStages, stageName } from "../shell/stages.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
@@ -45,6 +46,7 @@ const nextNow = () => (state.intro && state.DATA ? nextStageDue(ix(), state.intr
  * was due (the negation offer then waits, one at a time). The next stage comes with its first term (`nextNow`).
  */
 export function stageStep(ex: string, st: number, ok: boolean): boolean {
+  if (givenApart()) return false;     // a given question set apart from the progression moves no run (practice/given.ts)
   const miss = MISS[ex] ?? "form";
   state.stageRun = runAfter(state.stageRun, state.stages, st, ok, miss);
   const before = state.exRuns[ex];
