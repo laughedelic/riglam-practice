@@ -9,6 +9,7 @@ import { clearSkip } from "../practice/skips.js";
 import { pairStageNow, stageStep } from "../practice/stage-offer.ts";
 import { askedTerm, gradeTerms, unmetNow } from "../practice/stops.ts";
 import { guidance } from "../practice/guided.ts";
+import { givenShown, nextGiven } from "../practice/given.ts";
 import { focusAfterCheck, focusCin, render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 import { drawRelation, examplePair, findId, findPair, gradeFind, nameThing, sameThing } from "../../domain/find.ts";
@@ -36,7 +37,7 @@ export function advanceFind(not=state.findAsked[state.findAsked.length-1]){
 }
 /** Asks for another, drawn relation instead, while no examples are being written; the words and the examples already written stay (those in a cell the new relation leaves empty go). */
 export function anotherRelation(){
-  const u=state.ui; if(!u||!u.find||u.checked||u.step!==0) return;
+  const u=state.ui; if(!u||!u.find||u.checked||u.step!==0||givenShown()) return;      // a given relation is the one asked (practice/given.ts)
   u.pairErr="";
   useRel(u,asked(drawRelation(state.findAsked,Math.random,u.rel)));
   if(state.cur.p&&state.cur.p.own) state.cur.p.relation=u.rel;
@@ -48,7 +49,7 @@ export function anotherRelation(){
  * Random on a screen with no pair named yet asks for another relation at once; with a pair named the pair keeps the relation it has.
  */
 export function chooseRel(k){
-  const u=state.ui; if(!u||!u.find||u.checked) return;
+  const u=state.ui; if(!u||!u.find||u.checked||givenShown()) return;
   state.findRel=k; try{ if(k) localStorage.setItem("rd-findrel",k); else localStorage.removeItem("rd-findrel"); }catch(e){}
   u.open=false; u.pairErr="";
   if(!k){ if(u.step===0) anotherRelation(); else render(); return; }
@@ -86,7 +87,8 @@ export function timeUpName(){
   if(u.step===1) return;
   const gave=timeUpView(guidance("find"))==="skip"?null:examplePair(state,state.POOL||[],u.rel,Math.random,state.stages,unmetNow());
   if(gave){ u.gave=gave; u.checked=true; u.open=false; u.pairErr=""; render(); top0(); return; }
-  advanceFind(); render(); top0();
+  if(!nextGiven(true)) advanceFind();       // a given relation: the one who gave it says what comes
+  render(); top0();
 }
 /** Back to the words of the pair, to change them. */
 export function editPair(){

@@ -1,5 +1,6 @@
 import { state } from "../state.js";
 import { render } from "../shell/render.js";
+import { givenKept } from "./given.ts";
 
 /* ---------- saving answers ---------- */
 // A write that fails with "unavailable" (a passing platform fault) or an unknown code is retried once after a short
@@ -24,6 +25,7 @@ function saveAnswer(col,id,doc,flush=true){
 }
 // Saves the answer on screen (u is that pair's state, so a late result lands on the right pair).
 export function persist(u,what){
+  givenKept(u);                               // a given question's answer: the one who gave it hears of it (practice/given.ts)
   if(!state.db||!u.doc||!u.saveId) return;
   saveAnswer(u.col||"answers",u.saveId,u.doc).then(()=>{ if(u.saveErr){ u.saveErr=""; if(u===state.ui) render(); } }).catch(e=>{
     const c=(e&&e.code)||"error";

@@ -9,6 +9,7 @@ import { EXERCISES, parked, todayCount, unfinished } from "../shell/exercises.js
 import { toggleMenu } from "../shell/menu.js";
 import { openKey, toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
+import { givenUnderWay } from "../practice/given.ts";
 import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
@@ -71,8 +72,9 @@ export function Roadmap() {
     }
     was.current = on;
   }, [on]);
-  // "Continue" goes back to the exercise under the roadmap, so it is there only when that exercise has an attempt to continue; with a pair only drawn (the first time the app opens) the way in is its stop
-  const n = todayCount().n, back = state.mode === "quiz" && isEx() && unfinished(state.tab);
+  // "Continue" goes back to the exercise under the roadmap, so it is there only when that exercise has an attempt to continue; with a pair only drawn (the first time the app opens) the way in is its stop.
+  // A given question under the roadmap (practice/given.ts) is continued the same way, whatever the exercise's own attempt behind it is.
+  const n = todayCount().n, back = state.mode === "quiz" && isEx() && (unfinished(state.tab) || givenUnderWay());
   return <div ref={box} class={"road" + (on ? " on" : "")} role="dialog" aria-modal="true" aria-label="Roadmap" aria-hidden={on ? "false" : "true"} inert={!on}>
     <div class="rbody">
       <svg class="tree" viewBox="0 0 390 590" role="group" aria-label="The exercises">

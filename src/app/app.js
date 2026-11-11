@@ -12,6 +12,8 @@ import { SKIP_DAYS, hiddenKeys, isSkipped, skipPair } from "./practice/skips.js"
 import { defParts } from "./practice/terms.js";
 import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { startStops } from "./practice/stops.ts";
+import { closeGiven, givenAside, givenLine, givenNow, givenShown, openGiven, resumeGiven } from "./practice/given.ts";
+import { givenQuestion } from "../domain/given.ts";
 import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
@@ -161,6 +163,8 @@ function settle(){
 
 /* ---------- test hook (begin): lets the browser tests in tests/ read internals; inert unless a test defines window.__riglamTest ---------- */
 function exposeTestHook(){
-if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},get navGuard(){return state.navGuard},favKey,refOf,render,choose,defParts,setDefLang,get defLang(){return state.defLang},get langs(){return state.langs},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},get stageRun(){return state.stageRun},get exRuns(){return state.exRuns},get stages(){return state.stages},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,autoFlags});
+if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},get navGuard(){return state.navGuard},favKey,refOf,render,choose,defParts,setDefLang,get defLang(){return state.defLang},get langs(){return state.langs},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},get stageRun(){return state.stageRun},get exRuns(){return state.exRuns},get stages(){return state.stages},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,autoFlags,
+  // a given question (practice/given.ts): made from what is written down, with the learner's stages and terms unless `o` says others, then opened, set aside, resumed, closed
+  given:{make:(g,o)=>givenQuestion(state,g,{...givenNow(),...o}),open:openGiven,resume:resumeGiven,close:closeGiven,shown:givenShown,aside:givenAside,line:givenLine}});
 }
 /* ---------- test hook (end) ---------- */
