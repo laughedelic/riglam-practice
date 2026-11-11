@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import {
-  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, stageLine, termNamed, tutorCard, tutorTools, upChain,
+  CELL_NAME, DEBATE_ASK, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OPEN_NOTE, FIND_OWN_NOTE, FIND_REL_NAMES, FIRST_ASK, GUIDE, REVIEW_GUIDE, REVIEW_LIMITS, american, cardBody, refOf, parseReview, readReviewAnswer, reviewRequest, storedView, cardNotes, catByLabel, categoryOf, classNames, catFacts, explainAsk, finePoints, makeIndex, matchItem, noteCats, norm, pairCats, qPlain, qSides, termFacts, stageLine, termNamed, tutorCard, tutorTools, upChain,
 } from "../../src/ai-shared";
 import type { AnswerView, DrillData, PairLike, ReviewAnswer } from "../../src/ai-shared";
 import { state } from "../../src/app/state.js";
@@ -538,6 +538,18 @@ test("the pair-finding card says which relation was asked for, and for a pair th
 test("the card of a pair of the learner's own also tells which qualities a listed example's name leaves open", () => {
   const card = tutorCard(makeIndex(openData as unknown as DrillData), own({ a: "black things", b: "Stuff", catA: "black" }), find({ rel: "4", cells: { both: { t: "" }, anb: { t: "a wooden chair" }, bna: { t: "" }, nei: { t: "" } }, res: noRes(["cmp", "cmp", "cmp", "cmp"]) }));
   expect(card).toContain("[in the practice items as: a wooden chair, type External form; its name leaves open whether it is black]");
+});
+
+test("the card of a pair the reference leaves open says so, and gives no relation as correct", () => {
+  const real = makeIndex(openData as unknown as DrillData);
+  const p = own({ a: "white things", b: "black things", catA: "white", catB: "black", relation: "con" });
+  const card = tutorCard(real, p, find({ rel: "con", cells: { both: { t: "", none: true }, anb: { t: "snow" }, bna: { t: "coal" }, nei: { t: "a red rose" } }, res: noRes(["open", "cmp", "cmp", "cmp"]) }));
+  expect(card).toContain(FIND_OPEN_NOTE);
+  expect(card).not.toContain(FIND_OWN_NOTE);
+  expect(card).not.toContain("Correct relation of this pair");
+  expect(card).not.toContain("Reference note");
+  expect(card).toMatch(/"A":\{"label":"white things"/);
+  expect(card).toContain("- both: learner wrote NONE; reference none, for you to decide; app verdict open");
 });
 
 test("the card of the learner's own pair holds what the data says of each side, and leaves the relation and every example to the tutor", () => {

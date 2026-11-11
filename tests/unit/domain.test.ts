@@ -9,7 +9,7 @@ import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, placeFacts, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
+  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing, settled, statedApart,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
@@ -2754,4 +2754,82 @@ test("instanceExample: a thing that is in every category of the set, or none whe
   expect(ex.rows.every((r) => r.answer === true)).toBe(true);
   const apart = realPool.find((c) => c.r === "con" && c.a !== c.b && instanceQuestion(rix, [c.a, c.b], seeded(1)).possible === false)!;
   expect(instanceExample(rix, instanceQuestion(rix, [apart.a, apart.b], seeded(1)), seeded(2))).toBeNull();
+});
+
+// ---- grounds: a relation needs a thing for every filled cell and a stated ground for every empty one ----
+
+test("a pair the reference leaves open is neither drawn nor graded, and a stated exclusion gives its reason", () => {
+  const d = data(), at = () => 1_700_000_000_000;
+  d.open = [["mind", "wooden"]]; // nothing in the list is both, and nothing says that nothing can be
+  d.apart = [{ why: "Gray things are not minds.", pairs: [["gray", "mind"]] }];
+  const ox = makeIndex(d), pool = buildPool(ox).map(pairKey);
+  expect(settled(ox, "mind", "wooden")).toBe(false);
+  expect(settled(ox, "wooden", "mind")).toBe(false); // either way round
+  expect(judgeable(ox, "mind", "wooden")).toBe(true); // what the things do show of the pair stays in use
+  expect(pool).not.toContain("mind|wooden");
+  expect(pool).toContain("gray|mind");
+  expect(buildPool(ix).map(pairKey)).toContain("mind|wooden"); // data without the list draws it as before
+  // named by a learner it is a pair of their own: the relation asked for as a placeholder, no examples, no reasons
+  const own = findPair(ox, "con", nameThing(ox, "minds"), nameThing(ox, "wooden things"), seeded(4), at);
+  expect(own).toMatchObject({ own: true, relation: "con", ex: {}, why: {}, catA: "mind", catB: "wooden" });
+  expect(findPair(ix, "con", named("minds"), named("wooden things"), seeded(4), at).own).toBeUndefined();
+  // the stated reason comes before the classes, in the cell and in the note
+  expect(statedApart(ox, "mind", "gray")).toBe("Gray things are not minds.");
+  expect(statedApart(ox, "mind", "wooden")).toBeNull();
+  const p = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at);
+  expect(p.relation).toBe("con");
+  expect(p.why!.both).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
+  expect(p.note).toBe("Gray things are not minds. So there is no common locus.");
+  expect(pairOf(ix, "gray", "mind", "gray things", "minds", seeded(1), at).why!.both).toBe("“gray things” are form; “minds” are mind. Nothing is both.");
+  // with a side negated the empty cell moves, and keeps the reason of the plain pair
+  const n = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at, undefined, undefined, "b");
+  expect(n.why!.anb).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
+  expect(n.note).toContain("Gray things are not minds. So there is no common locus.");
+});
+
+test("the real data: open pairs and stated exclusions name pairs of categories, none twice, and agree with the things", () => {
+  const rx = makeIndex(real), key = (x: readonly string[]) => [...x].sort().join("|");
+  const open = (real.open ?? []).map(key), apart = (real.apart ?? []).flatMap((s) => s.pairs.map(key)), nopair = new Set((real.nopair ?? []).map(key));
+  expect(open.length).toBeGreaterThan(100);
+  expect(apart.length).toBeGreaterThan(50);
+  for (const k of [...open, ...apart]) {
+    const [a, b] = k.split("|");
+    expect(rx.CAT[a] && rx.CAT[b] && a !== b, k).toBeTruthy();
+    expect(judgeable(rx, a, b), k).toBe(true); // a pair the app could draw: one it cannot needs no entry
+    expect(nopair.has(k), k).toBe(false);
+  }
+  expect(new Set(open).size).toBe(open.length);
+  expect(new Set(apart).size).toBe(apart.length);
+  expect(open.filter((k) => apart.includes(k))).toEqual([]);
+  // an open pair has an empty cell (four possibilities are shown by things); a pair stated apart has nothing in both
+  for (const k of open) { const [a, b] = k.split("|"); expect(relOfCells(cellsFor(rx, a, b)), k).not.toBe("4"); }
+  for (const k of apart) { const [a, b] = k.split("|"); expect(cellsFor(rx, a, b).both.map((i) => i.n), k).toEqual([]); }
+  // the reasons are sentences a learner reads: plain words, none of the words the app avoids
+  for (const s of real.apart ?? []) {
+    expect(s.why).toMatch(/^[A-Z][^\n]*\.$/);
+    expect(s.why).not.toMatch(/\b(list|booklet|course)\b/i);
+    expect(s.pairs.length).toBeGreaterThan(0);
+  }
+});
+
+test("the real data: the pool asks no open pair, and keeps the pairs a class or a statement settles", () => {
+  const rx = makeIndex(real), pool = new Map(buildPool(rx).map((e) => [pairKey(e), e.r]));
+  for (const x of real.open ?? []) expect(pool.has([...x].sort().join("|")), x.join("|")).toBe(false);
+  // judged before only because no thing is both: internal form with cold things (the flag of 2026-11-11), two colors, two materials
+  for (const k of ["cold|intf", "hot|intf", "black|white", "metal|wooden", "animal|human"]) {
+    expect(pool.has(k), k).toBe(false);
+    const [a, b] = k.split("|");
+    expect(settled(rx, a, b), k).toBe(false);
+  }
+  // two classes the term hierarchy keeps apart, a stated pervasion, things in every cell, a stated exclusion
+  expect(pool.get("emotion|furn")).toBe("con");
+  expect(pool.get("cons|white")).toBe("con");
+  expect(pool.get("form|white")).toBe("3");
+  expect(pool.get("furn|wooden")).toBe("4");
+  expect(pool.get("clothes|furn")).toBe("con");
+  expect(statedApart(rx, "furn", "clothes")).toBe("These are different kinds of things.");
+  expect(statedApart(rx, "sp", "furn")).toMatch(/outside a person's continuum/);
+  expect(statedApart(rx, "emotion", "furn")).toBeNull(); // the classes say it: a consciousness is not a form
+  const at = () => 1_700_000_000_000, p = pairOf(rx, "intf", "furn", "internal matter", "furniture", seeded(2), at);
+  expect(p.why!.both).toBe("Made things and plants are outside a person's continuum, so they are not internal form. Nothing is both “internal matter” and “furniture”.");
 });

@@ -94,23 +94,25 @@ type Names = Pick<Pair, "a" | "b" | "typeA" | "typeB">;
 // "black things" and "trees" are both form: that is no reason for them to have nothing in common, so only the list's word is given
 const sameType = (p: Names): boolean => p.typeA === p.typeB;
 // a pair with a negated side says why with the plain pair's reason: "furniture" and "non-(wooden things)" have nothing in both because all furniture is wooden
-function whyEmpty(cell: CellId, p: Names, plain?: Names, neg?: Neg): string {
-  if (plain && neg) return whyEmpty(NEG_CELL[neg][cell], plain);
+// `stated`: the reason the reference gives for the plain pair having nothing in both (statedApart), which comes before the classes
+function whyEmpty(cell: CellId, p: Names, plain?: Names, neg?: Neg, stated?: string | null): string {
+  if (plain && neg) return whyEmpty(NEG_CELL[neg][cell], plain, undefined, undefined, stated);
   const A = p.a, B = p.b;
   const q = (x: string) => "“" + x + "”";
+  if (cell === "both" && stated) return stated + " Nothing is both " + q(A) + " and " + q(B) + ".";
   if (cell === "both") return sameType(p) ? "Nothing in the reference is both " + q(A) + " and " + q(B) + "." : q(A) + " are " + p.typeA + "; " + q(B) + " are " + p.typeB + ". Nothing is both.";
   if (cell === "anb") return "Whatever falls under " + q(A) + " also falls under " + q(B) + ".";
   if (cell === "bna") return "Whatever falls under " + q(B) + " also falls under " + q(A) + ".";
   return "Whatever exists falls under " + q(A) + " or under " + q(B) + "; only a non-existent is neither.";
 }
-function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: RelKey }, neg?: Neg): string {
+function noteFor(p: Names & { relation: RelKey }, plain?: Names & { relation: RelKey }, neg?: Neg, stated?: string | null): string {
   if (plain && neg) {
     const outside = negSides({ neg }).flatMap((n, i) => (n ? ["“" + (i ? p.b : p.a) + "” takes in everything outside “" + (i ? plain.b : plain.a) + "”"] : []));
-    return outside.join(", and ") + ", what does not exist included. " + noteFor(plain);
+    return outside.join(", and ") + ", what does not exist included. " + noteFor(plain, undefined, undefined, stated);
   }
   const t: Record<RelKey, string> = {
     mi: '"' + p.a + '" and "' + p.b + '" pick out the same class: ' + p.typeA + ".",
-    con: sameType(p) ? "No common locus: nothing in the reference is both " + p.a + " and " + p.b + "." : cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
+    con: stated ? stated + " So there is no common locus." : sameType(p) ? "No common locus: nothing in the reference is both " + p.a + " and " + p.b + "." : cap(p.a) + " are " + p.typeA + " and " + p.b + " are " + p.typeB + ": no common locus.",
     "3ab": "Whatever falls under “" + p.a + "” also falls under “" + p.b + "”, but not the reverse.",
     "3ba": "Whatever falls under “" + p.b + "” also falls under “" + p.a + "”, but not the reverse.",
     "4": cap(p.a) + " and " + p.b + " overlap without either containing the other.",
@@ -125,8 +127,37 @@ export function judgeable(ix: DataIndex, a: string, b: string): boolean {
   return !((A.kind === "everyday" || B.kind === "everyday") && (A.sense || B.sense));
 }
 
+// What the data states about pairs of categories, by pair key: the pairs it leaves open, and the reasons of the exclusions it states.
+// Kept per data, as the memberships are.
+const grounds = new WeakMap<DrillData, { open: Set<string>; apart: Map<string, string> }>();
+function groundsOf(ix: DataIndex) {
+  let g = grounds.get(ix.DATA);
+  if (!g) {
+    const key = (x: readonly string[]) => [...x].sort().join("|");
+    g = { open: new Set((ix.DATA.open || []).map(key)), apart: new Map((ix.DATA.apart || []).flatMap((s) => s.pairs.map((x) => [key(x), s.why] as const))) };
+    grounds.set(ix.DATA, g);
+  }
+  return g;
+}
+
 /**
- * Every pair of categories worth drilling, with its relation, and every Dudra category that has two labels (a pair of its own labels: two names
+ * Whether the reference settles the relation of two different categories. A filled cell has a thing that shows it; an empty cell says that
+ * nothing can be there, and a missing thing is no ground for that: the term hierarchy, a stated pervasion or a stated exclusion is. The data
+ * lists the pairs with an empty cell that nothing it states backs (`open`): the app neither asks nor grades their relation, and a learner who
+ * names such a pair has named a pair of their own (findPair). What the things do show of such a pair stays in use: a thing in both, a
+ * counter-example to a pervasion (the syllogism drill, Find an instance).
+ */
+export function settled(ix: DataIndex, a: string, b: string): boolean {
+  return judgeable(ix, a, b) && !groundsOf(ix).open.has([a, b].sort().join("|"));
+}
+
+/** The reason the reference states for nothing being in both of two categories ("These are different kinds of things."), or null where it states none in words. */
+export function statedApart(ix: DataIndex, a: string, b: string): string | null {
+  return groundsOf(ix).apart.get([a, b].sort().join("|")) ?? null;
+}
+
+/**
+ * Every pair of categories worth drilling whose relation the reference settles (`settled`), with its relation, and every Dudra category that has two labels (a pair of its own labels: two names
  * of one term). An everyday category's labels are only other wordings ("kitchen things", "kitchenware"), so they make no pair: nothing is told apart.
  */
 export function buildPool(ix: DataIndex): PoolEntry[] {
@@ -134,7 +165,7 @@ export function buildPool(ix: DataIndex): PoolEntry[] {
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const a = ids[i], b = ids[j];
-      if (!judgeable(ix, a, b)) continue;
+      if (!settled(ix, a, b)) continue;
       const r = relOfCells(cellsFor(ix, a, b));
       out.push({ a, b, r: r === "3ab" || r === "3ba" ? "3" : r });
     }
@@ -188,16 +219,16 @@ export function pairOf(ix: DataIndex, a: string, b: string, la: string, lb: stri
     id: "g-" + now().toString(36) + rng().toString(36).slice(2, 6), a: na ? negLabel(la, brackets) : la, b: nb ? negLabel(lb, brackets) : lb, catA: a, catB: b,
     typeA: typeText(ix, a), typeB: typeText(ix, b), relation, ex, why, generated: true, ...(neg ? { neg } : {}),
   };
-  const plain = neg ? { a: la, b: lb, typeA: p.typeA, typeB: p.typeB, relation: relOfCells(plainCells) } : undefined;
+  const plain = neg ? { a: la, b: lb, typeA: p.typeA, typeB: p.typeB, relation: relOfCells(plainCells) } : undefined, stated = statedApart(ix, a, b);
   for (const c of CELLS) {
     // the neither cell prefers an existent, as in debate; a non-existent only when nothing existent fits (with a negated side, any cell, as a negation takes in what does not exist)
     const listed = on ? [cells[c].filter((it) => itemOn(ix, it, a, b, on)), cells[c].filter((it) => itemKnown(ix, it, a, b, on))].find((l) => l.length) ?? cells[c] : cells[c];
     const all: readonly { n: string; ne?: boolean }[] = extra && cells[c].length ? [...listed, ...extra[c]] : listed;
     const pool = (c === "nei" || neg) && all.some((i) => !i.ne) ? all.filter((i) => !i.ne) : all;
     ex[c] = pool.length ? pick(pool, rng).n : null;
-    if (!ex[c]) why[c] = whyEmpty(c, p, plain, neg);
+    if (!ex[c]) why[c] = whyEmpty(c, p, plain, neg, stated);
   }
-  p.note = noteFor(p, plain, neg);
+  p.note = noteFor(p, plain, neg, stated);
   return p;
 }
 

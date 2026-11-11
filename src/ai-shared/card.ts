@@ -8,7 +8,7 @@ import type { DataIndex } from "./lookup";
 import { termNamed } from "./mentions";
 import { CELLS, REL, cellLabel, negSides, plainLabel, refOf } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
-import { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OWN_NOTE, FIRST_ASK, GUIDE } from "./prompts";
+import { CELL_NAME, DEBATE_ASK, DEBATE_NOTE, FIND_ASK, FIND_ASK_OWN, FIND_NOTE, FIND_OPEN_NOTE, FIND_OWN_NOTE, FIRST_ASK, GUIDE } from "./prompts";
 
 /** One answer of the debate mode: Accept, Why? (with an example), or nothing. */
 export interface DebateAnswer {
@@ -118,7 +118,7 @@ ${lines}`;
     }).join("\n");
     mid=`${FIND_NOTE}
 A = ${JSON.stringify(p.a)}, B = ${JSON.stringify(p.b)}.
-${negLine(p,own)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?FIND_OWN_NOTE:`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
+${negLine(p,own)}Relation asked for: ${rel.name} (${rel.gloss("A","B")}). ${own?(ca&&cb?FIND_OPEN_NOTE:FIND_OWN_NOTE):`Correct relation of this pair: ${REL[p.relation].name}.`}${u.exLate?" Time ran out on the examples: cells the learner had not reached are blank.":""}
 ${own?"":`Reference note: ${p.note||"none"}
 `}Cells (verdict cmp = learner wrote something the app could not classify${own?"; for a pair the app cannot judge every example is cmp, and a cell the relation leaves empty is open":""}):
 ${lines}`;
