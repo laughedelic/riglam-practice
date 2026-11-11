@@ -16,6 +16,7 @@ import { Threshold } from "./threshold.tsx";
 import { NEXT_QUESTION, nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 
 const q = () => state.cur!.q as PlaceQuestion;
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
@@ -120,7 +121,7 @@ function TickStep() {
   const u = u0(), t = q(), n = u.ticked.length;
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" aside={<SkipMark />} /><Hint /><Gap h={6} /><Thing />
+      <Sx cls="cur first"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Categories" aside={<SkipMark />} /><Hint /><Gap h={6} /><Thing />
         <div class="cstop" data-keep="stay" aria-hidden="true"><i class="d" /></div></Sx>
       <Threshold label="Categories the thing is in" items={t.rows.map((r, i) => ({ k: r.cat, b: r.phrase, key: String(i + 1) }))} picked={u.ticked} onPick={tickCategory} onReset={resetCategories} />
       <Sx cls="ptail" />
@@ -135,7 +136,7 @@ function OneStep() {
   const u = u0(), t = q(), row = t.rows[u.i];
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Categories" sub={(u.i + 1) + " of " + t.rows.length + " · is it?"} aside={<SkipMark />} /><Gap h={6} /><Thing />
+      <Sx cls="cur first"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Categories" sub={(u.i + 1) + " of " + t.rows.length + " · is it?"} aside={<SkipMark />} /><Gap h={6} /><Thing />
         {t.rows.slice(0, u.i).map((r) => { const said = !!u.said[r.cat], ok = said === r.answer;
           return <St d={<D cls={"sub " + (ok ? "ok" : "no")} />} cls={"sb exr catrow" + (ok ? "" : " wrong")}><div class="line1"><b class="catp">{r.phrase}</b><span class="ctag">{said ? "yes" : "no"}</span><Mark m={ok ? "ok" : "no"} /></div>
             {ok ? null : <p class="xnote">{because(r)}</p>}</St>; })}
@@ -154,7 +155,7 @@ function CheckedStep() {
   const { v, word, sub } = verdictOf(g);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Categories" /><Hint /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
+      <Sx cls="walked first"><ThreadTop done /><Head d={<D cls="sec done" />} h="1 Categories" /><Hint /><Gap h={6} /><Thing /><Gap h={AFTER_THING} /></Sx>
       <Verdict v={v} word={word} sub={sub} />
       {one ? <Split one /> : <Settled />}
       <GuideNote />

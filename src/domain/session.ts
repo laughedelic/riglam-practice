@@ -68,6 +68,26 @@ export const SESSION_THREADS = 3;
 /** The steps of the term thread a session opens with (a thing, a thing the learner names, a reason). */
 export const TERM_STEPS = 3;
 
+/** The questions of a session where nothing is missed. */
+export const SESSION_QUESTIONS = SESSION_THREADS * 3;
+
+/** Whether a step with this grade (of its kept answer: ok, part, bad, pend) was missed, so that it comes back: as Review counts a miss (util.ts, isMiss). */
+export const sessionMiss = (grade: string | null | undefined): boolean => grade === "bad" || grade === "part";
+
+/** How a session went: how many of its steps there are, and how many were right, partly right, wrong, wait for Claude's check, or were not answered. */
+export interface SessionTally { n: number; right: number; partly: number; wrong: number; waiting: number; skipped: number }
+/** The tally of a session, from the grade of each step (of its kept answer: ok, part, bad, pend; anything else is a step that was not answered). */
+export function sessionTally(grades: readonly (string | null | undefined)[]): SessionTally {
+  const t: SessionTally = { n: grades.length, right: 0, partly: 0, wrong: 0, waiting: 0, skipped: 0 };
+  for (const g of grades) t[g === "ok" ? "right" : g === "part" ? "partly" : g === "bad" ? "wrong" : g === "pend" ? "waiting" : "skipped"]++;
+  return t;
+}
+
+/** What a thread is about, as the learner reads it: its term, or its two terms ("Color · Shape"). */
+export function threadName(ix: DataIndex, t: Pick<SessionThread, "cats">): string {
+  return t.cats.map((id) => { const c = ix.CAT[id]; return cap(c ? c.term || c.labels[0] : id); }).join(" · ");
+}
+
 /** What a step is, among the steps of a plan: no two steps of a plan ask the same exercise of the same categories. */
 export const stepKey = (s: Pick<SessionStep, "given" | "cats">): string => s.given.exercise + "|" + [...s.cats].sort().join("|");
 
@@ -338,15 +358,16 @@ function comeBack(c: Ctx, missed: SessionStep, asked: ReadonlySet<string>): Sess
 
 /**
  * The steps that come back at the end of a session for the ones that were missed (`missed`: their step keys), in the order of the plan: each as
- * another exercise on the same categories, and none a question the session has had or another miss has brought back. A miss the data has
- * nothing more for brings nothing.
+ * another exercise on the same categories, and none a question the session has had or another miss has brought back. One for each thread, for
+ * its first miss that the data has something more for, so that a session stays about as long as it was planned however it went: three threads of
+ * three are nine to twelve questions.
  */
 export function comeBacks(ix: DataIndex, plan: SessionPlan, missed: ReadonlySet<string>, o: SessionOptions): SessionStep[] {
-  const c = context(ix, o), all = plan.threads.flatMap((t) => t.steps), asked = new Set(all.map(stepKey)), out: SessionStep[] = [];
-  for (const s of all) {
+  const c = context(ix, o), asked = new Set(plan.threads.flatMap((t) => t.steps.map(stepKey))), out: SessionStep[] = [];
+  for (const t of plan.threads) for (const s of t.steps) {
     if (!missed.has(stepKey(s))) continue;
     const back = comeBack(c, s, asked);
-    if (back) { out.push(back); asked.add(stepKey(back)); }
+    if (back) { out.push(back); asked.add(stepKey(back)); break; }
   }
   return out;
 }

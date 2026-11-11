@@ -40,5 +40,5 @@ export { DENIALS, EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, THESIS_REPLIES, 
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, ThesisReply, Wording } from "./syllogism";
 export { givenInstance, givenPair, givenPlace, givenQuestion, givenRelation, givenSyllogism } from "./given";
 export type { Given, GivenOptions, GivenPairOptions, GivenPlaceOptions, GivenQuestion } from "./given";
-export { SESSION_THREADS, TERM_STEPS, comeBacks, pairThread, planSession, stepKey, termThread } from "./session";
-export type { PairThreadOptions, SessionOptions, SessionPlan, SessionStep, SessionThread } from "./session";
+export { SESSION_QUESTIONS, SESSION_THREADS, TERM_STEPS, comeBacks, pairThread, planSession, sessionMiss, sessionTally, stepKey, termThread, threadName } from "./session";
+export type { PairThreadOptions, SessionOptions, SessionPlan, SessionStep, SessionTally, SessionThread } from "./session";

@@ -1,0 +1,15 @@
+/* Daily practice (path/daily.tsx). The session's row at the top of a question's thread. A small walked stop on the line, beside it the session's questions as small
+   diamonds (a group for each thread, the one being asked a little larger, in gold until it is answered) with the count in the small capitals of the path, and under them, in the hand,
+   the line that ties the question to the one before. */
+.pa .st.dly{padding-top:14px; align-items:start}
+.pa .st.dly > .d{margin-top:4px}
+.pa .dlym{display:flex; align-items:center; flex-wrap:wrap; gap:4px 11px; min-height:18px}
+.pa .dlym .minis i.at{width:10px; height:10px}
+.pa .dlym .minis i.now{background:var(--gold)}
+.pa .dlyn{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink3); margin-left:2px}
+.pa .dlyt{display:block; margin-top:5px; font-size:15.5px; line-height:1.3; color:var(--ink2); overflow-wrap:anywhere}
+/* The session's last station: the count of the right ones as its title (the size of a stage's), then each thread by what it was about, its questions beside it as they went. */
+.pa .dend .stm .cs{font-size:var(--tn)}
+.pa .dlyg{list-style:none; margin:8px 0 12px; padding:0; display:grid; grid-template-columns:minmax(0,auto) auto; justify-content:start; align-items:center; gap:8px 18px}
+.pa .dlyg li{display:contents}
+.pa .dlygn{font-size:18px; line-height:1.3; color:var(--ink); overflow-wrap:anywhere}

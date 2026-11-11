@@ -29,8 +29,8 @@ const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* the
 /** The exercise an attempt is in, by its tab. */
 const tabOf = (u) => u.syllogism ? "syllogism" : u.debate ? "debate" : u.find ? "find" : u.cats ? "categories" : u.inst ? "instance" : "practice";
 export const kindMs = (k) => state.times[k];
-/** Something covers the exercise: the clock does not run behind it. */
-export const paused = () => state.optsOpen || state.sessOpen || state.skipAsk || state.menuOpen;
+/** Something covers the exercise: the clock does not run behind it (the last station of Daily practice stands over the attempt it left there: practice/daily.ts). */
+export const paused = () => state.optsOpen || state.sessOpen || state.skipAsk || state.menuOpen || state.view === "daily";
 /** The page of the relations is over the examples (Pick another, or Find a pair's relation): the case waits under it. */
 const covered = (u) => !!u.open && (!!u.find || (!u.debate && !u.syllogism && !u.cats && !u.inst && !!u.rel));
 

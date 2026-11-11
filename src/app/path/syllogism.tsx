@@ -21,6 +21,7 @@ import { WaitStop } from "./wait.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 
 /** The replies as the choices say them, and what each means: Detailed guidance says it with the syllogism's own words, Hints in S, P and R, None not at all (practice/guided.ts). */
 const SAY: Record<Reply, string> = { accept: "I accept", reason: "The reason is not established", pervasion: "There is no pervasion" };
@@ -88,7 +89,7 @@ function AnswerStep() {
   const items = REPLIES.map((r) => ({ k: r, b: SAY[r], s: g === "detailed" ? SPELLED[r](c) : g === "hints" ? MEANS[r] : undefined, key: keyOfReply(r) }));
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={10} /></Sx>
+      <Sx cls="cur first"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement /><Gap h={10} /></Sx>
       <Choices label="Your reply" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
@@ -102,7 +103,7 @@ function ThesisStep() {
   const items = THESIS_REPLIES.map((r) => ({ k: r, b: T_SAY[r], s: g === "detailed" ? T_SPELLED[r](c) : g === "hints" ? T_MEANS[r] : undefined, key: keyOfReply(r) }));
   return <>
     <Scroll>
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Thesis" sub="do you accept it?" /><Gap h={6} /><Statement thesis /><Gap h={10} /></Sx>
+      <Sx cls="cur first"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Thesis" sub="do you accept it?" /><Gap h={6} /><Statement thesis /><Gap h={10} /></Sx>
       <Choices label="Your reply to the thesis" slide items={items} picked={u.pk} onPick={(k) => pickThen(k, () => saySyllogism(k))} />
       <Sx cls="ptail" />
     </Scroll>
@@ -133,7 +134,7 @@ function CounterStep({ kb }: { kb: boolean }) {
     <Scroll>
       {/* the counter-example may stay empty, and the way on waits for it all the same: its piece of line is dotted until something is written (the pieces are the examples' `eh` and `er`) */}
       {u.tf ? <><ThesisAsked /><ReasonPart cls="cur eh"><Gap h={4} />{said}</ReasonPart></>
-        : <Sx cls="cur first eh"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement keep /><Gap h={4} />{said}</Sx>}
+        : <Sx cls="cur first eh"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Answer" sub="do you accept it?" /><Gap h={6} /><Statement keep /><Gap h={4} />{said}</Sx>}
       <Sx cls={(some ? "cur" : "gap") + " er last"}>
         <St d={<D cls="sub now" />} cls="sb now"><span class="lab">a counter-example</span>
           <p class="qq">Name something that is <b class="conn">{c.reason}</b> and is not <b class="conn">{c.predicate}</b>.</p>
@@ -205,7 +206,7 @@ function ResultStep() {
   const { v, word, sub } = verdictOf(g, u.overall, !!u.timeout, u.ex && (full || c.answer !== "reason") ? u.ex.v : null);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={RESULT_TOP} /><Statement thesis={thesisOnly} /><Gap h={6} /></Sx>
+      <Sx cls="walked first"><ThreadTop done h={RESULT_TOP} /><Statement thesis={thesisOnly} /><Gap h={6} /></Sx>
       <Verdict v={v} word={word} sub={sub}>
         <St d={<span />} cls="pwhat"><p class="plead">{saidLine(c, g, thesisOnly)}</p>{!g.correct && g.confusion && full ? <p class="conf">{g.confusion}</p> : null}</St>
       </Verdict>

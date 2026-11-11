@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import { givenQuestion } from "../../src/domain/given";
-import { SESSION_THREADS, comeBacks, pairThread, planSession, stepKey, termThread } from "../../src/domain/session";
+import { SESSION_QUESTIONS, SESSION_THREADS, comeBacks, pairThread, planSession, sessionMiss, sessionTally, stepKey, termThread, threadName } from "../../src/domain/session";
 import type { SessionOptions, SessionPlan, SessionStep } from "../../src/domain/session";
 import { STAGES } from "../../src/domain/stages";
 import openData from "../../src/data/drill-data.json";
@@ -188,11 +188,27 @@ test("comeBacks: a missed step returns as another exercise on the same categorie
   expect(back(two)).toMatchObject([{ given: { exercise: "instance" }, again: true }]);
   // a missed syllogism comes back as its reason and predicate statement by statement, Relations having been asked
   expect(back(three)).toMatchObject([{ given: { exercise: "debate" }, tie: "The reason and the predicate of the syllogism you missed, statement by statement.", again: true }]);
-  // two misses on one pair do not bring the same question back twice: the second takes the next side that is left
+  // a thread brings one question back however many of its steps were missed: for its first miss
   const both = comeBacks(ix, plan, new Set([stepKey(one), stepKey(two)]), { stages: [0], rng: seeded(5) });
-  expect(exercises(both)).toEqual(["instance", "debate"]);
-  // with every step missed, the pair has two more sides and no third
-  expect(comeBacks(ix, plan, new Set(plan.threads[0].steps.map(stepKey)), { stages: [0], rng: seeded(5) }).length).toBe(2);
+  expect(exercises(both)).toEqual(["instance"]);
+  expect(comeBacks(ix, plan, new Set(plan.threads[0].steps.map(stepKey)), { stages: [0], rng: seeded(5) })).toEqual(both);
+  // what came back before stands with the plan as asked: a later miss on the same pair takes the next side that is left
+  const after: SessionPlan = { threads: [{ kind: "pair", cats: [], steps: both }, ...plan.threads] };
+  expect(exercises(comeBacks(ix, after, new Set([stepKey(two)]), { stages: [0], rng: seeded(5) }))).toEqual(["debate"]);
+});
+
+test("how a session went: a miss is a wrong or a partly right answer, and the tally counts each step once", () => {
+  expect(["ok", "part", "bad", "pend", "skip", "", null, undefined].map(sessionMiss)).toEqual([false, true, true, false, false, false, false, false]);
+  expect(sessionTally(["ok", "ok", "part", "bad", "pend", "skip", "", null])).toEqual({ n: 8, right: 2, partly: 1, wrong: 1, waiting: 1, skipped: 3 });
+  expect(sessionTally([])).toEqual({ n: 0, right: 0, partly: 0, wrong: 0, waiting: 0, skipped: 0 });
+  expect(SESSION_QUESTIONS).toBe(9);
+});
+
+test("threadName: a thread is called by its term, or by its two terms", () => {
+  const o: SessionOptions = { stages: upTo(5), rng: seeded(2) };
+  expect(threadName(ix, termThread(ix, "form", { ...o, steps: 3 })!)).toBe("Form");
+  expect(threadName(ix, pairThread(ix, "red", "round", { stages: [0], rng: seeded(3) })!)).toBe("Red things · Round things");
+  expect(threadName(ix, { cats: ["nowhere"] })).toBe("Nowhere");
 });
 
 test("comeBacks: a missed step of a term thread, and one term alone", () => {
@@ -238,8 +254,9 @@ test("on the open data, every step of a plan is a question the data makes for th
       for (const x of s.cats) expect(back[0].cats, at + ": " + stepKey(back[0])).toContain(x);
       expect(givenQuestion(real, back[0].given, { stages: o.stages, rng: seeded(seed) }), at + ": " + stepKey(back[0])).not.toBeNull();
     }
-    // with everything missed, nothing comes back twice
+    // with everything missed, one question comes back for each thread, and none of them twice
     const every = comeBacks(real, plan, keys, { stages: o.stages, rng: seeded(seed) }).map(stepKey);
+    expect(every.length, at).toBe(plan.threads.length);
     expect(new Set([...keys, ...every]).size, at).toBe(keys.size + every.length);
   }
 });

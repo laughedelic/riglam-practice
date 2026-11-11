@@ -22,6 +22,7 @@ import type { Look } from "./path/look.ts";
 import type { Rig } from "./sound/courtyard.ts";
 import type { Trail } from "./practice/trail.ts";
 import type { GivenState } from "./practice/given.ts";
+import type { DailyDone, DailyRun } from "./practice/daily.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -420,7 +421,8 @@ export interface State {
   tab: "practice" | "debate" | "review" | string;
   own: string;
   mode: "loading" | "quiz" | "nodata" | "nodb" | string;
-  view: "chat" | string | null;
+  /** what stands in front of the exercise in its place: Claude's conversation, the last station of Daily practice (practice/daily.ts), or nothing */
+  view: "chat" | "daily" | string | null;
   optsOpen: boolean;
   /** the Path's Settings: the line whose own page is open (path/settings.tsx), or null for the sections */
   optsPage: string | null;
@@ -500,6 +502,10 @@ export interface State {
   carry: { offer: Ui["offer"]; guideDown: Ui["guideDown"] } | null;
   /** a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts) */
   given: GivenState | null;
+  /** a session of daily practice under way (practice/daily.ts) */
+  daily: DailyRun | null;
+  /** what the device keeps of the sessions done (`rd-daily`), once it was read */
+  dailyDone: DailyDone | null;
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;
