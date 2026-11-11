@@ -3,9 +3,10 @@
 import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
-import { CHALLENGE_MAX, challengeQuestion, checkChallenge, dayText, freshRecord, itemLine, marked, markOf, nextItem, normRecord, readChallenge, standing, stationOf } from "../../src/domain/challenge";
+import { CHALLENGE_MAX, challengeQuestion, checkChallenge, dayText, freshRecord, itemAnswer, itemLine, marked, markOf, nextItem, normRecord, readChallenge, standing, stationOf } from "../../src/domain/challenge";
 import type { Challenge } from "../../src/domain/challenge";
 import openData from "../../src/data/drill-data.json";
+import { challengeReport } from "../../scripts/lib/challenge-report";
 
 const ix = makeIndex(openData as unknown as DrillData);
 const WRITTEN = {
@@ -53,6 +54,10 @@ test("its questions are made from the data, the same every time, whatever the le
     { text: expect.stringMatching(/^Take the roundness of a coin\. It follows it is .+ because it is .+\.$/) },
     { text: "Three possibilities, A in B" }, { text: "The red of a rose" }, { text: expect.stringMatching(/^(colors|hues|shapes) · (colors|hues|shapes)$/) },     // Find an instance shows its categories in an order of its own
   ]);
+  // what the data answers, for the one who writes the challenge: the relation of a pair, the reply to a syllogism, the rows that hold; Find a pair has no one answer
+  expect(made.map((q) => itemAnswer(q!))).toEqual([
+    "Three possibilities, B in A", "Mutually exclusive", "There is no pervasion", "", expect.stringMatching(/a color|colors/), expect.any(String),
+  ]);
   // another challenge draws its own words: over a few ids the label of a side left open is not always the same
   const labels = new Set(["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => (challengeQuestion(ix, { ...CH, id }, 1) as { pair: { a: string } }).pair.a));
   expect(labels.size).toBeGreaterThan(1);
@@ -96,4 +101,19 @@ test("where it stands, and what its station opens", () => {
 test("the day as the page says it", () => {
   expect(dayText("2026-11-07")).toBe("7 Nov");
   expect(dayText("2027-01-31")).toBe("31 Jan");
+});
+
+test("the report of a written challenge on the data: how it will be asked, what the data answers, and what cannot be loaded", () => {
+  const good = challengeReport(openData as unknown as DrillData, WRITTEN);
+  expect(good.ok).toBe(true);
+  expect(JSON.parse(good.body!)).toEqual(CH);
+  expect(good.lines[0]).toBe("Colors and shapes (7 Nov, id 2026-11-07-colors-and-shapes)");
+  expect(good.lines).toContain("  1  Pervasions: visible forms and colors\n       the data answers: Three possibilities, B in A");
+  expect(good.lines).toContain("  4  Find a pair: Three possibilities, A in B");
+  // a question the data cannot make stops the loading, and says which
+  const off = challengeReport(openData as unknown as DrillData, { ...WRITTEN, items: [WRITTEN.items[1], { exercise: "practice", a: "col", b: "nowhere" }] });
+  expect(off.ok).toBe(false);
+  expect(off.lines.at(-1)).toMatch(/^Not ready: question 2 cannot be asked\./);
+  // what is not a challenge has no body
+  expect(challengeReport(openData as unknown as DrillData, { id: "x" })).toMatchObject({ ok: false, body: null });
 });
