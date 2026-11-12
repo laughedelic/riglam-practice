@@ -2859,7 +2859,7 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(rx.DATA.items.filter((i) => i.c.includes("tree")).every((i) => !i.c.includes("wooden") && i.may?.includes("wooden"))).toBe(true);
   // internal form and the sense objects: the hierarchy states neither that they overlap nor that they are apart (the color of a person's
   // skin), so nothing is asked; a physical sense power does not appear to the senses, and stays apart from them
-  for (const c of ["col", "shape", "vis", "snd", "odr", "tst", "tng", "elem", "earth", "water", "fire", "wind", "arisen"]) {
+  for (const c of ["col", "shape", "vis", "snd", "odr", "tst", "tng", "elem", "earth", "water", "fire", "wind", "arisen", "expr"]) {
     expect(pool.has(pairKey({ a: "intf", b: c })), c).toBe(false);
     expect(pool.get(pairKey({ a: "sp", b: c })), c).toBe("con");
   }

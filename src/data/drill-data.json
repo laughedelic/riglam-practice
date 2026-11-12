@@ -1153,6 +1153,7 @@
 ["emotion","food"],
 ["emotion","nonas"],
 ["expr","instr"],
+["expr","intf"],
 ["extf","fabric"],
 ["extf","food"],
 ["extf","fruit"],
