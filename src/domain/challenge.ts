@@ -1,10 +1,12 @@
 // A challenge: a task given to everyone at once, such as two phenomena to compare or a syllogism to answer that a class set. It is a short run of
-// given questions (given.ts) in the exercises the app has, with a title and a note. There is one at a time, and the next one takes its place.
+// given questions (given.ts) in the exercises the app has, with a title and a note. Challenges accumulate: everyone has all of them, one after
+// another by the day each was given (`ChallengeSet`), and each waits until all of its questions have an answer.
 //
 // This is the challenge as a document and what follows from it: reading one that was written or stored (`checkChallenge`, which says what is wrong
-// with it), making its questions (`challengeQuestion`: the same ones for everybody, since the random numbers come from its id), the line that names
-// a question before it is opened, and the record of how each went on a device (`ChallengeRecord`): which question comes next, and where the
-// challenge stands. A challenge asks whatever the data has, whatever the learner's stages: its answers stand apart from the progression.
+// with it, and `checkChallenges` for the set), making its questions (`challengeQuestion`: the same ones for everybody, since the random numbers come
+// from its id), the line that names a question before it is opened, and the record of how each went on a device (`ChallengeRecord`): which question
+// comes next, where the challenge stands, whether it still waits, and what the roadmap's stop says of them all. A challenge asks whatever the data
+// has, whatever the learner's stages: its answers stand apart from the progression.
 //
 // A task often steps outside the data: two phenomena the app has no category for, a syllogism it cannot settle. Such a question brings its answer
 // with it (`CarriedPair`, `CarriedSyllogism`): the relation with an example for each case, or the three checks of the syllogism, written from the
@@ -31,7 +33,7 @@ export const CHALLENGE_NOTE_MAX = 400;
 
 /** A challenge as it is written and kept. */
 export interface Challenge {
-  /** names this challenge: letters, digits, dots, dashes. Another id is another challenge, and the record of the one before is dropped */
+  /** names this challenge among the others: letters, digits, dots, dashes. A challenge whose questions change takes another id, and starts again */
   id: string;
   /** the day it was given, YYYY-MM-DD */
   date: string;
@@ -220,6 +222,46 @@ export function checkChallenge(raw: unknown): { challenge: Challenge | null; pro
 /** The challenge in what was written or stored, or null when it is not one (`checkChallenge`). */
 export const readChallenge = (raw: unknown): Challenge | null => checkChallenge(raw).challenge;
 
+/** The most challenges everyone has at once: the tasks of a term or two. */
+export const CHALLENGES_MAX = 60;
+/** The challenges everyone has, as they are written and kept: `{challenges: [...]}`. */
+export interface ChallengeSet { challenges: Challenge[] }
+/** The challenges in what was written or stored: a set, a list, or one challenge alone (a set of one); null when it is none of them. */
+function listOf(raw: unknown): unknown[] | null {
+  if (Array.isArray(raw)) return raw;
+  if (obj(raw) && Array.isArray(raw.challenges)) return raw.challenges;
+  return obj(raw) && raw.items !== undefined ? [raw] : null;
+}
+/** The challenges in the order they were given: by their day, and those of one day in the order they were written. */
+const byDay = (cs: Challenge[]): Challenge[] => cs.map((c, i) => ({ c, i })).sort((x, y) => (x.c.date < y.c.date ? -1 : x.c.date > y.c.date ? 1 : x.i - y.i)).map((x) => x.c);
+/**
+ * Reads the challenges as they were written for loading. `problems` says in words what keeps them from being loaded (empty: none): a challenge that
+ * is not one, by its place counted from 1 and its id, and an id that names two. `challenges` are the ones that read, in the order they were given.
+ */
+export function checkChallenges(raw: unknown): { challenges: Challenge[]; problems: string[] } {
+  const list = listOf(raw);
+  if (!list) return { challenges: [], problems: ["It is not a challenge, a list of them or {challenges: [...]}."] };
+  const problems: string[] = [], out: Challenge[] = [], ids = new Set<string>();
+  if (list.length > CHALLENGES_MAX) problems.push("challenges: at most " + CHALLENGES_MAX + ".");
+  list.forEach((one, i) => {
+    const { challenge, problems: wrong } = checkChallenge(one), id = obj(one) && str(one.id) ? one.id : "";
+    const name = "challenge " + (i + 1) + (id ? " (" + id + ")" : "") + ": ";
+    if (!challenge) { problems.push(...wrong.map((p) => name + p)); return; }
+    if (ids.has(challenge.id)) { problems.push(name + "id: another challenge has this id."); return; }
+    ids.add(challenge.id); out.push(challenge);
+  });
+  return { challenges: byDay(out), problems };
+}
+/** The challenges a device has, in what was stored: those that read, each id once, in the order they were given. One that does not read is left out, the rest stay. */
+export function readChallenges(raw: unknown): Challenge[] {
+  const out: Challenge[] = [], ids = new Set<string>();
+  for (const one of (listOf(raw) ?? []).slice(0, CHALLENGES_MAX)) {
+    const c = readChallenge(one);
+    if (c && !ids.has(c.id)) { ids.add(c.id); out.push(c); }
+  }
+  return byDay(out);
+}
+
 /** Random numbers that are the same for the same text: everybody gets a challenge's questions in the same words. */
 function seeded(text: string): () => number {
   let h = 2166136261;
@@ -336,7 +378,7 @@ export type ItemMark = "ok" | "part" | "bad" | "pend";
 /** The mark of an answer's grade: one of the four as it is, anything else (an answer nobody could check) as still open. */
 export const markOf = (grade: string): ItemMark => (grade === "ok" || grade === "part" || grade === "bad" ? grade : "pend");
 
-/** What a device keeps of the current challenge: whether its page was opened, and how each question went the last time it was answered, by its place. */
+/** What a device keeps of a challenge: whether it was seen on the page, and how each question went the last time it was answered, by its place. */
 export interface ChallengeRecord {
   /** the challenge it is of */
   id: string;
@@ -353,6 +395,15 @@ export function normRecord(raw: unknown, ch: Challenge): ChallengeRecord {
 }
 /** The record after question `i` was answered with this grade. */
 export const marked = (r: ChallengeRecord, i: number, grade: string): ChallengeRecord => ({ ...r, seen: true, marks: { ...r.marks, [i]: markOf(grade) } });
+/** The records of the challenges a device has, as they were stored (`{[id]: {seen, marks}}`): each challenge's own, a fresh one for a challenge that has none. Records of challenges no longer there are dropped. */
+export function normRecords(raw: unknown, cs: readonly Challenge[]): Record<string, ChallengeRecord> {
+  const out: Record<string, ChallengeRecord> = {};
+  for (const c of cs) { const r = obj(raw) && Object.hasOwn(raw, c.id) ? raw[c.id] : null; out[c.id] = normRecord(obj(r) ? { ...r, id: c.id } : null, c); }
+  return out;
+}
+/** The records as they are stored: by id, without it. */
+export const storedRecords = (rs: Record<string, ChallengeRecord>): Record<string, { seen: boolean; marks: Record<number, ItemMark> }> =>
+  Object.fromEntries(Object.entries(rs).map(([id, r]) => [id, { seen: r.seen, marks: r.marks }]));
 
 /** Where a challenge stands on a device: not opened yet, opened with nothing answered, some of it answered, all of it answered. */
 export type Standing = "new" | "open" | "under" | "done";
@@ -365,6 +416,23 @@ export function standing(r: ChallengeRecord, askable: readonly boolean[]): Stand
   if (!r.seen) return "new";
   if (!k) return "open";
   return k >= n ? "done" : "under";
+}
+/**
+ * Whether the challenge still waits: this device can ask some of its questions, and one of those has no answer yet. One that does not wait has gone
+ * behind the top of its page, done; so has one whose questions this device can ask none of.
+ */
+export function waits(r: ChallengeRecord, askable: readonly boolean[]): boolean {
+  return askable.some((a, i) => a && !r.marks[i]);
+}
+/**
+ * What the challenges' stop on the roadmap says under its name, of all of them (`list`, in the order they were given): "new" (and its gold frame,
+ * `fresh`) while one came that was not seen on the page, then how many wait ("3 open"), and nothing once none does. `title`: the one it names, the
+ * newest that came, else the latest that waits.
+ */
+export function stopSays(list: readonly { doc: Challenge; rec: ChallengeRecord; askable: readonly boolean[] }[]): { fresh: boolean; text: string; title: string } {
+  const unseen = list.filter((c) => !c.rec.seen), open = list.filter((c) => waits(c.rec, c.askable));
+  if (unseen.length) return { fresh: true, text: "new", title: unseen[unseen.length - 1].doc.title };
+  return { fresh: false, text: open.length ? open.length + " open" : "", title: open.length ? open[open.length - 1].doc.title : "" };
 }
 /**
  * The question to ask after question `after` (-1: from the start): the next one this device can ask that has no answer yet; with `again`, the next

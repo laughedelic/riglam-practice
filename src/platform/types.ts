@@ -272,14 +272,14 @@ export interface Platform {
   /** Calls `tell` whenever a newer copy of the examples was kept on the device (they are fetched in the background), so that the page reads `examples` again. Returns the way to stop. */
   onExamples?(tell: () => void): () => void;
   /**
-   * The challenge that everyone gets now, as the server gave it (the page reads it with src/domain/challenge.ts), or null (or absent) when
-   * this device has none: no key, there is none now, or it has not arrived yet. Like the examples it comes in the background and is kept
-   * on the device, so that it can be done offline.
+   * The challenges that everyone gets, as the server gave them: one set, `{challenges: [...]}` (the page reads it with src/domain/challenge.ts),
+   * or null (or absent) when this device has none: no key, there are none now, or they have not arrived yet. Like the examples they come in the
+   * background and are kept on the device, so that they can be done offline.
    */
   challenge?(): Promise<object | null>;
-  /** Calls `tell` whenever what `challenge` gives changed (another one was kept, or the one kept is no more). Returns the way to stop. */
+  /** Calls `tell` whenever what `challenge` gives changed (another set was kept, or there are none any more). Returns the way to stop. */
   onChallenge?(tell: () => void): () => void;
-  /** Asks the server, in the background, whether there is another challenge; the page calls it when the roadmap opens. It does nothing offline, and not more than once in a while. */
+  /** Asks the server, in the background, whether the challenges changed; the page calls it when the roadmap opens. It does nothing offline, and not more than once in a while. */
   lookForChallenge?(): void;
   /** The optional account (a passkey and a server copy of the documents, src/account), or null (or absent) when the place has none. The page works the same without. */
   account?(): Promise<Account | null>;

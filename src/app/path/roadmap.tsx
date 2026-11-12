@@ -3,7 +3,7 @@
 // the path goes on from it) is dashed. Above its foot a line is pinned while a newer version waits (Update), or while
 // What's new has something not read yet (path/news.tsx). Where the trunk parts into the three branches stands the stop of Daily practice (practice/daily.ts), which draws on all of them: a
 // session of questions from every exercise; under its name, how many questions it has, "continue" while one waits, where it stands while its question is on screen, and "done today".
-// In the corner beside the name, while there is one, stands the stop of the challenge that everyone gets (path/challenge.tsx), on a thread of its own; the roadmap asks to look for another every time it opens.
+// In the corner beside the name, while there are any, stands the stop of the challenges that everyone gets (path/challenge.tsx), on a thread of its own; the roadmap asks to look for more every time it opens.
 // The foot goes to Review and Settings, the Magic Key while this device has none. A Preview says on that line which build it is and has the way to look again. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -87,7 +87,7 @@ export function Roadmap() {
       const n = box.current && box.current.querySelector<SVGElement>("[aria-current=page]"); if (n) n.focus({ preventScroll: true });
       // every time the roadmap opens it looks for a newer version, unless the device is offline (a look from the last few seconds stands)
       if (navigator.onLine !== false && state.updates) void state.updates.check(8000);
-      lookForChallenge();      // and for another challenge (practice/challenge.ts)
+      lookForChallenge();      // and for more challenges (practice/challenge.ts)
     }
     // closed, it gives the focus to the top bar of the screen under it, unless that screen took it already (the Magic Key page, to its field)
     else if (!on && was.current) {

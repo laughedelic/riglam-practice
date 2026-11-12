@@ -42,5 +42,5 @@ export { givenInstance, givenPair, givenPlace, givenQuestion, givenRelation, giv
 export type { Given, GivenOptions, GivenPairOptions, GivenPlaceOptions, GivenQuestion } from "./given";
 export { SESSION_EXERCISES, SESSION_FROM, SESSION_MISSES, SESSION_MIX, SESSION_MIX_MIN, SESSION_QUESTIONS, SESSION_ROUNDS, TERM_STEPS, comeBacks, pairRound, planSession, roundName, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, sessionTerm, sessionTally, stepKey, termRound } from "./session";
 export type { PairRoundOptions, SessionAnswer, SessionExercise, SessionFrom, SessionOptions, SessionPlan, SessionRound, SessionStep, SessionTally } from "./session";
-export { CHALLENGE_MAX, challengeQuestion, checkChallenge, dayText, freshRecord, isCarried, itemAnswer, itemLine, markOf, marked, nextItem, normRecord, readChallenge, standing, stationOf } from "./challenge";
-export type { CarriedPair, CarriedSyllogism, CarriedTerm, Challenge, ChallengeItem, ChallengeOptions, ChallengeRecord, ItemLine, ItemMark, Standing } from "./challenge";
+export { CHALLENGES_MAX, CHALLENGE_MAX, challengeQuestion, checkChallenge, checkChallenges, dayText, freshRecord, isCarried, itemAnswer, itemLine, markOf, marked, nextItem, normRecord, normRecords, readChallenge, readChallenges, standing, stationOf, stopSays, storedRecords, waits } from "./challenge";
+export type { CarriedPair, CarriedSyllogism, CarriedTerm, Challenge, ChallengeItem, ChallengeOptions, ChallengeRecord, ChallengeSet, ItemLine, ItemMark, Standing } from "./challenge";

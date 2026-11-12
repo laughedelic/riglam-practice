@@ -1,29 +1,43 @@
-// What a written challenge comes to on the app's data (src/domain/challenge.ts): what is wrong with it, or how each of its questions will be asked
+// What written challenges come to on the app's data (src/domain/challenge.ts): what is wrong with them, or how each question of each will be asked
 // and what answers it: the data, or, for a question about what the data does not have, the answer the challenge carries, which is printed whole so
-// that it can be read against the reference before it is given out. For scripts/challenge.ts, which prints it before a challenge is loaded.
+// that it can be read against the reference before it is given out. For scripts/challenge.ts, which prints it before the challenges are loaded.
 import { CELLS, REL, catByLabel, makeIndex } from "../../src/ai-shared";
 import type { DataIndex, DrillData } from "../../src/ai-shared";
-import { challengeQuestion, checkChallenge, dayText, isCarried, itemAnswer, itemLine } from "../../src/domain/challenge";
-import type { CarriedPair, CarriedSyllogism, Challenge } from "../../src/domain/challenge";
+import { challengeQuestion, checkChallenges, dayText, isCarried, itemAnswer, itemLine } from "../../src/domain/challenge";
+import type { CarriedPair, CarriedSyllogism, Challenge, ChallengeSet } from "../../src/domain/challenge";
 import { judgeable } from "../../src/domain/universe";
 
 /** The exercises by the names the app shows. */
 const EXERCISE: Record<string, string> = { practice: "Relations", debate: "Pervasions", find: "Find a pair", syllogism: "Syllogisms", categories: "Categories", instance: "Find an instance" };
 
 export interface ChallengeReport {
-  /** it can be loaded: it is a challenge, the data makes every question written by its categories, and no question carries an answer for a pair the data has */
+  /** they can be loaded: each is a challenge, no id names two, the data makes every question written by its categories, and no question carries an answer for a pair the data has */
   ok: boolean;
   /** what to print */
   lines: string[];
-  /** the challenge as it is loaded: JSON text with nothing in it but what the app reads; null when it is not one */
+  /** the challenges as they are loaded, all of them in one row (`ChallengeSet`): JSON text with nothing in it but what the app reads; null when one of them is not a challenge */
   body: string | null;
 }
 
-/** The report of `raw`, a challenge as it was written, on the open term data. */
+/**
+ * The report of `raw`, the challenges as they were written (a challenge, a list of them, or `{challenges: [...]}`), on the open term data. They are
+ * loaded together: the row holds all of them, and a challenge left out of it is taken away from the devices.
+ */
 export function challengeReport(data: DrillData, raw: unknown): ChallengeReport {
-  const { challenge, problems } = checkChallenge(raw);
-  if (!challenge) return { ok: false, lines: ["Not a challenge:", ...problems.map((p) => "  " + p)], body: null };
-  const ix = makeIndex(data), missing: number[] = [], known: number[] = [];
+  const { challenges, problems } = checkChallenges(raw);
+  if (problems.length) return { ok: false, lines: ["Not ready:", ...problems.map((p) => "  " + p)], body: null };
+  const ix = makeIndex(data), each = challenges.map((c) => oneReport(ix, c)), set: ChallengeSet = { challenges };
+  const n = challenges.length;
+  return {
+    ok: each.every((r) => r.ok),
+    lines: [n + (n === 1 ? " challenge" : " challenges") + ", by their day:", "", ...each.flatMap((r, i) => (i ? ["", ...r.lines] : r.lines))],
+    body: JSON.stringify(set),
+  };
+}
+
+/** The report of one challenge. */
+function oneReport(ix: DataIndex, challenge: Challenge): { ok: boolean; lines: string[] } {
+  const missing: number[] = [], known: number[] = [];
   const rows = challenge.items.map((g, i) => {
     const q = challengeQuestion(ix, challenge, i), name = EXERCISE[g.exercise] ?? g.exercise;
     if (!q) { missing.push(i + 1); return `  ${i + 1}  ${name}: the data cannot make this question (${JSON.stringify(g)})`; }
@@ -40,7 +54,6 @@ export function challengeReport(data: DrillData, raw: unknown): ChallengeReport 
       ...(missing.length ? ["", `Not ready: question ${missing.join(", ")} cannot be asked. Use the ids of the categories in src/data/drill-data.json.`] : []),
       ...(known.length ? ["", `Not ready: question ${known.join(", ")} carries an answer for a pair the data has.`] : []),
     ],
-    body: JSON.stringify(challenge),
   };
 }
 /** The two categories of a carried pair's sides, when the data has both and judges the pair: such a pair is the data's to answer. */

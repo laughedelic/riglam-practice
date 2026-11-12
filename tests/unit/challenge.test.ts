@@ -1,10 +1,10 @@
-// src/domain/challenge.ts: a challenge as a document (what is one, and what is wrong with one that is not), its questions (the same for everybody,
-// made from the open data whatever the stages, or from the answer a question brings for what the data does not have) and the record a device keeps
-// of it (what comes next, where it stands).
+// src/domain/challenge.ts: a challenge as a document (what is one, and what is wrong with one that is not), the challenges together (a set, by their
+// day), its questions (the same for everybody, made from the open data whatever the stages, or from the answer a question brings for what the data does
+// not have) and the record a device keeps of each (what comes next, where it stands, whether it still waits, what the roadmap's stop says).
 import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
-import { CARRIED_LINE_MAX, CARRIED_WORDS_MAX, CHALLENGE_MAX, challengeQuestion, checkChallenge, dayText, freshRecord, isCarried, itemAnswer, itemLine, marked, markOf, nextItem, normRecord, readChallenge, standing, stationOf } from "../../src/domain/challenge";
+import { CARRIED_LINE_MAX, CARRIED_WORDS_MAX, CHALLENGE_MAX, CHALLENGES_MAX, challengeQuestion, checkChallenge, checkChallenges, dayText, freshRecord, isCarried, itemAnswer, itemLine, marked, markOf, nextItem, normRecord, normRecords, readChallenge, readChallenges, standing, stationOf, stopSays, storedRecords, waits } from "../../src/domain/challenge";
 import type { Challenge } from "../../src/domain/challenge";
 import { grade, gradeDebate } from "../../src/domain/grading";
 import { openExamples } from "../../src/domain/known";
@@ -109,11 +109,67 @@ test("the day as the page says it", () => {
   expect(dayText("2027-01-31")).toBe("31 Jan");
 });
 
-test("the report of a written challenge on the data: how it will be asked, what the data answers, and what cannot be loaded", () => {
+/* ---------- the challenges together: they accumulate ---------- */
+const LATER = { id: "2026-11-14-sounds", date: "2026-11-14", title: "Sounds", note: "", items: [{ exercise: "practice", a: "snd", b: "odr" }] };
+const SAME_DAY = { ...LATER, id: "2026-11-14-smells", title: "Smells" };
+
+test("the challenges are read as one set, by the day each was given; a challenge alone or a list of them is a set too", () => {
+  const later = readChallenge(LATER) as Challenge, smells = readChallenge(SAME_DAY) as Challenge;
+  // by their day, and those of one day in the order they were written
+  expect(readChallenges({ challenges: [LATER, WRITTEN, SAME_DAY] })).toEqual([CH, later, smells]);
+  expect(readChallenges([SAME_DAY, LATER])).toEqual([smells, later]);
+  expect(readChallenges(WRITTEN)).toEqual([CH]);
+  expect(checkChallenges({ challenges: [LATER, WRITTEN] })).toEqual({ challenges: [CH, later], problems: [] });
+  // on a device: one that does not read is left out and the rest stay, an id is taken once, and no more than the most are kept
+  expect(readChallenges({ challenges: [LATER, { id: "broken" }, { ...WRITTEN, id: LATER.id }] })).toEqual([later]);
+  expect(readChallenges({ challenges: "none" })).toEqual([]);
+  expect(readChallenges(null)).toEqual([]);
+  const many = Array.from({ length: CHALLENGES_MAX + 5 }, (_, i) => ({ ...LATER, id: "c" + i }));
+  expect(readChallenges({ challenges: many })).toHaveLength(CHALLENGES_MAX);
+});
+
+test("what keeps a set from being loaded says which challenge, by its place and its id", () => {
+  expect(checkChallenges(7).problems).toEqual(["It is not a challenge, a list of them or {challenges: [...]}."]);
+  const { problems } = checkChallenges({ challenges: [LATER, { ...WRITTEN, date: "soon" }, { ...SAME_DAY, id: LATER.id }] });
+  expect(problems).toEqual([
+    "challenge 2 (2026-11-07-colors-and-shapes): date: a day as YYYY-MM-DD.",
+    "challenge 3 (2026-11-14-sounds): id: another challenge has this id.",
+  ]);
+  expect(checkChallenges({ challenges: Array.from({ length: CHALLENGES_MAX + 1 }, (_, i) => ({ ...LATER, id: "c" + i })) }).problems).toEqual(["challenges: at most " + CHALLENGES_MAX + "."]);
+});
+
+test("each challenge keeps its own record on a device, by its id; a challenge no longer there takes its record with it", () => {
+  const later = readChallenge(LATER) as Challenge;
+  const stored = { [CH.id]: { seen: true, marks: { 0: "ok", 9: "ok" } }, gone: { seen: true, marks: { 0: "bad" } }, [later.id]: "x" };
+  const rs = normRecords(stored, [CH, later]);
+  expect(rs).toEqual({ [CH.id]: { id: CH.id, seen: true, marks: { 0: "ok" } }, [later.id]: freshRecord(later.id) });
+  expect(storedRecords(rs)).toEqual({ [CH.id]: { seen: true, marks: { 0: "ok" } }, [later.id]: { seen: false, marks: {} } });
+  expect(normRecords(null, [later])).toEqual({ [later.id]: freshRecord(later.id) });
+  // a record kept the way of one challenge at a time is of none of them
+  expect(normRecords({ id: CH.id, seen: true, marks: { 0: "ok" } }, [CH])).toEqual({ [CH.id]: freshRecord(CH.id) });
+});
+
+test("a challenge waits until every question this device can ask has an answer, right or not; the stop says new, then how many wait", () => {
+  const all = [true, true, false], r = { ...freshRecord("x"), seen: true };
+  expect(waits(r, all)).toBe(true);
+  expect(waits(marked(r, 0, "bad"), all)).toBe(true);
+  expect(waits(marked(marked(r, 0, "bad"), 1, "pend"), all)).toBe(false);
+  expect(waits(r, [false, false])).toBe(false);
+  const later = readChallenge(LATER) as Challenge, one = [true];
+  const list = (a: object, b: object) => [{ doc: CH, rec: { ...freshRecord(CH.id), ...a }, askable: all }, { doc: later, rec: { ...freshRecord(later.id), ...b }, askable: one }];
+  expect(stopSays(list({}, {}))).toEqual({ fresh: true, text: "new", title: "Sounds" });
+  expect(stopSays(list({}, { seen: true }))).toEqual({ fresh: true, text: "new", title: "Colors and shapes" });
+  expect(stopSays(list({ seen: true }, { seen: true }))).toEqual({ fresh: false, text: "2 open", title: "Sounds" });
+  expect(stopSays(list({ seen: true }, { seen: true, marks: { 0: "ok" } }))).toEqual({ fresh: false, text: "1 open", title: "Colors and shapes" });
+  expect(stopSays(list({ seen: true, marks: { 0: "ok", 1: "bad" } }, { seen: true, marks: { 0: "ok" } }))).toEqual({ fresh: false, text: "", title: "" });
+  expect(stopSays([])).toEqual({ fresh: false, text: "", title: "" });
+});
+
+test("the report of written challenges on the data: how each will be asked, what the data answers, and what cannot be loaded", () => {
   const good = challengeReport(openData as unknown as DrillData, WRITTEN);
   expect(good.ok).toBe(true);
-  expect(JSON.parse(good.body!)).toEqual(CH);
-  expect(good.lines[0]).toBe("Colors and shapes (7 Nov, id 2026-11-07-colors-and-shapes)");
+  expect(JSON.parse(good.body!)).toEqual({ challenges: [CH] });
+  expect(good.lines.slice(0, 3)).toEqual(["1 challenge, by their day:", "", "Colors and shapes (7 Nov, id 2026-11-07-colors-and-shapes)"]);
   expect(good.lines).toContain("  1  Pervasions: visible forms and colors\n       the data answers: Three possibilities, B in A");
   expect(good.lines).toContain("  4  Find a pair: Three possibilities, A in B");
   // a question the data cannot make stops the loading, and says which
@@ -122,6 +178,15 @@ test("the report of a written challenge on the data: how it will be asked, what 
   expect(off.lines.at(-1)).toMatch(/^Not ready: question 2 cannot be asked\./);
   // what is not a challenge has no body
   expect(challengeReport(openData as unknown as DrillData, { id: "x" })).toMatchObject({ ok: false, body: null });
+  // several are loaded together, by their day, all in one row
+  const two = challengeReport(openData as unknown as DrillData, [LATER, WRITTEN]);
+  expect(two.ok).toBe(true);
+  expect(JSON.parse(two.body!)).toEqual({ challenges: [CH, readChallenge(LATER)] });
+  expect(two.lines[0]).toBe("2 challenges, by their day:");
+  expect(two.lines).toContain("Sounds (14 Nov, id 2026-11-14-sounds)");
+  // one that cannot be asked keeps them all from loading; two with one id are no set
+  expect(challengeReport(openData as unknown as DrillData, [LATER, { ...WRITTEN, items: [{ exercise: "practice", a: "col", b: "nowhere" }] }]).ok).toBe(false);
+  expect(challengeReport(openData as unknown as DrillData, [LATER, { ...WRITTEN, id: LATER.id }])).toMatchObject({ ok: false, body: null, lines: ["Not ready:", "  challenge 2 (2026-11-14-sounds): id: another challenge has this id."] });
 });
 
 /* ---------- questions that bring their answer: what the data does not have ---------- */
@@ -272,7 +337,7 @@ test("a carried syllogism is asked with its three checks as written: the situati
 test("the report prints a carried answer whole, and stops at one written for a pair the data has", () => {
   const r = challengeReport(openData as unknown as DrillData, CARRIED);
   expect(r.ok).toBe(true);
-  expect(JSON.parse(r.body!)).toEqual(CC);
+  expect(JSON.parse(r.body!)).toEqual({ challenges: [CC] });
   expect(r.lines).toContain([
     "  1  Pervasions: birds and things that fly", "       the challenge answers: Four possibilities",
     "         both: a sparrow", "         A not B: a penguin", "         B not A: a bat", "         neither: a stone", "         one of each: a bird · something that flies",
