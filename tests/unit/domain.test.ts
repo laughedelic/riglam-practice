@@ -2848,7 +2848,7 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(statedApart(rx, "furn", "clothes")).toMatch(/^Furniture is made to sit or lie on/);
   // one reason for every kind of thing: not "a made thing", which the materials (liquid mercury), the instruments (the voice) and the
   // kitchen things (salt) are not all
-  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body, and nobody's senses perceive it. Whatever can be seen, heard or touched is not one.");
+  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body, which ordinary senses do not perceive. Whatever ordinary senses can see, hear or touch is not one.");
   expect(statedApart(rx, "human", "furn")).toBeNull(); // the classes say it: a person is not a form
   // a thought, a memory, a dream or an emotion: the class of the gloss is that of the things, and the word can be read otherwise, so the
   // reason is one that holds on every reading
@@ -2856,7 +2856,7 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(statedApart(rx, "thought", "human")).toBe("A thought, a memory, a dream or an emotion is not a living being. None of them is a person or an animal.");
   // an emotion is impermanent on either reading (a mental factor, a standing disposition): the reason says that, not its class
   expect(pool.get("emotion|perm")).toBe("con");
-  expect(statedApart(rx, "emotion", "perm")).toBe("An emotion arises and passes. It is not permanent.");
+  expect(statedApart(rx, "emotion", "perm")).toBe("An emotion arises from causes and changes moment by moment. It is not permanent.");
   const at = () => 1_700_000_000_000, p = pairOf(rx, "intf", "furn", "internal matter", "furniture", seeded(2), at);
   expect(p.why!.both).toBe("Internal form belongs to the body and senses of a living being. Furniture and clothes are made things, and no part of a living body. Nothing is both “internal matter” and “furniture”.");
   expect(p.note).toBe("Internal form belongs to the body and senses of a living being. Furniture and clothes are made things, and no part of a living body. So “internal matter” and “furniture” have no common locus.");
@@ -2870,7 +2870,7 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   // exists, however rare (a carrot flute, edible clothing, a living willow seat, a chair grown from a tree, a jingle dress)
   for (const k of ["extf|kitchen", "intf|kitchen", "food|instr", "clothes|food", "furn|plant", "furn|tree", "clothes|instr"]) expect(pool.has(k), k).toBe(false);
   // and a fourth: the botanical reading of fruit (a calabash hat, a gourd used as a vessel), water drumming
-  for (const k of ["clothes|fruit", "fruit|furn", "instr|liquid", "drink|instr"]) expect(pool.has(k), k).toBe(false);
+  for (const k of ["clothes|fruit", "fruit|furn", "electric|fruit", "instr|liquid", "drink|instr"]) expect(pool.has(k), k).toBe(false);
   // clothes stay external form and apart from internal form: the source names "your clothes" as matter not in a person's continuum
   expect(pool.get("clothes|extf")).toBe("3");
   expect(pool.get("clothes|intf")).toBe("con");
