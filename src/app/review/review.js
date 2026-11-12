@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { CELLS, REL, lcRel } from "../core/rel.js";
 import { dayOf, gradeOf, isMiss, pairsOf } from "../core/util.js";
 import { advance } from "../practice/queue.js";
-import { answerList, stillAsked } from "../practice/universe.js";
+import { answerList, goneWhy, stillAsked } from "../practice/universe.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
@@ -24,8 +24,8 @@ export function overview(all){
 // what a mistake says under its pair: the relation chosen and the right one, the wrong cells, the time that ran out
 export function mistakeLine(a){
   const bad=CELLS.filter(c=>a.cells&&a.cells[c]&&a.cells[c].verdict==="bad");
-  const was=REL[a.key]?lcRel(REL[a.key].name):a.key, kept=stillAsked(a);       // not kept: the reference has since left this pair's relation open
-  return (a.correct?(kept?"Relation right (":"Relation as it was asked then (")+was+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+(kept?"; correct: "+was+". ":"; the answer then was "+was+", which the reference no longer gives. "))+
+  const was=REL[a.key]?lcRel(REL[a.key].name):a.key, gone=goneWhy(a), kept=!gone;       // not kept: the reference has since left this pair's relation open, or a category has lost the name the pair says
+  return (a.correct?(kept?"Relation right (":"Relation as it was asked then (")+was+"), ":(a.chosen==null?"No pick, time ran out":"Chose "+(REL[a.chosen]?lcRel(REL[a.chosen].name):a.chosen))+(kept?"; correct: "+was+". ":"; the answer then was "+was+(gone==="renamed"?", under a name the app no longer uses. ":", which the reference no longer gives. ")))+
     (bad.length?(a.correct?"w":"W")+"rong cell"+(bad.length>1?"s":"")+": "+bad.map(c=>({both:"both",anb:"A not B",bna:"B not A",nei:"neither"}[c])).join(", ")+".":"")+(a.timeout==="examples"||a.timeout==="both"?" Time ran out on the examples.":"");
 }
 // the categories of the pairs missed most often, at most six, each in two pairs or more

@@ -12,7 +12,7 @@ import { dayOf, gradeOf, isMiss, today } from "../core/util.js";
 import { QCELL, qPlain } from "../debate/text.js";
 import { removeFav, startFav, typesLine } from "../practice/favorites.js";
 import { SKIP_DAYS, debateAgain, skipActive, startSkipped, unskipKey } from "../practice/skips.js";
-import { answerList, stillAsked } from "../practice/universe.js";
+import { answerList, goneWhy, stillAsked } from "../practice/universe.js";
 import { debateStats } from "../review/debate-stats.js";
 import { noteContext, practiceAgain } from "../review/exercise.js";
 import { findLine, findStats } from "../review/find-stats.js";
@@ -133,12 +133,12 @@ function Mistakes() {
 
 /* ---------- the favorites and the pairs skipped ---------- */
 // under a favorite whose relation the reference has since left open: it is shown as it was saved, and is not practiced again
-const GONE = "Saved as it was then. The reference no longer settles this pair, so it is not asked again.";
+const GONE = { open: "Saved as it was then. The reference no longer settles this pair, so it is not asked again.", renamed: "Saved as it was then. The app no longer uses one of these names, so it is not asked again." };
 function Favs() {
   const list = Object.values(state.favs).sort((x, y) => (y.at || "").localeCompare(x.at || "")) as FavDoc[];
   if (!list.length) return <Empty>Press the star (or F) on a pair while you practice. It stays here with its relation and examples, whether or not you answered it right.</Empty>;
   return <><Trail>{list.map((f) => {
-    const p = (f.pair || { a: f.a, b: f.b, catA: f.catA, catB: f.catB, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), kept = stillAsked(p);
+    const p = (f.pair || { a: f.a, b: f.b, catA: f.catA, catB: f.catB, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), gone = goneWhy(p) as keyof typeof GONE | null, kept = !gone;
     return <>
       <St d={<span class="pmk fav"><Icon n="star" /></span>} cls={"trow can" + (open ? " open" : "")}><button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
         <span class="ex2">{f.at ? "saved " + dayOf(f.at) : "saved"}</span><b>{p.a} · {p.b}</b><span class="rs">{rel ? rel.name : ""}</span><span class="arr"><Icon n="chev" /></span></button></St>
@@ -147,7 +147,7 @@ function Favs() {
         {(CELLS as CellId[]).map((c) => { const ref = refOf(p, c); return <St d={<D cls={"sub " + (ref ? "done" : "nil")} />} cls="sb exr"><span class="lab">{CASE[c]}</span>
           <div class="line1">{ref ? <span class="ans2 ref">{ref}</span> : <span class="ans2 nil">nothing goes here</span>}</div>{!ref && p.why && p.why[c] ? <p class="xnote">{p.why[c]}</p> : null}</St>; })}
         {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) && typesLine(p) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}
-        {kept ? null : <St d={<span />} cls="pnote2"><p class="xnote">{GONE}</p></St>}
+        {gone ? <St d={<span />} cls="pnote2"><p class="xnote">{GONE[gone]}</p></St> : null}
         <St d={<span />} cls="pacts">{kept ? <button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button> : null}<button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
       </div> : null}
     </>;

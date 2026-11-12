@@ -135,21 +135,35 @@ const oldLabelAnswer = {
   cells: { both: { text: "your teacher", none: false, verdict: "ok" }, anb: { text: "a dog", none: false, verdict: "ok" }, bna: { text: "a book", none: false, verdict: "bad" }, nei: { text: "a stone", none: false, verdict: "ok" } },
   at: now, pair: { id: "r-gone6", a: "sentient beings", b: "teachers", catA: "pers", catB: "teacher", relation: "3ba", ex: { both: "a teacher", anb: "a dog", nei: "a stone" }, why: { bna: "Whatever falls under “teachers” also falls under “sentient beings”." } },
 };
+// A pair of one category's two labels, one of them since dropped: the answer has no categories of its own (practice/grading.js stores none for
+// such a pair), so what Review says of it is read off the pair it keeps.
+const ownLabelsAnswer = {
+  pairId: "r-gone7", a: "persons", b: "sentient beings", catA: null, catB: null, chosen: "3ab", key: "mi", correct: false, grade: "bad",
+  cells: { both: { text: "a dog", none: false, verdict: "ok" }, anb: { text: "", none: true, verdict: "ok" }, bna: { text: "", none: true, verdict: "ok" }, nei: { text: "a stone", none: false, verdict: "ok" } },
+  at: now, pair: { id: "r-gone7", a: "persons", b: "sentient beings", catA: "pers", catB: "pers", relation: "mi", ex: { both: "a dog", nei: "a stone" }, why: {} },
+};
 test("Review on the Path: a pair skipped in Find a pair that the reference has since left open comes back as the learner's own, and an old label is not asked again", async ({ page }) => {
   await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
-  await seed(page, { answers: [goneFindAnswer, oldLabelAnswer], skips: [goneFindSkip] });
+  await seed(page, { answers: [goneFindAnswer, oldLabelAnswer, ownLabelsAnswer], skips: [goneFindSkip] });
   await openReview(page);
   // the answer of Find a pair: what it says of the relation was the answer then, and the pair is not offered again
   const found = rows(page).filter({ hasText: "wooden things · metal things" });
   await found.locator(".trb").click();
   await expect(page.locator("#path .pfold")).toContainText("The pair has it. That was the answer then: the reference no longer settles this pair.");
   await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
-  // the mistake under the old label: listed as it was, and not in Retry
+  // the mistakes under the old label: listed as they were, with what is the matter (the name, not the relation), and not in Retry
   await section(page, "Mistakes");
-  await expect(rows(page)).toHaveCount(1);
-  await expect(rows(page).first()).toContainText("sentient beings · teachers");
-  await expect(rows(page).first()).toContainText("which the reference no longer gives");
+  await expect(rows(page)).toHaveCount(2);
+  const renamed = rows(page).filter({ hasText: "sentient beings · teachers" });
+  await expect(renamed).toContainText("the answer then was three possibilities");
+  await expect(renamed).toContainText("under a name the app no longer uses");
+  // also in a pair of the category's own two labels, whose answer keeps no categories
+  const twoLabels = rows(page).filter({ hasText: "persons · sentient beings" });
+  await expect(twoLabels).toContainText("the answer then was mutually inclusive, under a name the app no longer uses");
   await expect(page.getByRole("button", { name: /^Retry \d+ mistake/ })).toHaveCount(0);
+  await twoLabels.locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("That was the answer then: the app no longer uses one of these names.");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
   // the pair skipped in Find a pair: Practice opens it at its examples, as a pair of the learner's own, with nothing of the old reference
   await section(page, "Skipped");
   await expect(rows(page).first()).toContainText("Find a pair, Mutually exclusive");

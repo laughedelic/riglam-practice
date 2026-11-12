@@ -151,21 +151,28 @@ export function settled(ix: DataIndex, a: string, b: string): boolean {
   return judgeable(ix, a, b) && !groundsOf(ix).open.has([a, b].sort().join("|"));
 }
 
+/** A pair kept from before, as far as the check needs it: its categories, with `a` and `b` its labels, and whether it is the learner's own. */
+export interface KeptPair { a?: string; b?: string; catA?: string | null; catB?: string | null; own?: boolean }
+
 /**
- * Whether a pair kept from before (a mistake to retry, a skipped pair, a favorite, an attempt put away) can still be asked and graded as it
- * was made: a kept pair carries the relation and the reasons it was drawn with, and the reference may since have left its relation open
- * or taken the pair out of what it judges (`nopair`), or no longer call a category by the label the pair says ("sentient beings" for
- * persons): with `a` and `b`, the pair's labels, a label that does not name its category any more is not asked again either, also in a
- * pair of one category's two labels. A pair of the learner's own, and one whose categories the data does not know, stay as they were.
+ * Why a pair kept from before (a mistake to retry, a skipped pair, a favorite, an attempt put away) can no longer be asked and graded as it
+ * was made, or null when it still can. A kept pair carries the relation and the reasons it was drawn with. "open": the reference has since
+ * left its relation open, or taken the pair out of what it judges (`nopair`). "renamed": it no longer calls a category by the label the
+ * pair says ("sentient beings" for persons, "sense powers" for the physical sense powers); with `a` and `b`, the pair's labels, a label
+ * that does not name its category any more is not asked again, also in a pair of one category's two labels, though the reference may
+ * well settle the pair under the label it uses now. A pair of the learner's own, and one whose categories the data does not know, stay
+ * as they were.
  */
-export function stillSettled(ix: DataIndex, p: { a?: string; b?: string; catA?: string | null; catB?: string | null; own?: boolean }): boolean {
+export function keptGone(ix: DataIndex, p: KeptPair): "open" | "renamed" | null {
   const a = p.catA, b = p.catB;
-  if (p.own || !a || !b || !ix.CAT[a] || !ix.CAT[b]) return true;
+  if (p.own || !a || !b || !ix.CAT[a] || !ix.CAT[b]) return null;
   // a negated side is said by a label of its category ("non-(wooden things)"), and a category may have a label that is a negation itself
   const names = (label: string | undefined, cid: string) => label == null || catByLabel(ix, label) === cid || catByLabel(ix, plainLabel(label)) === cid;
-  if (!names(p.a, a) || !names(p.b, b)) return false;
-  return a === b || settled(ix, a, b);
+  if (!names(p.a, a) || !names(p.b, b)) return "renamed";
+  return a === b || settled(ix, a, b) ? null : "open";
 }
+/** Whether a pair kept from before can still be asked and graded as it was made (`keptGone` says why not). */
+export const stillSettled = (ix: DataIndex, p: KeptPair): boolean => keptGone(ix, p) === null;
 
 /** The reason the reference states for nothing being in both of two categories ("A liquid is not a solid thing."), or null where it states none in words. */
 export function statedApart(ix: DataIndex, a: string, b: string): string | null {

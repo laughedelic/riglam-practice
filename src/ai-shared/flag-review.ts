@@ -46,7 +46,7 @@ export function storedView(a: ReviewAnswer): AnswerView {
     return { say: (q?.say === "accept" || q?.say === "why" ? q.say : null) as "accept" | "why" | null, text: q?.text || "", timeout: !!q?.timeout };
   }) : undefined;
   const late = a.chosen == null;
-  return { debate, ...(find ? { find } : {}), rel: late ? a.pair.relation : a.chosen, late: late && !find, exLate: a.timeout === "examples" || a.timeout === "both", cells, ans, res };
+  return { debate, ...(find ? { find } : {}), rel: late ? a.pair.relation : a.chosen, late, exLate: a.timeout === "examples" || a.timeout === "both", cells, ans, res };
 }
 
 /** The modes of a stored answer the card is made differently for: Pervasions and Find a pair. */
