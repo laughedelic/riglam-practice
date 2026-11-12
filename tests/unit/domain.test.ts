@@ -2848,7 +2848,10 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(statedApart(rx, "furn", "clothes")).toMatch(/^Furniture is made to sit or lie on/);
   // one reason for every kind of thing: not "a made thing", which the materials (liquid mercury), the instruments (the voice) and the
   // kitchen things (salt) are not all
-  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body, which everyday senses do not perceive. Whatever everyday senses can see, hear or touch is not one.");
+  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body. Everyday senses do not perceive it. Whatever everyday senses can see, hear or touch is not one.");
+  // not eaten: edible electronics exist (an edible battery), so electric devices and food are open
+  expect(statedApart(rx, "drink", "electric")).toBe("An electric device is a made thing that runs on electricity. It is not something to drink.");
+  expect(statedApart(rx, "food", "electric")).toBeNull();
   expect(statedApart(rx, "human", "furn")).toBeNull(); // the classes say it: a person is not a form
   // a thought, a memory, a dream or an emotion: the class of the gloss is that of the things, and the word can be read otherwise, so the
   // reason is one that holds on every reading
