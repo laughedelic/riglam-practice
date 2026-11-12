@@ -2848,7 +2848,7 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   expect(statedApart(rx, "furn", "clothes")).toMatch(/^Furniture is made to sit or lie on/);
   // one reason for every kind of thing: not "a made thing", which the materials (liquid mercury), the instruments (the voice) and the
   // kitchen things (salt) are not all
-  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body, which ordinary senses do not perceive. Whatever ordinary senses can see, hear or touch is not one.");
+  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body, which everyday senses do not perceive. Whatever everyday senses can see, hear or touch is not one.");
   expect(statedApart(rx, "human", "furn")).toBeNull(); // the classes say it: a person is not a form
   // a thought, a memory, a dream or an emotion: the class of the gloss is that of the things, and the word can be read otherwise, so the
   // reason is one that holds on every reading
@@ -2867,8 +2867,8 @@ test("the real data: the pool asks no open pair, and keeps the pairs a class or 
   // is, a gourd rattle, a skull cup, and a living tree as a wooden thing
   for (const k of ["extf|metal", "extf|plastic", "extf|wooden", "intf|wooden", "fabric|intf", "fruit|instr", "body|kitchen", "body|clothes", "plant|wooden", "tree|wooden"]) expect(pool.has(k), k).toBe(false);
   // and a third: "kitchen things" takes in salt, which is eaten (the same doubt as for what the body takes in); and a thing that is both
-  // exists, however rare (a carrot flute, edible clothing, a living willow seat, a chair grown from a tree, a jingle dress)
-  for (const k of ["extf|kitchen", "intf|kitchen", "food|instr", "clothes|food", "furn|plant", "furn|tree", "clothes|instr"]) expect(pool.has(k), k).toBe(false);
+  // exists, however rare (a carrot flute, edible clothing, an edible battery, a living willow seat, a chair grown from a tree, a jingle dress)
+  for (const k of ["extf|kitchen", "intf|kitchen", "food|instr", "clothes|food", "electric|food", "furn|plant", "furn|tree", "clothes|instr"]) expect(pool.has(k), k).toBe(false);
   // and a fourth: the botanical reading of fruit (a calabash hat, a gourd used as a vessel), water drumming
   for (const k of ["clothes|fruit", "fruit|furn", "electric|fruit", "instr|liquid", "drink|instr"]) expect(pool.has(k), k).toBe(false);
   // clothes stay external form and apart from internal form: the source names "your clothes" as matter not in a person's continuum
