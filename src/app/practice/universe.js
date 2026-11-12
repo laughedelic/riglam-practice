@@ -19,7 +19,7 @@ export function pairCats(p){ return catsOf(state,p); }
 export function matchItem(text,exactOnly){ return itemFor(state,text,exactOnly); }
 export function buildPool(){ state.POOL=poolOf(state); }
 /** Whether a pair kept from before (a mistake, a skipped pair, a favorite, a stored answer) can still be asked as it was kept: not when the reference has since left its relation open (domain/universe.ts, stillSettled). */
-export function stillAsked(p){ const [a,b]=catsOf(state,p); return stillSettled(state,{catA:a,catB:b,own:!!p.own}); }
+export function stillAsked(p){ const [a,b]=p.catA&&p.catB?[p.catA,p.catB]:catsOf(state,p); return stillSettled(state,{a:p.a,b:p.b,catA:a,catB:b,own:!!p.own}); }
 // the Relations answers: the answers of Find a pair, Categories, Find an instance and Syllogisms are kept in the same collection and are not part of the draw, the statistics or the lists of Relations
 export function answerList(){ return Object.values(state.answers).filter(a=>!isFind(a)&&!isCategories(a)&&!isInstance(a)&&!isSyllogism(a)).sort((x,y)=>(x.at||"").localeCompare(y.at||"")); }
 /** The next pair; `negate`: Relations and Pervasions, where the negation track (Practice options) may negate a side. @returns {import("../types.ts").Pair} */

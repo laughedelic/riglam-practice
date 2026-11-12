@@ -138,7 +138,7 @@ function Favs() {
   const list = Object.values(state.favs).sort((x, y) => (y.at || "").localeCompare(x.at || "")) as FavDoc[];
   if (!list.length) return <Empty>Press the star (or F) on a pair while you practice. It stays here with its relation and examples, whether or not you answered it right.</Empty>;
   return <><Trail>{list.map((f) => {
-    const p = (f.pair || { a: f.a, b: f.b, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), kept = stillAsked(p);
+    const p = (f.pair || { a: f.a, b: f.b, catA: f.catA, catB: f.catB, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), kept = stillAsked(p);
     return <>
       <St d={<span class="pmk fav"><Icon n="star" /></span>} cls={"trow can" + (open ? " open" : "")}><button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
         <span class="ex2">{f.at ? "saved " + dayOf(f.at) : "saved"}</span><b>{p.a} · {p.b}</b><span class="rs">{rel ? rel.name : ""}</span><span class="arr"><Icon n="chev" /></span></button></St>
@@ -159,7 +159,7 @@ function Skips() {
   return <>
     <p class="pempty">{"Skipped pairs stay out of the drill for " + SKIP_DAYS + " days. Practice one from here when you want it. A pair you answer is no longer skipped." + (list.some((f) => f.from === "find") ? " A pair skipped in Find a pair is only kept here." : "")}</p>
     <Trail>{list.map((f) => {
-      const p = f.pair || { a: f.a, b: f.b }, until = new Date(Date.parse(f.at) + SKIP_DAYS * 864e5).toISOString(), asked = REL[(f.asked || f.relation) as RelKey];
+      const p = f.pair || { a: f.a, b: f.b, catA: f.catA, catB: f.catB }, until = new Date(Date.parse(f.at) + SKIP_DAYS * 864e5).toISOString(), asked = REL[(f.asked || f.relation) as RelKey];
       const kept = f.from === "find" || stillAsked(p);     // Find takes a pair the reference has since left open as the learner's own (find/flow.js, resumeFind)
       const sub = "skipped " + dayOf(f.at) + (f.n > 1 ? ", " + f.n + " times" : "") + " · " + (f.from === "find" ? "Find a pair, " + (asked ? asked.name : "") : !kept ? "no longer asked" : skipActive(f) ? "back in the drill after " + dayOf(until) : "back in the drill");
       return <St d={<span class="pmk skp"><Icon n="skipped" /></span>} cls="trow"><span class="ex2">{sub}</span><b>{p.a} · {p.b}</b>

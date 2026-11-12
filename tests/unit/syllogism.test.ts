@@ -452,7 +452,7 @@ test("the rows of the note's table, on the open data", () => {
     [3, "a red box", "square", "green"],
     [4, "a glass of water", "liquid", "thought"],
     [5, "the sound of rain", "col", "ft"],
-    [6, "a metal key", "memory", "cons"],
+    [6, "a metal key", "dream", "cons"],
     [7, "a banana", "white", "food"],
     [8, "a red ball", "square", "plant"],
   ];

@@ -33,8 +33,9 @@ export function storedRel(doc){
   const key=REL[doc.key], mine=doc.chosen&&REL[doc.chosen];
   // Find a pair: the relation was given, and the question is whether the named pair has it
   const asked=doc.mode==="find"?mine||REL[doc.key]:null;
-  const gone=stillAsked(doc)?"":" That was the answer then: the reference no longer settles this pair.";       // the relation of the pair has since been left open
-  return doc.mode==="find"?["Asked for: ",lcRel(asked?asked.name:doc.chosen)+". "+(doc.correct?"The pair has it.":doc.relOpen?"Claude had not judged the pair.":key&&doc.key!==doc.chosen?"The pair is "+lcRel(key.name)+".":"The pair does not have it.")]
+  // the relation of the pair has since been left open; in Find a pair that is read off the stored pair, which says whether it was the learner's own (never judged by the reference)
+  const gone=stillAsked(doc.mode==="find"?storedPair(doc):doc)?"":" That was the answer then: the reference no longer settles this pair.";
+  return doc.mode==="find"?["Asked for: ",lcRel(asked?asked.name:doc.chosen)+". "+(doc.correct?"The pair has it.":doc.relOpen?"Claude had not judged the pair.":key&&doc.key!==doc.chosen?"The pair is "+lcRel(key.name)+".":"The pair does not have it.")+(doc.relOpen?"":gone)]
     :doc.correct?["Relation right: ",lcRel(key?key.name:doc.key)+"."+gone]
     :["Relation: ",(key?key.name:doc.key)+". "+(mine?"You chose "+lcRel(mine.name)+".":"Time ran out before you chose.")+gone];
 }

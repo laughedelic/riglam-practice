@@ -2,9 +2,9 @@
 // category pairs, and the draw of the next pair. Functions of the term data (a DataIndex), with the randomness passed
 // in, so the same data and the same random numbers give the same pairs.
 import type { DrillData, Item } from "../ai-shared/data";
-import { leavesOpen } from "../ai-shared/lookup";
+import { catByLabel, leavesOpen } from "../ai-shared/lookup";
 import type { DataIndex } from "../ai-shared/lookup";
-import { CELLS, NEG_CELL, negLabel, negSides } from "../ai-shared/relations";
+import { CELLS, NEG_CELL, negLabel, negSides, plainLabel } from "../ai-shared/relations";
 import type { CellId, Neg, RelKey } from "../ai-shared/relations";
 import { termCats, wordsFor } from "./intro";
 import { itemKnown, itemOn, poolAt, topStage } from "./stages";
@@ -153,16 +153,21 @@ export function settled(ix: DataIndex, a: string, b: string): boolean {
 
 /**
  * Whether a pair kept from before (a mistake to retry, a skipped pair, a favorite, an attempt put away) can still be asked and graded as it
- * was made: a kept pair carries the relation and the reasons it was drawn with, and the reference may since have left its relation open.
- * A pair of the learner's own, and one whose categories the data does not know, stay as they were.
+ * was made: a kept pair carries the relation and the reasons it was drawn with, and the reference may since have left its relation open
+ * or taken the pair out of what it judges (`nopair`), or no longer call a category by the label the pair says ("sentient beings" for
+ * persons): with `a` and `b`, the pair's labels, a label that does not name its category any more is not asked again either, also in a
+ * pair of one category's two labels. A pair of the learner's own, and one whose categories the data does not know, stay as they were.
  */
-export function stillSettled(ix: DataIndex, p: { catA?: string | null; catB?: string | null; own?: boolean }): boolean {
+export function stillSettled(ix: DataIndex, p: { a?: string; b?: string; catA?: string | null; catB?: string | null; own?: boolean }): boolean {
   const a = p.catA, b = p.catB;
-  if (p.own || !a || !b || a === b || !ix.CAT[a] || !ix.CAT[b]) return true;
-  return !groundsOf(ix).open.has([a, b].sort().join("|"));
+  if (p.own || !a || !b || !ix.CAT[a] || !ix.CAT[b]) return true;
+  // a negated side is said by a label of its category ("non-(wooden things)"), and a category may have a label that is a negation itself
+  const names = (label: string | undefined, cid: string) => label == null || catByLabel(ix, label) === cid || catByLabel(ix, plainLabel(label)) === cid;
+  if (!names(p.a, a) || !names(p.b, b)) return false;
+  return a === b || settled(ix, a, b);
 }
 
-/** The reason the reference states for nothing being in both of two categories ("These are different kinds of things."), or null where it states none in words. */
+/** The reason the reference states for nothing being in both of two categories ("A liquid is not a solid thing."), or null where it states none in words. */
 export function statedApart(ix: DataIndex, a: string, b: string): string | null {
   return groundsOf(ix).apart.get([a, b].sort().join("|")) ?? null;
 }
