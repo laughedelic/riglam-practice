@@ -11,6 +11,7 @@ import { advance } from "./queue.js";
 import { catByLabel, norm } from "./universe.js";
 import { render, top0 } from "../shell/render.js";
 import { begun, switchTo } from "../shell/tabs.js";
+import { givenShown, nextGiven } from "./given.ts";
 
 /* ---------- skipped pairs ---------- */
 // A pair that is too hard or too easy can be skipped. The skip is recorded (collection "skips", one document per pair of categories, like a favorite),
@@ -56,6 +57,7 @@ export function closeSkipAsk(){
 export function skipNow(){
   state.skipAsk=false;
   if(!state.ui||state.mode!=="quiz"||state.ui.checked||!state.cur) return;
+  if(givenShown()){ stopTimer(); nextGiven(true); render(); top0(); return; }      // a given question: nothing is set aside or drawn, the one who gave it says what comes (practice/given.ts)
   if(state.ui.find) return skipFind();
   if(state.ui.cats) return skipCategories();                           // Categories: another example, nothing kept
   if(state.ui.inst) return skipInstance();                             // Find an instance: other categories, nothing kept
@@ -96,6 +98,7 @@ export function clearSkip(p,rel){
 /** The words of the question before a pair with something entered in it is set aside (the Path draws the dialog: path/app.tsx). */
 export function skipAskText(){
   const fd=!!(state.ui&&state.ui.find), cats=!!(state.ui&&state.ui.cats), inst=!!(state.ui&&state.ui.inst), syllogism=!!(state.ui&&state.ui.syllogism);
+  if(givenShown()) return {q:"Skip this question?", d:"Your inputs will be lost."};       // a given question is kept nowhere, and none is drawn in its place
   return {
     q:syllogism?"Skip this syllogism?":cats?"Skip this example?":inst?"Skip these categories?":"Skip this pair?",
     d:syllogism?"Your inputs will be lost, and the syllogism is not kept anywhere. Another one comes up.":cats?"Your inputs will be lost, and the example is not kept anywhere. Another one comes up.":inst?"Your inputs will be lost, and nothing is kept. Other categories come up.":fd?"It stays out of the drill for "+SKIP_DAYS+" days and is kept in Review, under Skipped."
@@ -106,11 +109,11 @@ export function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="find"){ resumeFind(p,f.asked); return; }
   if(f.from==="debate"){ debateAgain(p); return; }
-  switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance();
+  switchTo("practice",true); state.retryQ=[p]; state.retryTag="Skipped"; advance();
   render(); top0();
 }
 /** A pair of Pervasions taken again there (a skipped one, or one from Review on the Path). */
-export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; render(); top0(); }
+export function debateAgain(p){ switchTo("debate",true); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; render(); top0(); }
 export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();

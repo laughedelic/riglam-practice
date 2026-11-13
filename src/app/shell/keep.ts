@@ -6,6 +6,7 @@
 import { state } from "../state.js";
 import { begun } from "./tabs.js";
 import { usePerExercise } from "../practice/per-exercise.ts";
+import { givenShown } from "../practice/given.ts";
 
 const KEY = "rd-attempt";
 const EXERCISES = ["practice", "debate", "find", "syllogism", "categories", "instance"];
@@ -18,7 +19,8 @@ interface Kept { v: 1; tab: string; at: number; cur: unknown; ui: Record<string,
 export function keepAttempt(): void {
   try {
     const u = state.ui as Record<string, unknown> | null, k = state.own as string;
-    if (state.mode !== "quiz" || !u || !state.cur || !EXERCISES.includes(k) || !begun(u)) { localStorage.removeItem(KEY); return; }
+    // a given question (practice/given.ts) is not the exercise's own attempt, and is not kept as one: the one who gave it would not hear of its answer
+    if (state.mode !== "quiz" || !u || !state.cur || !EXERCISES.includes(k) || !begun(u) || givenShown()) { localStorage.removeItem(KEY); return; }
     const ui: Record<string, unknown> = { ...u };
     for (const p of PASSING) delete ui[p];
     const kept: Kept = { v: 1, tab: k, at: Date.now(), cur: state.cur, ui };

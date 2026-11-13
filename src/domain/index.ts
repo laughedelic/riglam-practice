@@ -38,3 +38,5 @@ export { lettersDirection, plainWords, spokenCategories, spokenCommand, spokenCo
 export type { Command, PairTerms, SpokenCategories, SpokenExample, SpokenPair, SpokenReply, SylReply } from "./spoken";
 export { DENIALS, EVERYDAY_STAGES, RELIEF, REPLIES, SITUATIONS, THESIS_REPLIES, WORDINGS, endedAtThesis, thesisRight, expectedReply, syllogismCounts, levelAt, reasonText, syllogismOf, syllogismPieces, syllogismText, thesisAnswer, thesisPieces, thesisText, drawSyllogism, gradeSyllogism, gradeThesisWhy, gradeTimeout, gradeExample, pervasionConflicts, widest, withoutPhrases } from "./syllogism";
 export type { Check, Syllogism, SyllogismDraw, SyllogismHistory, SyllogismResult, ExampleVerdict, Pervasion, Piece, Reply, Situation, ThesisReply, Wording } from "./syllogism";
+export { givenInstance, givenPair, givenPlace, givenQuestion, givenRelation, givenSyllogism } from "./given";
+export type { Given, GivenOptions, GivenPairOptions, GivenPlaceOptions, GivenQuestion } from "./given";

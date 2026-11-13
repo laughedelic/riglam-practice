@@ -37,4 +37,4 @@ export function storedRel(doc){
     :["Relation: ",(key?key.name:doc.key)+". "+(mine?"You chose "+lcRel(mine.name)+".":"Time ran out before you chose.")];
 }
 // Practice a stored pair again, as Retry does for mistakes. The tab is switched first: coming from the Debate tab that may draw a pair itself, which would use up the queue.
-export function practiceAgain(p,tag){ switchTo("practice"); state.retryQ=[p]; state.retryTag=tag; advance(); render(); top0(); }
+export function practiceAgain(p,tag){ switchTo("practice",true); state.retryQ=[p]; state.retryTag=tag; advance(); render(); top0(); }

@@ -12,6 +12,7 @@ import { toggleOpts } from "./options.js";
 import { toggleSess } from "./session.js";
 import { render, top0 } from "./render.js";
 import { usePerExercise } from "../practice/per-exercise.ts";
+import { ownAttempt, setAsideGiven } from "../practice/given.ts";
 
 const hold={};
 // The screens: the exercises ("practice" is Relations, "debate" Pervasions, "find" Find a pair) and Review. Each exercise keeps its own
@@ -42,9 +43,9 @@ export function begun(u){
   if(u.debate) return u.step>0||u.ans.some(a=>a.say||a.text);
   return typed();
 }
-/** The attempt an exercise holds: the one on screen for the current exercise, the parked one for the others. */
+/** The attempt an exercise holds: the one on screen for the current exercise (its own, also while a given question is in its place: practice/given.ts), the parked one for the others. */
 export function attemptOf(k){
-  const h=k===state.own?{cur:state.cur,ui:state.ui}:hold[k];
+  const h=k===state.own?ownAttempt():hold[k];
   return h&&h.ui?h:null;
 }
 /** The first pair, in the exercise the app opens on (the one used last). */
@@ -54,7 +55,10 @@ export function startFirst(){
   state.mode="quiz";
   if(k!==state.tab) stopTimer();                       // its clock starts when Review is left (render)
 }
-export function switchTo(k){
+/** Goes to a screen; `again`: to put another attempt in its place right after (a pair taken again from Review, a skipped one, a favorite). */
+export function switchTo(k,again=false){
+  // going to an exercise sets a given question aside, and its exercise's own attempt is back in its place (practice/given.ts); coming back from Review to the exercise under it leaves it there, unless another attempt is to take its place
+  if(isEx(k)&&(again||!(state.tab==="review"&&k===state.own))) setAsideGiven();
   pauseClock();                                          // the exercise left keeps the time its step had left
   if(isEx(k)&&state.own!==k){
     const from=state.own, left=!ownPair(k)&&!ownPair(from)&&state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
@@ -73,13 +77,15 @@ export function switchTo(k){
   if(isEx(k)) try{ localStorage.setItem("rd-ex",k); }catch(e){}
 }
 // Going to a screen from the roadmap or the back arrow. A screen shows itself, not a panel over it: Settings, the options and the chat close first, and so does the roadmap.
-export function setTab(k){
-  if(state.mode!=="quiz"&&isEx(k)) return;
+export function setTab(k){ if(goTo(k)){ render(); top0(); } }
+/** What setTab does before it draws; whether it went (not to an exercise before the first question is drawn). The exercise on screen, gone to again, shows its own attempt: a given question in its place is set aside. */
+export function goTo(k){
+  if(state.mode!=="quiz"&&isEx(k)) return false;
   if(state.optsOpen) toggleOpts(false);
   if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
   state.fromRoad=!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
   state.skipAsk=false; state.menuOpen=false; state.pathProg=null;   // Review, not the Progression page that stands in for it (path/progression.tsx)
-  if(state.tab!==k) switchTo(k);
-  render(); top0();
+  if(state.tab!==k) switchTo(k); else if(isEx(k)) setAsideGiven();
+  return true;
 }
