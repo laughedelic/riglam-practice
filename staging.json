@@ -1,0 +1,54 @@
+{
+  "base": "main",
+  "baseSha": "13c2a2955e75deae2e969746efc7a5e76dfc44d0",
+  "inputs": [
+    "251@1946f8862f79ae07fd9cbccb6ee680f11934fd68",
+    "252@f223e2a90028d09533a3f4c515a30242af8c0990<251",
+    "253@72a97e536b7e46fa245d254f04c1a5ce51f5578f<252",
+    "254@27d59225769b5a2e3e9ff5fdb763c0cc23d48137<253",
+    "256@46a68ee2c79479003b91eac99c67f90cf72e92b5<254"
+  ],
+  "branches": [
+    "claude/project-thread-uossv3",
+    "claude/project-thread-etk41t",
+    "claude/project-thread-uossv3-challenge",
+    "claude/project-thread-uossv3-challenge-answers",
+    "claude/project-thread-uossv3-challenge-timeline"
+  ],
+  "pulls": [
+    {
+      "number": 251,
+      "branch": "claude/project-thread-uossv3",
+      "sha": "1946f8862f79ae07fd9cbccb6ee680f11934fd68",
+      "title": "chore: give a question to an exercise, groundwork for the class challenge and mixed practice"
+    },
+    {
+      "number": 252,
+      "branch": "claude/project-thread-etk41t",
+      "sha": "f223e2a90028d09533a3f4c515a30242af8c0990",
+      "title": "feat: daily practice, a session that moves between the exercises",
+      "news": "Daily practice, the new stop on the roadmap: a short session that moves between the exercises by itself."
+    },
+    {
+      "number": 253,
+      "branch": "claude/project-thread-uossv3-challenge",
+      "sha": "72a97e536b7e46fa245d254f04c1a5ce51f5578f",
+      "title": "feat: a Challenge, a task that everyone gets, with its stop on the roadmap",
+      "news": "\"Challenge\": the stop in the roadmap's corner, its page, its questions in their exercises, that it does not move the stages and has no clock."
+    },
+    {
+      "number": 254,
+      "branch": "claude/project-thread-uossv3-challenge-answers",
+      "sha": "27d59225769b5a2e3e9ff5fdb763c0cc23d48137",
+      "title": "feat: a challenge's question can bring its answer"
+    },
+    {
+      "number": 256,
+      "branch": "claude/project-thread-uossv3-challenge-timeline",
+      "sha": "46a68ee2c79479003b91eac99c67f90cf72e92b5",
+      "title": "feat: challenges accumulate on a timeline",
+      "news": "the Challenge entry (not released yet) now describes the timeline: several challenges by day, folded but for the latest, done ones behind the top and pulled back down."
+    }
+  ],
+  "skipped": []
+}
