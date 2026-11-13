@@ -42,6 +42,8 @@ export interface ChallengeNow {
   /** the question of it that is on screen in its exercise, or set aside: its place, and what it was opened with (which tells it from another given question) */
   at: number;
   hooks: GivenHooks | null;
+  /** what the latest attempt at each question was opened with, by its place: what is kept late of an attempt before it (Claude's check of its examples) does not count */
+  tries: GivenHooks[];
   /** it is asked again from the start: Next goes on to the next question whether it has an answer or not */
   again: boolean;
   /** Sprint for its questions: off until the stopwatch is switched on one of them, and off again once the last one is left. In memory only. */
@@ -115,7 +117,7 @@ export function challengeWaits(): boolean {
 export const challengePageOn = (): boolean => state.tab === "review" && state.chalPage && !!state.chal;
 
 /**
- * Takes what the platform has of the challenge into the page: another one starts as new, the same one stays as it stands, and when there is none any
+ * Takes what the platform has of the challenge into the page: another one starts as new, the same one (by its id) stays as it stands, and when there is none any
  * more the stop goes (its page, if it is in front, gives way to the roadmap). A question of the one before that is still on screen stays there until it
  * is left.
  */
@@ -129,7 +131,11 @@ export function setChallenge(raw: unknown): void {
     return;
   }
   if (was && JSON.stringify(was.doc) === JSON.stringify(doc)) return;
-  state.chal = { doc, rec: kept(doc), lines: [], from: [], at: -1, hooks: null, again: false, sprint: false };
+  if (was && was.doc.id === doc.id) {
+    // the same challenge said anew (its title, its note, a question set right): it stays as it stands, with its record and its question on screen; its lines are made again
+    was.doc = doc; was.rec = normRecord(was.rec, doc); was.from = [];
+    keep(was);
+  } else state.chal = { doc, rec: kept(doc), lines: [], from: [], at: -1, hooks: null, tries: [], again: false, sprint: false };
   if (state.mode !== "loading") render();
 }
 /** Reads the challenge the platform holds, at the start, after a Magic Key was taken in place, and whenever the platform says it changed. */
@@ -154,7 +160,7 @@ function ask(c: ChallengeNow, i: number): boolean {
     get sprint() { return c.sprint; },
     onSprint: (on) => { c.sprint = on; },
     // (the answer is kept when it is checked, and again when Claude's check changes it)
-    onChecked: (grade) => { if (state.chal === c) { c.rec = marked(c.rec, i, grade); keep(c); } },
+    onChecked: (grade) => { if (state.chal === c && c.tries[i] === hooks) { c.rec = marked(c.rec, i, grade); keep(c); } },
     onNext: () => {
       const k = state.chal === c ? nextItem(c.rec, askable(c), i, c.again) : -1;
       if (k >= 0 && ask(c, k)) return;
@@ -167,7 +173,7 @@ function ask(c: ChallengeNow, i: number): boolean {
   // where the challenge stands is set before the question is drawn, so that the screen it opens on shows it
   const was = { at: c.at, hooks: c.hooks };
   c.at = i; c.hooks = hooks;
-  if (openGiven(q, hooks)) return true;
+  if (openGiven(q, hooks)) { c.tries[i] = hooks; return true; }
   c.at = was.at; c.hooks = was.hooks;
   return false;
 }

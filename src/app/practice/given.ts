@@ -6,7 +6,8 @@
 //     the exercise as it was (shell/tabs.js, attemptOf).
 //   - Next from its result, and Skip, draw nothing: they ask the one who gave it (`onNext`), which opens the question after it or closes. With nothing said,
 //     the exercise's own attempt comes back.
-//   - When its answer is kept (checked, and again when what Claude says changes it), the one who gave it is told the grade (`onChecked`).
+//   - When its answer is kept (checked, and again when what Claude says changes it, also after the question was left), the one who gave it is told the
+//     grade (`onChecked`).
 //   - Its clock can be the giver's (`sprint`): Sprint is then on or off for it as the giver says, whatever its exercise's own switch is, and the stopwatch
 //     switched while it is on screen is the giver's to keep (`givenSprint`, `sprintGiven`).
 //   - The one who gives it may set it apart from the progression (`apart`: no term graded, no run moved, no stop or stage after it) and put a mark
@@ -69,6 +70,9 @@ export interface GivenHooks {
    */
   mark?: { text: string; label: string; go: () => void };
 }
+
+/** The hooks each given question was opened with, by the state of its screen: what is kept of its answer reaches them after it was left (`givenKept`). */
+const givers = new WeakMap<Ui, GivenHooks>();
 
 /** The given question the page holds: on screen in its exercise (`on`), or set aside. */
 export interface GivenState extends Attempt {
@@ -142,7 +146,9 @@ export function openGiven(q: GivenQuestion, hooks: GivenHooks = {}): boolean {
   if (state.mode !== "quiz" || !state.cur || !state.ui) return false;
   closeGiven();
   if (!goTo(q.exercise)) return false;
-  put({ ex: q.exercise, on: false, ...attemptFor(q), back: null, hooks });
+  const a = attemptFor(q);
+  givers.set(a.ui, hooks);
+  put({ ex: q.exercise, on: false, ...a, back: null, hooks });
   render(); top0();
   return true;
 }
@@ -184,12 +190,17 @@ export function nextGiven(skipped = false): boolean {
   if (state.given === g && g.on) closeGiven();
   return true;
 }
-/** An answer is kept (practice/answers.js, persist): when it is the given question's, the one who gave it is told. */
+/**
+ * An answer is kept (practice/answers.js, persist, before it is saved): when it is a given question's, the one who gave it is told, also when the question
+ * was left meanwhile (Claude's check of its examples comes after Next); one set apart from the progression is marked so in its document (`apart`), which
+ * the runs read back from the saved answers leave out (practice/negations.ts).
+ */
 export function givenKept(u: Ui | null): void {
-  const g = state.given;
-  if (!g || !u || g.ui !== u || !u.doc || !g.hooks.onChecked) return;
+  const h = u ? givers.get(u) : undefined;
+  if (!h || !u || !u.doc) return;
   const doc = u.doc as unknown as Record<string, unknown>;
-  g.hooks.onChecked(String(doc.grade ?? ""), doc);
+  if (h.apart) doc.apart = true;
+  if (h.onChecked) h.onChecked(String(doc.grade ?? ""), doc);
 }
 /**
  * The clock of a given question is its giver's where the giver says so (`sprint`). Runs before the page is drawn and its clock made to fit (shell/render.js):

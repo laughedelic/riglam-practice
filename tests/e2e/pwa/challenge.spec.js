@@ -296,3 +296,61 @@ test("a challenge has no clock where the exercises have Sprint on; the stopwatch
   await expect.poll(() => clock(page)).not.toBeNull();
   expect(await page.evaluate(() => localStorage.getItem("rd-per-ex"))).toBeNull();
 });
+
+test("Claude's check of a question's examples that comes after Next still marks it, and its answer is kept apart from the runs", async ({ page }) => {
+  // a server that knows every example, but answers only when told to
+  let release;
+  const held = new Promise((r) => { release = r; });
+  const asked = [];
+  // (the server's learned facts come with its tutor; the explanation is not asked by itself)
+  await page.addInitScript(() => localStorage.setItem("rd-autoexplain", "0"));
+  await page.route("**/api/health", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, tutor: "on", known: "on" }) }));
+  await page.route("**/api/known", async (route) => {
+    const body = route.request().postDataJSON();
+    asked.push(body);
+    await held;
+    const facts = { both: ["yes", "yes"], anb: ["yes", "no"], bna: ["no", "yes"], nei: ["no", "no"] }, name = { both: "Both", anb: "A not B", bna: "B not A", nei: "Neither" };
+    const known = body.examples.map((e) => ({ cell: e.cell, text: e.text, line: `${name[e.cell]}: "${e.text}" | class: Thing | A ${facts[e.cell][0]}: so | B ${facts[e.cell][1]}: so`, by: "learned" }));
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ known }) });
+  });
+  await open(page);
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await expect(mark(page)).toHaveText("1 of 3");
+  await page.evaluate(() => window.__t.skipPair());
+  await expect(mark(page)).toHaveText("2 of 3");
+  // examples the page cannot check by itself: the answer waits for Claude's check
+  await answerFirst(page, { own: true, text: (i) => "a made-up thing " + (i + 1) });
+  await expect.poll(async () => (await now(page)).marks).toEqual({ 1: "pend" });
+  await expect.poll(() => asked.length).toBe(1);
+  // Next before the check comes back: the next question is on screen when it does
+  await station(page).click();
+  await expect(mark(page)).toHaveText("3 of 3");
+  release();
+  await expect.poll(async () => (await now(page)).marks).toEqual({ 1: "ok" });
+  expect(await now(page)).toMatchObject({ at: 2, shown: true });
+  const kept = await page.evaluate(async () => {
+    const db = await window.__riglam.platform.db();
+    return (await db.collection("answers").get()).docs.map((d) => d.data()).filter((d) => d.a === "colors").map((d) => ({ grade: d.grade, apart: d.apart }));
+  });
+  expect(kept).toEqual([{ grade: "ok", apart: true }]);
+});
+
+test("the same challenge said anew while one of its questions is on screen goes on as it stands", async ({ page }) => {
+  await open(page);
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await expect(mark(page)).toHaveText("1 of 3");
+  await page.evaluate(() => window.__t.skipPair());
+  await expect(mark(page)).toHaveText("2 of 3");
+  // its title set right on the server, as the platform would hand it over
+  await page.evaluate((doc) => window.__t.challenge.set(doc), { ...DOC, title: "Colors and shapes, set right" });
+  expect(await page.evaluate(() => window.__t.challenge.view().doc.title)).toBe("Colors and shapes, set right");
+  await answerRight(page);
+  await expect.poll(async () => (await now(page)).marks).toEqual({ 1: "ok" });
+  await expect(station(page)).toHaveAccessibleName(/^Next question/);
+  await station(page).click();
+  await expect(mark(page)).toHaveText("3 of 3");
+});

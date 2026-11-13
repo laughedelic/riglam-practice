@@ -79,6 +79,8 @@ export interface AnswerDoc {
   /** the tutor's explanation, kept with the answer */
   explain?: string;
   verifiedAt?: string;
+  /** the answer to a given question set apart from the progression (a challenge's: practice/given.ts): kept in Review, no part of a run */
+  apart?: boolean;
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
 

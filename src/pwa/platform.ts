@@ -200,6 +200,7 @@ async function applyKey(key: string): Promise<boolean> {
   if (!keyListeners.size || !kept) return false;
   unlocked = merge(await readOpenData(), kept.definitions);
   groupKey = key;
+  challengeRefused = false; // another key: the server is asked again
   void refreshExamples(key);
   void refreshChallenge(key);
   link.key = null; // a key from the link that did not fit is out of the way now
