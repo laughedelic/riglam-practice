@@ -1,0 +1,23 @@
+/* A given question's mark in the top bar (practice/given.ts), where the progression ring stands: a small gold diamond and a few words in the path's small type, as a question
+   of the challenge has ("1 of 3"). It is a button the size of the bar's others. */
+.pa .gmark{flex:none; margin-left:12px; display:inline-flex; align-items:center; gap:7px; height:44px; padding:0 6px 0 2px; font-family:var(--mono); font-size:11.5px; color:var(--gold-t); white-space:nowrap}
+.pa .gmark i{display:block; width:9px; height:9px; transform:rotate(45deg); box-shadow:inset 0 0 0 1.6px var(--gold)}
+/* The challenge's stop on the roadmap (path/challenge.tsx), in the corner beside the name: a gold frame around it and a gold thread while the challenge is new; what it says
+   under its name is in the small type of "continue", in gold while it calls ("new", "continue") and in ink otherwise. */
+.pa .tree .chn .lnp.new{stroke:var(--gold)}
+.pa .tree .chring{fill:none; stroke:var(--gold); stroke-width:1.8}
+.pa .tree .ed.chs{font-family:var(--mono); font-size:10px; fill:var(--ink2)}
+/* The challenge's page: the title in a term's size, the note under it, then the questions as stops: the exercise in the small capitals of the path, the question in the size of
+   the page's text (blue until it has an answer: it opens), and how it went under it. */
+.pa .chp h2.tn{margin:0}
+.pa .chnote{margin:0; font-size:16.5px; line-height:1.45; color:var(--ink2); overflow-wrap:anywhere}
+.pa .chi{padding:9px 0; align-items:start}
+.pa .chi > .d{margin-top:16px}
+.pa .chi .chb{display:block; width:100%; min-height:44px; text-align:left}
+.pa .chi .chl{display:block; margin-bottom:1px; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink3)}
+.pa .chi .chl b{margin-left:8px; font-weight:400; letter-spacing:.04em; text-transform:none; color:var(--gold-t)}
+.pa .chi .cht{display:block; font-size:19px; line-height:1.28; font-weight:500; color:var(--blue); overflow-wrap:anywhere}
+.pa .chi .cht i{font-style:italic; font-weight:400; font-size:16px; color:var(--ink2)}
+.pa .chi.done .cht{color:var(--ink)}
+.pa .chi.off .cht{font-size:16px; font-weight:400; color:var(--ink3)}
+.pa .chi .chv{display:block; margin-top:2px; font-family:var(--mono); font-size:11px; color:var(--ink2)}

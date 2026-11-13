@@ -13,13 +13,31 @@ export const KEY_STORE = "riglam.magicKey";
 
 /**
  * Stands in for GET /api/course: the real definitions to a request whose proof was made with `key`, not_granted to any other
- * (and for GET /api/course/examples, which serves `examples`, `{ version, part }`, when given and otherwise has none).
+ * (and for GET /api/course/examples, which serves `examples`, `{ version, part }`, when given and otherwise has none; and for
+ * GET /api/course/challenge, which serves `challenge`, `{ version, doc }`, when given and otherwise says that there is none:
+ * `calls.setChallenge` gives the server another one, or null, while the page runs).
  * `calls` collects the requests (their `have` query and whether the proof fitted). `version` is what the server says it holds.
  * `stub` serves no definitions at all in a run that has no course data, so that the key still fits: for a spec about something that
  * needs a device with the key but not the definitions (the flags).
  */
-export async function serveCourse(page, key = dataKey, { version = "v1", stub = false, examples = null } = {}) {
+export async function serveCourse(page, key = dataKey, { version = "v1", stub = false, examples = null, challenge = null } = {}) {
   const calls = [];
+  // GET /api/course/challenge: the challenge of the run with its version, or the answer that there is none. `calls.challenge` collects the requests.
+  let current = challenge;
+  calls.challenge = [];
+  calls.setChallenge = (c) => { current = c; };
+  await page.route((url) => url.pathname === "/api/course/challenge", async (route) => {
+    const request = route.request();
+    const headers = request.headers();
+    const have = new URL(request.url()).searchParams.get("have");
+    const fits = await checkProof(key, headers["x-riglam-device"] ?? "", headers["x-riglam-proof"] ?? "");
+    calls.challenge.push({ have, fits });
+    const json = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    if (!fits) return json(401, { error: { code: "not_granted", message: "the Magic Key does not match" } });
+    const at = current ? current.version : "none";
+    if (have === at) return json(200, { version: at, unchanged: true });
+    return json(200, { version: at, challenge: current ? current.doc : null });
+  });
   // GET /api/course/examples: the invented `examples` (the device part) with their own version, or nothing in a run that has none. `calls.examples` collects the requests.
   calls.examples = [];
   await page.route((url) => url.pathname === "/api/course/examples", async (route) => {
@@ -50,11 +68,11 @@ export async function serveCourse(page, key = dataKey, { version = "v1", stub = 
 }
 
 /** Puts the Magic Key on the device before the page starts, and a stand-in server that accepts it also where the run has no course data. */
-export async function giveKey(page) {
+export async function giveKey(page, options = {}) {
   await page.addInitScript(([store, key]) => {
     try {
       localStorage.setItem(store, key);
     } catch { /* storage unavailable */ }
   }, [KEY_STORE, dataKey]);
-  return serveCourse(page, dataKey, { stub: true });
+  return serveCourse(page, dataKey, { stub: true, ...options });
 }

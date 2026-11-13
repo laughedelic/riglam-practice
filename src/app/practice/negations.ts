@@ -10,6 +10,7 @@ import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import { negationOffer, negationSuggested, type NegOutcome } from "../../domain/stages.ts";
 import { openNow } from "./stops.ts";
+import { givenApart } from "./given.ts";
 import type { PairLike } from "../../ai-shared/relations.ts";
 import type { NegResult } from "../types.ts";
 
@@ -19,15 +20,19 @@ export type NegOffer = { kind: "one" | "both" } | { kind: "done"; text: string }
 const RECENT_RUN = 20;     // the answers finished on this page that the run looks back over (more than the streak needs)
 const store = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch (e) { /* private mode: the offer counts from the page's start */ } };
 
-/** The latest Relations answers, oldest first, from after the last time an offer was answered: the saved ones, and the ones finished on this page (they may not have come back from the database yet). */
+/**
+ * The latest Relations answers, oldest first, from after the last time an offer was answered: the saved ones, and the ones finished on this page (they may not
+ * have come back from the database yet). An answer set apart from the progression (a challenge's: practice/given.ts) is no part of the run.
+ */
 function results(): NegOutcome[] {
   const since = state.negOfferAt || "", byId = new Map<string, NegResult>();
-  for (const d of answerList()) byId.set(d.pairId, { pairId: d.pairId, at: d.at || "", ok: !!d.correct, neg: !!(d.pair && d.pair.neg) });
+  for (const d of answerList()) if (!d.apart) byId.set(d.pairId, { pairId: d.pairId, at: d.at || "", ok: !!d.correct, neg: !!(d.pair && d.pair.neg) });
   for (const d of state.relSession) byId.set(d.pairId, d);
   return [...byId.values()].filter((d) => d.at > since).sort((x, y) => x.at.localeCompare(y.at));
 }
 /** A pair was checked (practice/grading.js): it joins the run, and the offer due after it, if any, is what the result shows. */
 export function afterRelation(pairId: string, p: PairLike, ok: boolean): NegOffer | null {
+  if (givenApart()) return null;     // a given question set apart from the progression is no part of the run (practice/given.ts)
   state.relSession = [...state.relSession, { pairId, at: new Date().toISOString(), ok, neg: !!p.neg }].slice(-RECENT_RUN);
   if (!negationSuggested(state.stages, openNow().size, state.pace)) return null;     // they are suggested from a stage on, and not while the terms are hard going
   const step = negationOffer(results(), state.negation);

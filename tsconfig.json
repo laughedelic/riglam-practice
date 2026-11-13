@@ -19,6 +19,6 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "tests/unit", "vitest.config.ts"],
+  "include": ["src", "tests/unit", "vitest.config.ts", "scripts/challenge.ts", "scripts/lib/challenge-report.ts"],
   "exclude": ["src/pwa/fonts", "node_modules", "dist"]
 }

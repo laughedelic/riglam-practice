@@ -23,6 +23,7 @@ import type { Rig } from "./sound/courtyard.ts";
 import type { Trail } from "./practice/trail.ts";
 import type { GivenState } from "./practice/given.ts";
 import type { DailyDone, DailyOptions, DailyRun } from "./practice/daily.ts";
+import type { ChallengeNow } from "./practice/challenge.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -78,6 +79,8 @@ export interface AnswerDoc {
   /** the tutor's explanation, kept with the answer */
   explain?: string;
   verifiedAt?: string;
+  /** the answer to a given question set apart from the progression (a challenge's: practice/given.ts): kept in Review, no part of a run */
+  apart?: boolean;
 }
 export type DebateDoc = AnswerDoc & { mode: "debate"; qs: QuestionDoc[] };
 
@@ -510,6 +513,12 @@ export interface State {
   dailyDone: DailyDone | null;
   /** what a session of daily practice is made of (`rd-daily-mix`, `rd-daily-from`), once it was read */
   dailyOptions: DailyOptions | null;
+  /** the challenge that everyone gets now, as this device has it (practice/challenge.ts), or null: there is none, or this device has no Magic Key */
+  chal: ChallengeNow | null;
+  /** the challenge's page stands in for Review (path/challenge.tsx) */
+  chalPage: boolean;
+  /** asks the platform to look for another challenge (the roadmap opened), or null where it cannot */
+  chalLook: (() => void) | null;
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;

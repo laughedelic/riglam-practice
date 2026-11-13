@@ -7,7 +7,7 @@ import { stageUpDue } from "../practice/stage-offer.ts";
 import { dueStop } from "../practice/stops.ts";
 import type { Stop } from "../../domain/intro.ts";
 import { backShown, forwardName } from "../practice/trail.ts";
-import { givenNextName } from "../practice/given.ts";
+import { givenApart, givenNextName } from "../practice/given.ts";
 import type { StationKind } from "./shell.tsx";
 
 /** The name of the station that goes on to a question that has no name of its own (Categories), and from a stop or a stage on to the question. */
@@ -17,13 +17,14 @@ export const stopName = (s: Stop): string => "Next: " + (s.why === "new" ? "new 
 /** The name of the Next station: `question`, what the exercise's next question is called ("Next pair"), unless a stage or a stop comes first (the stage goes first, as in next()). */
 export function nextName(question: string): string {
   if (backShown()) return forwardName();      // the result pulled back to: Next goes on to the attempt it left (practice/trail.ts), not to a stage or a term
+  if (givenApart()) return givenNextName() ?? question;      // a given question set apart from the progression: no stage and no term comes first
   if (stageUpDue()) return "Next: new stage";
   const s = dueStop();
   return s ? stopName(s) : givenNextName() ?? question;      // a given question's Next is named by the one who gave it (practice/given.ts)
 }
 /** The look of the Next station, by what it goes on to: a new stage (green), a new term or a term that comes again (teal), else the next question (gold). */
 export function nextKind(): StationKind {
-  if (backShown()) return "q";
+  if (backShown() || givenApart()) return "q";
   if (stageUpDue()) return "up";
   const s = dueStop();
   return s ? stopKind(s) : "q";

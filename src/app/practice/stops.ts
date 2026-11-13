@@ -6,6 +6,7 @@
 // the learner's progression (`rd-terms`, synced by practice/progress.ts).
 import { state } from "../state.js";
 import { hasDef } from "./terms.js";
+import { givenApart } from "./given.ts";
 import { saveProgress } from "./progress.ts";
 import { render } from "../shell/render.js";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
@@ -29,7 +30,7 @@ export const openNow = (): Set<string> => (state.intro && state.DATA ? openTerms
  * its stop back a few questions later. `misses` false: an exercise where a mistake is mostly about its form (Syllogisms, Find a pair) counts only right answers.
  */
 export function gradeTerms(graded: { cat: string | null | undefined; ok: boolean }[], misses = true) {
-  if (!state.intro) return;
+  if (!state.intro || givenApart()) return;     // a given question set apart from the progression grades no term (practice/given.ts)
   state.intro = afterQuestion(state.intro, graded, now(), misses); save();
 }
 /**
