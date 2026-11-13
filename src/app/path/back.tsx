@@ -8,12 +8,16 @@
 // Scrolling does not go back, as scrolling past the end does not take the Next station: a finger that drags the page itself down at its top, or the wheel or trackpad scrolling up
 // past it, brings the page down a little, resisting, and the station peeks above it as a hint, never to its curb. The page stays where it is while a keyboard, a panel or a question
 // is open over it, and in Sprint.
+// The challenges' page has a thread of its own to pull (path/challenge.tsx): while some challenges are done and behind its top, the small stop there that
+// counts them is the top node, and the station above says how many ("2 done"). Let go over the curb, the page stays and they come down from behind the
+// top, folded, above the ones that wait (`unroll`). Pressed, the stop pulls by itself (`pullByItself`).
 import { useContext } from "preact/hooks";
 import { state } from "../state.js";
 import { render, top0 } from "../shell/render.js";
 import { moves } from "../shell/motion.js";
 import { cue } from "../sound/play.ts";
 import { canGoBack, goBack, previousName } from "../practice/trail.ts";
+import { challengePast } from "../practice/challenge.ts";
 import { bump, curbMove, curbNew, knock, type Curb, type Pull } from "./gesture.ts";
 import { currentLook } from "./look.ts";
 import { PullCtx } from "./shell.tsx";
@@ -23,14 +27,26 @@ import { Icon } from "./ui.tsx";
 const LEAVE = 340, ARRIVE = 400, SLACK = 70, START = 6;
 /** The hint of a scroll past the top: the part of the pull the page follows, and how far it comes down at most (px), well short of the curb. */
 const RESIST = 0.45, HINT = 26;
+/** How long the challenges brought back take to come down from behind the top (ms), and how far a press pulls the thread by itself, over the curb (px). */
+const UNROLL = 480, PRESS = 58;
 const into = (u: number) => u ** 2.2;
+
+/**
+ * What the pull takes, where there is something to take: on the challenges' page the challenges done and behind its top (practice/challenge.ts),
+ * which come down above the page (`unroll`); elsewhere the step back of the trail (practice/trail.ts), which the page leaves for.
+ */
+function target(): { name: string; take: () => boolean; unroll: boolean } | null {
+  const p = challengePast();
+  if (p) return { name: p.name, take: p.take, unroll: true };
+  return canGoBack() ? { name: previousName(), take: goBack, unroll: false } : null;
+}
 
 /** The station above the thread, brought into view as it is pulled down (it is drawn only where a step back is there to be taken; the stylesheet shows it while the pull is on). */
 export function BackHead() {
   useContext(PullCtx);
-  if (!canGoBack()) return null;
+  const t = target(); if (!t) return null;
   return <div class="bkhead" aria-hidden="true">
-    <span class="stn stk stk-back bkst"><span class="go"><span class="mk"><Icon n="above" /></span></span><span class="gol"><b>{previousName()}</b></span></span>
+    <span class="stn stk stk-back bkst"><span class="go"><span class="mk"><Icon n="above" /></span></span><span class="gol"><b>{t.name}</b></span></span>
   </div>;
 }
 
@@ -52,6 +68,8 @@ function grip(main: HTMLElement, sc: HTMLElement, t: EventTarget | null, y: numb
     return sc.contains(t) && !strip.classList.contains("open") ? "page" : null;
   }
   if (!sc.contains(t)) return null;
+  const past = sc.querySelector<HTMLElement>(".pathc > .chpast");
+  if (past) return past.contains(t) ? "node" : "page";      // the challenges' page: the stop of those done, a button that is also the handle
   const n = sc.querySelector<HTMLElement>(".pathc > .sx.first > :is(.sechead,.pn)");
   if (n && !control(t) && t.closest(".sx.first") === n.parentElement && y <= n.getBoundingClientRect().bottom) return "node";
   return "page";
@@ -68,6 +86,9 @@ function clear(main: HTMLElement) {
  * in from above. Under reduced motion and the look's `ride: plain` the result is simply there. The Pull is busy meanwhile, so that nothing else is taken.
  */
 function ride(main: HTMLElement, pull: Pull, dy: number): void {
+  const tg = target();
+  if (!tg) { clear(main); return; }
+  if (tg.unroll) { unroll(main, pull, tg.take); return; }
   const still = !moves() || currentLook().ride === "plain", H = main.clientHeight + SLACK;
   pull.busy = true;
   let done = false;
@@ -75,7 +96,7 @@ function ride(main: HTMLElement, pull: Pull, dy: number): void {
     if (done) return; done = true;
     const u = state.ui as { pstrip?: boolean } | null;
     if (u && u.pstrip) u.pstrip = false;      // the heading of the examples is folded again for when Next comes back to them
-    const went = goBack();
+    const went = tg.take();
     clear(main);
     if (went) { render(); top0(); cue("next"); }
     const pc = document.querySelector<HTMLElement>("#path .main .pscroll .pathc");
@@ -95,6 +116,49 @@ function ride(main: HTMLElement, pull: Pull, dy: number): void {
 }
 
 /**
+ * The challenges done come down from behind the top: what stood first under them stays where it is on the screen, and they come in above it (the
+ * thread that was pulled down settles with them). Under reduced motion they are simply there.
+ */
+function unroll(main: HTMLElement, pull: Pull, take: () => boolean): void {
+  const sc = main.querySelector<HTMLElement>(".pscroll"), pc = sc && sc.querySelector<HTMLElement>(".pathc");
+  const top = (n: Element) => n.getBoundingClientRect().top - (sc as HTMLElement).getBoundingClientRect().top;
+  const anchor = pc && (pc.children[1] || pc.lastElementChild), before = anchor ? top(anchor) : 0;
+  const went = take();
+  clear(main);
+  if (!went || !sc || !pc) { render(); return; }
+  render(); sc.scrollTop = 0; cue("next");
+  const at = () => (anchor && anchor.isConnected ? top(anchor) : before);      // (the page keeps its node: what came is drawn above it)
+  let after = at();
+  const vis = Math.round(sc.clientHeight * 0.6);
+  if (after > vis) { sc.scrollTop = after - vis; after = at(); }
+  if (!moves() || currentLook().ride === "plain" || !pc.animate) return;
+  pull.busy = true;
+  const free = () => { pull.busy = false; };
+  pc.animate([{ transform: "translateY(" + (before - after) + "px)" }, { transform: "translateY(0)" }], { duration: UNROLL, easing: "cubic-bezier(.2,.8,.25,1)" }).finished.then(free, free);
+}
+
+/**
+ * A press on the handle of the pull (the challenges' stop of those done): the thread is pulled down over its curb by itself, and let go. Under reduced
+ * motion what it takes is simply there. Left meanwhile (another page, a panel over this one), the press takes nothing: least of all the step back of
+ * what is on screen then.
+ */
+export function pullByItself(main: HTMLElement, pull: Pull): void {
+  const sc = main.querySelector<HTMLElement>(".pscroll"), r = main.closest<HTMLElement>(".pa"), tg = target();
+  if (!sc || !r || pull.busy || !tg || !tg.unroll || covered(r) || main.classList.contains("bkpull")) return;
+  if (!moves() || currentLook().ride === "plain") { ride(main, pull, 0); return; }
+  pull.busy = true; sc.scrollTop = 0;
+  main.style.setProperty("--bkt", sc.offsetTop + "px");
+  main.classList.add("bkpull", "bkrest"); main.style.setProperty("--bk", "0.01px");
+  requestAnimationFrame(() => requestAnimationFrame(() => { main.classList.add("bkover"); main.style.setProperty("--bk", PRESS + "px"); }));
+  setTimeout(() => {
+    pull.busy = false;
+    const now = target();
+    if (!main.isConnected || covered(r) || !now || !now.unroll) { clear(main); return; }
+    ride(main, pull, PRESS);
+  }, 470);
+}
+
+/**
  * Wires the pull back to the page's own scroll `sc` (scroll.tsx) and the part of the screen around it (`.main`, where the examples' heading is), next to the pull past its end
  * (gesture.ts, wireScroll). A finger that drags the top node down while the page is at its top pulls the thread, and so does the mouse; the examples' heading unfolded is pulled the same
  * way. A finger on the rest of the page, or the wheel or the trackpad, only hints. Returns the unwiring.
@@ -106,7 +170,7 @@ export function wireBack(sc: HTMLElement, pull: Pull): () => void {
   let g: { grip: Grip; y0: number; x0: number; live: boolean; mouse: boolean; curb: Curb | null } | null = null, dy = 0;
   let sLast = 0, wLast = 0, wArmed = false, wRaw = 0, wT: ReturnType<typeof setTimeout> | undefined, restT: ReturnType<typeof setTimeout> | undefined;
   const root = () => main.closest<HTMLElement>(".pa");
-  const can = (k: Grip) => { const r = root(); return !!r && !pull.busy && canGoBack() && !covered(r) && (k === "strip" || sc.scrollTop <= 0); };
+  const can = (k: Grip) => { const r = root(); return !!r && !pull.busy && !!target() && !covered(r) && (k === "strip" || sc.scrollTop <= 0); };
   /** The page `y` px down, the station above it: over a curb for a pull, resisting and short of it for a hint. */
   const show = (y: number, hint: boolean) => {
     if (!main.classList.contains("bkpull")) {
@@ -129,9 +193,12 @@ export function wireBack(sc: HTMLElement, pull: Pull): () => void {
     dy = 0; main.classList.add("bkrest"); main.classList.remove("bkover"); main.style.setProperty("--bk", "0px");
     clearTimeout(restT); restT = setTimeout(() => { if (!g || !g.live) clear(main); }, 320);
   };
+  /** The click that ends a drag of the mouse is not a press of the handle (the challenges' stop of those done). */
+  const swallow = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
   /** The pull is let go: over the curb the step is taken, else the page goes back to its place. */
   const end = () => {
     const s = g; g = null; if (!s) return;
+    if (s.mouse && s.live) { addEventListener("click", swallow, { capture: true, once: true }); setTimeout(() => removeEventListener("click", swallow, { capture: true }), 0); }
     if (s.curb && s.curb.over && can(s.grip)) { clearTimeout(restT); ride(main, pull, dy); return; }
     rest();
   };

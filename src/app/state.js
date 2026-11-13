@@ -71,8 +71,11 @@ export const state = {
   given: null,      // a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts)
   givenSprint: false, // Sprint (`blitz`) is as the giver of the question on screen says, not as its exercise's own switch (practice/given.ts)
   daily: null,      // a session of daily practice under way: its plan, how each step went and where it stands (practice/daily.ts)
-  chal: null,       // the challenge that everyone gets now, with this device's record of it and which of its questions is on screen or set aside (practice/challenge.ts)
-  chalPage: false,  // the challenge's page stands in for Review (path/challenge.tsx); closed by any setTab
+  chals: [],        // the challenges that everyone gets, by their day, each with this device's record of it and which of its questions is on screen or set aside (practice/challenge.ts)
+  chalPage: false,  // the challenges' page stands in for Review (path/challenge.tsx); closed by any setTab
+  chalOpen: null,   // the id of the challenge open on their page, or null: the latest that waits
+  chalOut: [],      // the ids of the done challenges brought back from behind the top of their page, until it is opened anew
+  chalFall: null,   // the id of the challenge that is done and falls behind the top, while it goes
   chalLook: null,   // asks the platform to look for another challenge, where it can (practice/challenge.ts)
   dailyDone: null,  // what the device keeps of the sessions done: the day of the last one, how many that day, its categories (`rd-daily`; read when first asked for)
   dailyOptions: null, // what a session of daily practice is made of, as the learner set it: the exercises in the mix and what it draws from (`rd-daily-mix`, `rd-daily-from`; read when first asked for)

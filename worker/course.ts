@@ -1,7 +1,7 @@
 // The course data as the Worker reads it: rows of the `course_data` table (worker/migrations/0003_course_data.sql).
 // The definitions go to a device that has the Magic Key (GET /api/course); the notes are only for the tutor's kit. The reference
 // examples are optional rows: `examples` for the tutor's kit, `examples_device` for a device with the key (GET /api/course/examples).
-// The challenge that everyone gets now is one more optional row, `challenge` (GET /api/course/challenge): loading another replaces it.
+// The challenges that everyone gets are one more optional row, `challenge` (GET /api/course/challenge): all of them in one set, which each load replaces.
 
 export interface CourseRows {
   /** JSON text: { [term]: { d?, d_ru? } } */

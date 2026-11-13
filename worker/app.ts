@@ -2,7 +2,7 @@
 //   GET  /api/health   are the tutor and the accounts on? (no sign-in)
 //   GET  /api/course   the definitions, for a device that has the Magic Key (src/ai/magic-key.ts)
 //   GET  /api/course/examples  the reference examples a device may keep, for a device that has the Magic Key
-//   GET  /api/course/challenge the challenge that everyone gets now, for a device that has the Magic Key
+//   GET  /api/course/challenge the challenges that everyone gets, for a device that has the Magic Key
 //   POST /api/known    what the server already knows of examples the page could not check (learned facts, worker/learned.ts), where it is set to
 //   POST /api/speak    one sentence read aloud with Google's Chirp 3 HD voices; the audio comes back as it is (worker/speak.ts), where a Google key is set
 //   POST /api/tutor    one tutor question; the answer comes back as server-sent events (src/ai/protocol.ts). On a Preview an explain question may ask
@@ -136,7 +136,7 @@ export function createApp(deps: Deps) {
     return new Response(`{"version":${JSON.stringify(row.at)},"examples":${row.body}}`, { headers });
   });
 
-  // The challenge that everyone gets now, the same way. There may be none: that is an answer too (the device then forgets the one it kept), unlike
+  // The challenges that everyone gets, the same way (one set). There may be none: that is an answer too (the device then forgets the ones it kept), unlike
   // a database that cannot be read (the device keeps what it has).
   app.get(API.challenge, async (c) => {
     const env = c.env;
