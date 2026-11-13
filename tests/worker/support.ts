@@ -33,6 +33,8 @@ export function fakeD1() {
     prepare: (sql: string) => new Statement(sqlite, sql),
     // D1 runs a batch as one transaction; here it runs without a pause, so that two batches cannot interleave
     batch(statements: Statement[]) {
+      // as D1 does: a batch of nothing is an error, not a no-op, so code that can reach one has to look first
+      if (!statements.length) return Promise.reject(new Error("D1_ERROR: No SQL statements detected."));
       sqlite.exec("BEGIN");
       try {
         const out = statements.map((s) => s.runNow());

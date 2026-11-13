@@ -214,6 +214,28 @@ describe("taking a report back", () => {
   });
 });
 
+describe("asking about reports", () => {
+  // The app asks for the replies to its flags when it starts, with nothing to send or take back: the request has no statement to run, and D1 refuses a batch of none
+  // (the stand-in in support.ts does too).
+  it("a request that only asks is answered, with nothing written", async () => {
+    const w = await world();
+    const none = await post(w, { status: ["fl_a"] });
+    expect([none.status, await json(none)]).toEqual([200, { stored: [], withdrawn: [], status: [] }]);
+    expect((await post(w, { send: [report("fl_a")] })).status).toBe(200);
+    expect(await json(await post(w, { status: ["fl_a"] }))).toEqual({ stored: [], withdrawn: [], status: [{ id: "fl_a", state: "sent" }] });
+    expect(await json(await post(w, { status: ["fl_a"] }, { device: DEV_B }))).toEqual({ stored: [], withdrawn: [], status: [] });
+  });
+
+  it("a report the account already holds from another device writes nothing either, and is still answered", async () => {
+    const w = await world();
+    const me = await signUp(w, "me");
+    expect((await post(w, { send: [report("fl_a")] }, { device: DEV_A, cookie: me.cookie })).status).toBe(200);
+    const again = await post(w, { send: [report("fl_a")], status: ["fl_a"] }, { device: DEV_B, cookie: me.cookie });
+    expect([again.status, await json(again)]).toEqual([200, { stored: ["fl_a"], withdrawn: [], status: [{ id: "fl_a", state: "sent" }] }]);
+    expect(rows(w).map((r) => r.device)).toEqual([DEV_A]);
+  });
+});
+
 describe("limits", () => {
   const send = (w: World, n: number, who: { device?: string; ip?: string } = {}, from = 0) => post(w, { send: Array.from({ length: n }, (_, i) => report("fl_" + (from + i))) }, who);
 
