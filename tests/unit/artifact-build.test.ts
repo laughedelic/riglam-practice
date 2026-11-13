@@ -39,9 +39,10 @@ builtWithCourse("the data is the full data: every definition is in the page (a l
   expect(page.includes("Locked: open your study group")).toBe(false);
 });
 
-// The budget is our own, well under the frame's 16 MiB: 1.5 MiB (the page is about 1.2 MiB).
+// The budget is our own, well under the frame's 16 MiB: 2 MiB (the page is about 1.5 MiB). It is there to notice a jump nobody meant, not to hold the
+// app back: the page is not minified and carries the code's doc comments, so every mode adds to it. Raise it when the page grew for a reason.
 built("within the page size limit, and within our own budget", () => {
   const bytes = Buffer.byteLength(page);
   expect(bytes, `${bytes} bytes`).toBeLessThan(16 * 1024 * 1024);
-  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 1.5 MiB`).toBeLessThan(1.5 * 1024 * 1024);
+  expect(bytes, `the page is ${(bytes / 1024).toFixed(0)} KiB; the budget is 2 MiB`).toBeLessThan(2 * 1024 * 1024);
 });

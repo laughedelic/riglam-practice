@@ -14,6 +14,7 @@ import { buildPool, indexData, nextGenerated } from "./practice/universe.js";
 import { startStops } from "./practice/stops.ts";
 import { closeGiven, givenAside, givenLine, givenNow, givenShown, openGiven, resumeGiven } from "./practice/given.ts";
 import { givenQuestion } from "../domain/given.ts";
+import { dailyEnded, dailyOptions, dailyShown, dailyToday, leaveDaily, moreDaily, startDaily } from "./practice/daily.ts";
 import { watchProgress } from "./practice/progress.ts";
 import { signature } from "../ui/account";
 import { setDefLang } from "./shell/session.js";
@@ -165,6 +166,12 @@ function settle(){
 function exposeTestHook(){
 if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){return state.cur},get ui(){return state.ui},get tab(){return state.tab},get favs(){return state.favs},get mode(){return state.mode},get view(){return state.view},get coachOpen(){return state.coachOpen},set coachOpen(v){state.coachOpen=v},get optsOpen(){return state.optsOpen},get navGuard(){return state.navGuard},favKey,refOf,render,choose,defParts,setDefLang,get defLang(){return state.defLang},get langs(){return state.langs},get DATA(){return state.DATA},get EX(){return state.EX},get intro(){return state.intro},get stageRun(){return state.stageRun},get exRuns(){return state.exRuns},get stages(){return state.stages},next,advance,get skips(){return state.skips},set skips(v){state.skips=v},skipPair,isSkipped,hiddenKeys,get POOL(){return state.POOL},nextGenerated,SKIP_DAYS,get quorum(){return state.quorum},get quorumOffered(){return state.quorumOffered},get quorumOptIn(){return state.quorumOptIn},setQuorum,quorumThings,get flags(){return state.flags},flagId,openFlag,saveFlag,removeFlag,setFlagState,aiCase,autoFlags,
   // a given question (practice/given.ts): made from what is written down, with the learner's stages and terms unless `o` says others, then opened, set aside, resumed, closed
-  given:{make:(g,o)=>givenQuestion(state,g,{...givenNow(),...o}),open:openGiven,resume:resumeGiven,close:closeGiven,shown:givenShown,aside:givenAside,line:givenLine}});
+  given:{make:(g,o)=>givenQuestion(state,g,{...givenNow(),...o}),open:openGiven,resume:resumeGiven,close:closeGiven,shown:givenShown,aside:givenAside,line:givenLine},
+  // Daily practice (practice/daily.ts): the session under way, whether its question is on screen, how many were done today, and the roadmap stop's action
+  daily:{get run(){return state.daily},get options(){return dailyOptions()},shown:dailyShown,ended:dailyEnded,today:dailyToday,start:startDaily,more:moreDaily,leave:leaveDaily},
+  // the kept answers of Relations and of the exercises kept with them: a spec adds one to stand for an earlier miss
+  get answers(){return state.answers},
+  // the storage the app was started with: a spec takes it away (null) to stand for a device that has none
+  get db(){return state.db},set db(v){state.db=v}});
 }
 /* ---------- test hook (end) ---------- */

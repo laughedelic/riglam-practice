@@ -8,7 +8,7 @@ import { setBlitz } from "../shell/timers.js";
 import { skipAsks, skipPair } from "../practice/skips.js";
 import { toRoad } from "../shell/menu.js";
 import { isEx } from "../shell/render.js";
-import { openBlitzOptions, sessBack, toggleSess } from "../shell/session.js";
+import { openBlitzOptions, pageAlone, sessBack, toggleSess } from "../shell/session.js";
 import { answerShown, setHush, voiceField, voiceSwitchShown } from "../shell/voice.js";
 import { Clock } from "./clock.tsx";
 import { Pull, SLIDE, bump } from "./gesture.ts";
@@ -43,7 +43,7 @@ export function TopBar({ title, tools = false, back }: TopBarProps) {
   const bzStop = () => clearTimeout(hold.current);
   return <>
     <header class="ptb">
-      <button type="button" class="tstn" aria-label={subpage ? "Back to the options" : back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
+      <button type="button" class="tstn" aria-label={subpage ? (pageAlone() ? "Close the options" : "Back to the options") : back ? back.label : "Back to the roadmap"} onClick={roadmap}><Icon n="chev" /></button>
       <button type="button" class="ptb-t" aria-label={heading + (shown ? "" : back ? ", " + back.label.toLowerCase() : ", the roadmap")} onClick={roadmap}><span>{heading}</span></button>
       {tools && !shown && ex ? <ProgressRing /> : null}
       <span class="spc" />

@@ -21,6 +21,8 @@ export function usePerExercise(ex: string) {
   if (!EXERCISES.includes(ex) || !state.perBase) return;
   put({ ...state.perBase, ...state.perEx[ex] } as Required<Own>);
 }
+/** Sprint as the exercise `ex` has it, its own switch or the shared one: what is back in place after a question whose clock was its giver's (practice/given.ts). */
+export const ownSprint = (ex: string): boolean => !!({ ...state.perBase, ...state.perEx[ex] } as Partial<Own>).blitz;
 /** A setting changed in the exercise on screen: it is that exercise's own value, and the shared one for the exercises not set yet. The caller has set the state.
  *  `shared` false: the value is the exercise's alone, and the exercises not set yet keep what they had (Sprint: its switch is in each exercise's top bar). */
 export function keepOwn<K extends OwnKey>(k: K, v: Required<Own>[K], shared = true) {

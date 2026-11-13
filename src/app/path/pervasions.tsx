@@ -27,6 +27,7 @@ import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, PullCtx, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { Sub, markNames } from "./subjects.tsx";
 import { D, Gap, Head, Icon, Mark, St, Sx, nofillInput } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 
 interface Ans { say: "accept" | "why" | null; text: string; timeout?: boolean }
 
@@ -86,7 +87,7 @@ function QuestionStep({ kb }: { kb: boolean }) {
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
-      <Sx cls="cur first tight"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
+      <Sx cls="cur first tight"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Questions" sub={(i + 1) + " of 4 · " + (w.lead ? "do you accept it?" : "yes or no?")} /><Gap h={4} /><PairStops p={p} sm={i > 0} /><Gap h={4} />
         <Answered n={i} />
         <St d={<D cls="sub now" />} cls="sb now qnow"><QHead i={i} /><p class="qst" lang="en"><Statement i={i} /></p>
           {u.pickWhy ? <>
@@ -119,7 +120,7 @@ function RelationStep() {
   const u = u0(), p = pairOf(), pull = useContext(PullCtx);
   return <>
     <Scroll>
-      <Sx cls="walked first tight"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
+      <Sx cls="walked first tight"><ThreadTop /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
       <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Relation" sub="which relation do your answers give?" /><Gap h={4} /></Sx>
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k), (act) => pull.scanPick(() => scanPlan(k as RelKey), act))} />
       <Sx cls="ptail" />

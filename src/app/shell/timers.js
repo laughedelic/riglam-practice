@@ -4,6 +4,7 @@ import { checkDebate, expireQ } from "../debate/flow.js";
 import { timeUpName } from "../find/flow.js";
 import { timeUpCategories, timeUpCategory } from "../categories/flow.js";
 import { timeUpInstance } from "../instance/flow.ts";
+import { sprintGiven } from "../practice/given.ts";
 import { check } from "../practice/grading.js";
 import { guidance } from "../practice/guided.ts";
 import { keepOwn } from "../practice/per-exercise.ts";
@@ -29,8 +30,8 @@ const store = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* the
 /** The exercise an attempt is in, by its tab. */
 const tabOf = (u) => u.syllogism ? "syllogism" : u.debate ? "debate" : u.find ? "find" : u.cats ? "categories" : u.inst ? "instance" : "practice";
 export const kindMs = (k) => state.times[k];
-/** Something covers the exercise: the clock does not run behind it. */
-export const paused = () => state.optsOpen || state.sessOpen || state.skipAsk || state.menuOpen;
+/** Something covers the exercise: the clock does not run behind it (the last station of Daily practice stands over the attempt it left there: practice/daily.ts). */
+export const paused = () => state.optsOpen || state.sessOpen || state.skipAsk || state.menuOpen || state.view === "daily";
 /** The page of the relations is over the examples (Pick another, or Find a pair's relation): the case waits under it. */
 const covered = (u) => !!u.open && (!!u.find || (!u.debate && !u.syllogism && !u.cats && !u.inst && !!u.rel));
 
@@ -196,9 +197,12 @@ export function releaseClock(how, ui = state.ui) {
 }
 
 // ---- the switch and the times
-/** The stopwatch in the top bar: Sprint on or off for the exercise on screen. The step in front starts again, with its full time. */
+/**
+ * The stopwatch in the top bar: Sprint on or off for the exercise on screen, or for the one who gave the question on screen where its clock is theirs
+ * (practice/given.ts: the exercise's own switch stays as it was). The step in front starts again, with its full time.
+ */
 export function setBlitz(on) {
-  state.blitz = on; keepOwn("blitz", on, false);
+  state.blitz = on; if (!sprintGiven(on)) keepOwn("blitz", on, false);
   const u = state.ui;
   if (u) { if (on && u.hold) { u.hold.spent = 0; u.hold.run = true; } stopTimer(u); }
   render();

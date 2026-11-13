@@ -24,3 +24,4 @@
 @import "./styles/20-path-news.css"; /* the Path: the line of a version that waits, above the foot, and What's new */
 @import "./styles/21-path-storage.css"; /* the Path: the line of a storage that does not answer, in the place of that one, and its page */
 @import "./styles/22-path-back.css"; /* the Path: the thread pulled down at its top, one step back to the previous result */
+@import "./styles/23-path-daily.css"; /* the Path: Daily practice, the session's row at the top of a question's thread */
