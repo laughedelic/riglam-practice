@@ -26,6 +26,7 @@
     "eval:report": "npm run -s eval:build && node .cache/eval/report.js",
     "eval:judge": "npm run -s eval:build && node .cache/eval/judge.js",
     "eval:selftest": "npm run -s eval:build && node .cache/eval/selftest.js",
+    "challenge": "node scripts/challenge.mjs",
     "data:key": "node scripts/data.mjs key",
     "data:import": "node scripts/data.mjs import",
     "data:import-examples": "node scripts/data.mjs import-examples",

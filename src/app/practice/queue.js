@@ -12,7 +12,7 @@ import { takeStop } from "./stops.ts";
 import { nextGenerated } from "./universe.js";
 import { holdAhead, takeAhead } from "./ahead.ts";
 import { comeForward, keepBehind } from "./trail.ts";
-import { nextGiven } from "./given.ts";
+import { givenApart, nextGiven } from "./given.ts";
 import { cue } from "../sound/play.ts";
 import { render, top0 } from "../shell/render.js";
 
@@ -38,7 +38,8 @@ export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshU
 export function next(sound=true){
   if(state.ui&&state.ui.ctl) state.ui.ctl.abort();
   if(comeForward()){ render(); top0(); if(sound) cue("next"); return; }     // from the result pulled back to: the attempt held goes back on screen (practice/trail.ts)
-  passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; }
+  // (a given question set apart from the progression brings neither a stage nor a term's stop: practice/given.ts)
+  if(!givenApart()){ passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; } }
   // a given question draws nothing: the one who gave it says what comes (practice/given.ts), told when it was a time-up with no result (moveOn); its result is not a step back for the question after it
   if(nextGiven(!!(state.ui&&state.ui.passOn))){ takeCarry(); render(); top0(); if(sound) cue("next"); return; }
   const left={cur:state.cur,ui:state.ui};

@@ -5,7 +5,7 @@
 
 # riglam-practice
 
-Practice in logic and debate on the "path of reasoning" (*rigs lam*), for Dudra and Tarig, a few minutes at a time. Relations compares two terms (pick the relation, then give an example for each case that exists); Pervasions asks the four debate questions about a pair; Find a pair turns the first round around (a relation is named, you name two terms that have it); Syllogisms takes a subject, a predicate and a reason; Categories and Find an instance work from one example; Daily practice is a short session that moves between them by itself, with questions that hang together; Sprint is an option that puts a clock on each step.
+Practice in logic and debate on the "path of reasoning" (*rigs lam*), for Dudra and Tarig, a few minutes at a time. Relations compares two terms (pick the relation, then give an example for each case that exists); Pervasions asks the four debate questions about a pair; Find a pair turns the first round around (a relation is named, you name two terms that have it); Syllogisms takes a subject, a predicate and a reason; Categories and Find an instance work from one example; Daily practice is a short session that moves between them by itself, with questions that hang together; a Challenge is a task that everyone gets at once, a few questions set from outside, such as the ones a class leaves; Sprint is an option that puts a clock on each step.
 
 One source builds two things:
 

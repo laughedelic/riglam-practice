@@ -2,18 +2,22 @@
 // the same proof the tutor uses (src/ai/proof.ts) and keeps the answer on the device, so the definitions work offline afterwards
 // and the page opens at once; a second request, made in the background, finds out whether they changed or the key stopped fitting.
 // The reference examples come the same way (GET /api/course/examples), kept apart with a version of their own, and only in the
-// background: the page never waits for them.
+// background: the page never waits for them. The challenge that everyone gets now comes the same way too (GET /api/course/challenge),
+// and is kept so that it can be done offline; the server may say that there is none, which is kept as well.
 import type { Examples } from "../ai-shared/examples";
-import { API, HEADER, type CourseResponse, type ExamplesResponse } from "../ai/protocol";
+import { API, HEADER, type ChallengeResponse, type CourseResponse, type ExamplesResponse } from "../ai/protocol";
 import { makeProof } from "../ai/proof";
 import { deviceId } from "./device";
 
 export type Definitions = Record<string, { d?: string; d_ru?: string }>;
 export interface KeptCourse { version: string; definitions: Definitions }
 export interface KeptExamples { version: string; examples: Examples }
+/** The challenge as the server gave it (the app reads it: src/domain/challenge.ts), or null when the server said there is none. */
+export interface KeptChallenge { version: string; challenge: object | null }
 
 const CACHE = "riglam.course";
 const EXAMPLES_CACHE = "riglam.examples";
+const CHALLENGE_CACHE = "riglam.challenge";
 
 type Refused = { ok: false; reason: "not_granted" | "rate_limited" | "offline" | "unavailable"; resetsAt?: string };
 type Outcome<T> = { ok: true; version: string; value: T } | { ok: true; version: string; unchanged: true } | Refused;
@@ -25,6 +29,11 @@ export type CourseOutcome =
 
 export type ExamplesOutcome =
   | { ok: true; version: string; examples: Examples }
+  | { ok: true; version: string; unchanged: true }
+  | Refused;
+
+export type ChallengeOutcome =
+  | { ok: true; version: string; challenge: object | null }
   | { ok: true; version: string; unchanged: true }
   | Refused;
 
@@ -46,6 +55,19 @@ export async function fetchExamples(key: string, have?: string, doFetch: typeof 
   const got = await ask(API.examples, key, have, doFetch, device, timeoutMs, (body: ExamplesResponse) =>
     "examples" in body && body.examples && typeof body.examples === "object" && Array.isArray(body.examples.items) ? body.examples : null);
   return got.ok && "value" in got ? { ok: true, version: got.version, examples: got.value } : got;
+}
+
+/**
+ * Asks the server for the challenge that everyone gets now, as fetchCourse asks for the definitions. That there is none is an answer
+ * (`challenge: null`, with a version of its own); `unavailable` is a server that could not say.
+ */
+export async function fetchChallenge(key: string, have?: string, doFetch: typeof fetch = (...a) => fetch(...a), device: () => string = deviceId, timeoutMs = COURSE_TIMEOUT_MS): Promise<ChallengeOutcome> {
+  const got = await ask(API.challenge, key, have, doFetch, device, timeoutMs, (body: ChallengeResponse) => {
+    if (!("challenge" in body)) return null;
+    const c = body.challenge;
+    return c === null ? { challenge: null } : typeof c === "object" && !Array.isArray(c) ? { challenge: c } : null;
+  });
+  return got.ok && "value" in got ? { ok: true, version: got.version, challenge: got.value.challenge } : got;
 }
 
 /** One request with the proof; `read` takes the value out of an answer with one, or gives null for an answer that is not the format. */
@@ -100,11 +122,12 @@ export function keptCourse(): KeptCourse | null {
 export function keepCourse(kept: KeptCourse) {
   try { localStorage.setItem(CACHE, JSON.stringify(kept)); } catch { /* storage full or unavailable: the next visit asks again */ }
 }
-/** Forgets the kept definitions, and the examples with them: both belong to the key. */
+/** Forgets the kept definitions, and the examples and the challenge with them: they all belong to the key. */
 export function forgetCourse() {
   try {
     localStorage.removeItem(CACHE);
     localStorage.removeItem(EXAMPLES_CACHE);
+    localStorage.removeItem(CHALLENGE_CACHE);
   } catch { /* storage unavailable */ }
 }
 
@@ -118,6 +141,18 @@ export function keptExamples(): KeptExamples | null {
 }
 export function keepExamples(kept: KeptExamples) {
   try { localStorage.setItem(EXAMPLES_CACHE, JSON.stringify(kept)); } catch { /* storage full or unavailable: the next visit asks again */ }
+}
+
+export function keptChallenge(): KeptChallenge | null {
+  try {
+    const kept = JSON.parse(localStorage.getItem(CHALLENGE_CACHE) ?? "null");
+    return kept && typeof kept.version === "string" && (kept.challenge === null || (typeof kept.challenge === "object" && !Array.isArray(kept.challenge))) ? kept : null;
+  } catch {
+    return null;
+  }
+}
+export function keepChallenge(kept: KeptChallenge) {
+  try { localStorage.setItem(CHALLENGE_CACHE, JSON.stringify(kept)); } catch { /* storage full or unavailable: the next visit asks again */ }
 }
 
 /** The sentence for an outcome that is not a success, for the Magic Key prompt. */

@@ -29,12 +29,12 @@ export function backShown(): boolean {
   return !!(t && t.prev && t.away && state.ui === t.prev.ui);
 }
 /**
- * Whether the page can go back one step now: a question or result is on screen (not the last station of Daily practice over it: practice/daily.ts), the one before it is a
- * result that is still kept, and no clock is running.
+ * Whether the page can go back one step now: a question or result is on screen (not the last station of Daily practice over it: practice/daily.ts; not a page that
+ * stands in for Review, such as the challenge's, which has a thread of its own to pull: path/challenge.tsx), the one before it is a result that is still kept, and no clock is running.
  */
 export function canGoBack(): boolean {
   const t = state.trails[state.own]; const u = state.ui;
-  return !!(t && t.prev && !t.away && u && t.of === u && state.mode === "quiz" && state.view !== "daily" && !state.blitz && !u.stop && !(u.up && u.up.shown));
+  return !!(t && t.prev && !t.away && u && t.of === u && state.mode === "quiz" && state.view !== "daily" && state.tab !== "review" && !state.blitz && !u.stop && !(u.up && u.up.shown));
 }
 /**
  * Next went on from a result: it is kept as the step back (`left`, what was on screen before the new attempt was drawn). What the result had waiting for the question after it (a stage

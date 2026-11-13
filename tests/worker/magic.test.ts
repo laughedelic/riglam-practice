@@ -104,6 +104,45 @@ describe("GET /api/course/examples", () => {
   });
 });
 
+describe("GET /api/course/challenge", () => {
+  const WRITTEN = JSON.stringify({ id: "2026-11-07-colors", date: "2026-11-07", title: "Colors and shapes", items: [{ exercise: "practice", a: "col", b: "shape" }] });
+  const put = (s: Setup, body: string, at = "2026-11-07T18:00:00.000Z") =>
+    s.env.DB!.prepare("INSERT OR REPLACE INTO course_data (kind, body, updated_at) VALUES ('challenge', ?1, ?2)").bind(body, at).run();
+  const challenge = async (s: Setup, headers: Record<string, string>, have?: string) => app().request(have ? `/api/course/challenge?have=${have}` : "/api/course/challenge", { headers }, s.env);
+
+  it("gives the challenge to a proof that fits with its version, says when a kept copy is current, and gives the next one in its place", async () => {
+    const s = await setup();
+    await put(s, WRITTEN);
+    const res = await challenge(s, right(s));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = await json(res);
+    expect(body).toEqual({ version: "2026-11-07T18:00:00.000Z", challenge: JSON.parse(WRITTEN) });
+    expect(await json(await challenge(s, right(s), body.version))).toEqual({ version: body.version, unchanged: true });
+    const next = WRITTEN.replace("2026-11-07-colors", "2026-11-14-sounds");
+    await put(s, next, "2026-11-14T18:00:00.000Z");
+    expect(await json(await challenge(s, right(s), body.version))).toEqual({ version: "2026-11-14T18:00:00.000Z", challenge: JSON.parse(next) });
+  });
+
+  it("says that there is none, which is not the same as a database that cannot be read, and refuses a proof made with another key", async () => {
+    const s = await setup();
+    const none = await challenge(s, right(s));
+    expect(none.status).toBe(200);
+    expect(await json(none)).toEqual({ version: "none", challenge: null });
+    expect(await json(await challenge(s, right(s), "none"))).toEqual({ version: "none", unchanged: true });
+    expect(await json(await challenge(s, right(s), "2026-11-07T18:00:00.000Z")), "a device that kept one is told it is gone").toEqual({ version: "none", challenge: null });
+    await put(s, "[1, 2]");
+    expect(await json(await challenge(s, right(s))), "a row that is not a JSON object is no challenge").toEqual({ version: "none", challenge: null });
+    await put(s, WRITTEN);
+    const refused = await challenge(s, await wrong());
+    expect(refused.status).toBe(401);
+    expect(JSON.stringify(await json(refused))).not.toContain("Colors");
+    const down = await app().request("/api/course/challenge", { headers: right(s) }, { ...s.env, DB: undefined });
+    expect(down.status).toBe(503);
+    expect((await json(down)).error.code).toBe("unavailable");
+  });
+});
+
 describe("the allowance of wrong guesses", () => {
   const spend = async (s: Setup, ip: string, times: number) => {
     for (let i = 0; i < times; i++) expect((await course(s, await wrong(ip))).status).toBe(401);

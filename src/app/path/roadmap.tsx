@@ -3,6 +3,7 @@
 // the path goes on from it) is dashed. Above its foot a line is pinned while a newer version waits (Update), or while
 // What's new has something not read yet (path/news.tsx). Where the trunk parts into the three branches stands the stop of Daily practice (practice/daily.ts), which draws on all of them: a
 // session of questions from every exercise; under its name, how many questions it has, "continue" while one waits, where it stands while its question is on screen, and "done today".
+// In the corner beside the name, while there is one, stands the stop of the challenge that everyone gets (path/challenge.tsx), on a thread of its own; the roadmap asks to look for another every time it opens.
 // The foot goes to Review and Settings, the Magic Key while this device has none. A Preview says on that line which build it is and has the way to look again. The roadmap looks for a newer version every time it opens.
 import { useEffect, useRef } from "preact/hooks";
 import { state } from "../state.js";
@@ -13,6 +14,8 @@ import { openKey, toggleOpts } from "../shell/options.js";
 import { setTab } from "../shell/tabs.js";
 import { givenUnderWay } from "../practice/given.ts";
 import { DAILY_NAME, dailyRun, dailySize, dailyShown, dailyToday, startDaily } from "../practice/daily.ts";
+import { challengeShown, lookForChallenge } from "../practice/challenge.ts";
+import { ChallengeStop } from "./challenge.tsx";
 import { isEx } from "../shell/render.js";
 import { BRAND, Lockup, NAME_BOTTOM, NAME_Y } from "./brand.tsx";
 import { Icon, dia } from "./ui.tsx";
@@ -44,8 +47,8 @@ function openSettings() { state.fromRoad = true; state.menuOpen = false; state.s
 
 function Node({ k, name }: { k: string; name: string }) {
   const at = PLACES[k];
-  // while a session's question is on screen in the exercise, "here" is the session's stop, not the exercise's
-  const cur = state.tab === k && !state.optsOpen && !dailyShown(), cont = !cur && parked(k), c = cur ? "cur" : "";
+  // while a session's question is on screen in the exercise, "here" is the session's stop, not the exercise's; the same with a question of the challenge
+  const cur = state.tab === k && !state.optsOpen && !dailyShown() && !challengeShown(), cont = !cur && parked(k), c = cur ? "cur" : "";
   const vs = todayOf(k).slice(-4);
   const act = () => go(k);
   return <g role="button" tabIndex={0} aria-label={name + (cur ? ", here" : cont ? ", continue" : "")} aria-current={cur ? "page" : undefined}
@@ -84,6 +87,7 @@ export function Roadmap() {
       const n = box.current && box.current.querySelector<SVGElement>("[aria-current=page]"); if (n) n.focus({ preventScroll: true });
       // every time the roadmap opens it looks for a newer version, unless the device is offline (a look from the last few seconds stands)
       if (navigator.onLine !== false && state.updates) void state.updates.check(8000);
+      lookForChallenge();      // and for another challenge (practice/challenge.ts)
     }
     // closed, it gives the focus to the top bar of the screen under it, unless that screen took it already (the Magic Key page, to its field)
     else if (!on && was.current) {
@@ -103,6 +107,7 @@ export function Roadmap() {
         <Lockup x={195} y={NAME_Y} />
         <path class="ln" d={"M195 " + (NAME_Y + NAME_BOTTOM + 5) + " V" + (DAILY.y - 9)} /><path class="ln" d={"M195 " + (DAILY.y + 54) + " V196"} />
         <DailyNode />
+        <ChallengeStop />
         <path class="ln" d="M195 196 C195 214 74 208 74 228 V261" /><path class="ln" d="M195 196 V303" /><path class="ln" d="M195 196 C195 214 316 208 316 228 V261" />
         <path class="ln" d="M74 324 V345" /><path class="ln" d="M74 408 V429" /><path class="ln" d="M316 324 V345" />
         <path class="lnp" d="M74 492 C74 516 195 508 195 533" /><path class="lnp" d="M195 366 V533" /><path class="lnp" d="M316 408 V492 C316 516 195 508 195 533" />

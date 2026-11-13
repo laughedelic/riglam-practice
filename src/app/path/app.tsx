@@ -1,4 +1,4 @@
-// The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings, the last station of a session) and the foot,
+// The Path's page: one column with the top bar, the screen in front (an exercise, Review, the challenge's page, the tutor's conversation, Settings, the last station of a session) and the foot,
 // and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the page's state
 // (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work from it.
 import type { ComponentChildren } from "preact";
@@ -14,6 +14,8 @@ import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
 import { dailyEndScreen } from "./daily.tsx";
+import { ChallengePage } from "./challenge.tsx";
+import { challengePageOn, challengeView } from "../practice/challenge.ts";
 import { findScreen } from "./find.tsx";
 import { instanceScreen } from "./instance.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
@@ -57,6 +59,7 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.mode === "loading") return { cls: "", node: <Status text="Loading." /> };
   if (state.mode === "nodata") return { cls: "", node: <Status text="The practice data could not be loaded. Reload the page to try again." /> };
   if (state.optsOpen) return { cls: "", node: <SettingsPage /> };
+  if (state.tab === "review" && !state.pathProg && challengePageOn()) return { cls: challengeView()?.standing === "done" ? "done" : "", node: <ChallengePage /> };     // the challenge's page stands in for Review (practice/challenge.ts)
   if (state.tab === "review") return { cls: "", node: state.pathProg ? <ProgressionPage /> : <ReviewPage /> };
   if (state.mode !== "quiz" || !isEx() || !state.ui) return { cls: "", node: <Status text="" /> };
   const daily = dailyEnded() ? dailyRun() : null;
