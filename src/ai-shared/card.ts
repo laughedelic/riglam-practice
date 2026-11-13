@@ -89,7 +89,8 @@ export function cardBody(ix: DataIndex, p: PairLike, u: AnswerView): string {
   // a negated side is its label with the facts of the category it negates
   const side=(cid: string|null, label: string, type: string|undefined, neg: boolean)=>neg?{label, negation_of:cid?catFacts(ix,cid,plainLabel(label)):{label:plainLabel(label),type}}:cid?catFacts(ix,cid,label):{label,type};
   const ownSide=(label: string, neg: boolean)=>neg?{label, negation_of:sideFacts(ix,plainLabel(label))}:sideFacts(ix,label);
-  const card=p.own?{A:ownSide(p.a,na), B:ownSide(p.b,nb)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
+  // a pair that came with its answer (`carried`) has no categories either: each side is what the data knows of its words, as on a pair of the learner's own
+  const card=p.own||p.carried?{A:ownSide(p.a,na), B:ownSide(p.b,nb)}:{A:side(ca,p.a,p.typeA,na), B:side(cb,p.b,p.typeB,nb)};
   const refTxt=(c: CellId)=>refOf(p,c)?JSON.stringify(refOf(p,c)):"EMPTY ("+((p.why&&p.why[c])||"no example")+")";
   let mid: string;
   if(u.debate){
@@ -135,11 +136,17 @@ Reference note: ${p.note||"none"}
 Cells (verdict cmp = learner wrote something the app could not classify):
 ${lines}`;
   }
-  return `CARD (from the reference's term data; the relation and reference examples were computed from classified examples):
+  return `CARD (${p.carried?CARRIED_CARD:"from the reference's term data; the relation and reference examples were computed from classified examples"}):
 ${JSON.stringify(card)}
 ${mid}${stageLine(u.stage)}${cls.length?`
 Classes (the reference's "is a" tree, for "class:"): ${cls.join(", ")}.`:""}`;
 }
+
+/**
+ * What the card says in its heading of a pair that came with its answer (a challenge's question about phenomena the term data does not have, `carried`): where the
+ * relation and the reference examples are from, so that the tutor checks the learner's examples with them in hand and does not look for the pair in the data.
+ */
+export const CARRIED_CARD = "this pair is not in the reference's term data: it was set as a task, and its relation, its reference examples and its note were written for it from the reference. They are right: explain them and check the learner's examples against them, never question or reverse them. Where a side names a term the data has, its facts are below";
 
 /**
  * What the tutor is told of a pair with a negated side (the negation track, src/domain/universe.ts): what the negation takes in, and that Neither is empty only where the reference says so.
@@ -178,7 +185,7 @@ export function tutorCard(ix: DataIndex, p: PairLike, u: AnswerView): string {
 }
 
 // Explain also verifies the examples the page could not check: those cell lines end in a machine-readable verdict.
-export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { own?: boolean }, neg = false): string {
+export function explainAsk(U: Pick<AnswerView, "debate" | "find" | "res"> & { own?: boolean }, neg = false, carried = false): string {
   const dbt=!!U.debate, open=CELLS.filter(c=>U.res.cells[c].v==="cmp"&&!U.res.cells[c].vague?.length), vague=CELLS.filter(c=>U.res.cells[c].vague?.length);
   const base=dbt?DEBATE_ASK:U.find?(U.own?FIND_ASK_OWN:FIND_ASK):FIRST_ASK;
   const nm=(c: CellId)=>dbt?"Q"+(CELLS.indexOf(c)+1):CELL_NAME[c];
@@ -189,6 +196,6 @@ The examples in ${vague.map(nm).join(", ")} do not say the quality their cell is
   return base+left+`
 The app could not check the examples in: ${open.map(nm).join(", ")}. The app reads your "A" and "B" answers on those lines as the check, so make them exact: the example belongs in a cell when its answers are the cell's (Both: A yes, B yes; A not B: A yes, B no; B not A: A no, B yes; Neither: A no, B no; ${neg?`a non-existent such as the horn of a rabbit counts too, as no for a plain term and yes for a "non-" term`:"an existent thing, but in Neither a non-existent such as the horn of a rabbit counts too"}).`+(dbt?`
 Q1 is the Both cell, Q2 A not B, Q3 B not A, Q4 Neither.`:"")+`
-How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature), but do not fill in a quality its name does not say (the color of "a car", what "a table" is made of). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the app has no reference for this pair":"use the correct relation above: it is computed and right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
+How to decide: read the example in its ordinary sense (a song is the sound of someone singing or playing; a stone is an ordinary stone at room temperature), but do not fill in a quality its name does not say (the color of "a car", what "a table" is made of). Place it under A or B first, then ${U.own?"check it against the relation you decided on, since the app has no reference for this pair":"use the correct relation above: it "+(carried?"came with the task and is":"is computed and")+" right, so if whatever is B is A, a B belongs in Both"}. Use classify_example or lookup_term when a classification is not obvious.
 Answer "open" on a side whose quality the example's name does not say (the color of "an apple", the shape of "a box", whether "a frying pan" is hot), and say which words would settle it. Answer "unsure" only on a side where the sources disagree on how to classify the thing (see the fine points) or where you cannot tell what the example names; then that side's sentence names each reading, in a few words. A word that could also mean something else is not a reason for "unsure": decide on the ordinary reading and mention the other one briefly.`;
 }
