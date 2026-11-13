@@ -21,6 +21,7 @@ import type { KeyHeld } from "../platform/types";
 import type { Look } from "./path/look.ts";
 import type { Rig } from "./sound/courtyard.ts";
 import type { Trail } from "./practice/trail.ts";
+import type { GivenState } from "./practice/given.ts";
 
 export type { Pair, PoolEntry, Verdict };
 
@@ -497,6 +498,8 @@ export interface State {
   /** the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts) */
   /** what a result that was not shown (a time-up at None) left due: it goes on the next attempt drawn (practice/queue.js, moveOn) */
   carry: { offer: Ui["offer"]; guideDown: Ui["guideDown"] } | null;
+  /** a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts) */
+  given: GivenState | null;
   relSession: NegResult[];
   /** when the learner last answered the offer of a negation step (a time, `rd-neg-offer`): only answers after it count towards the next offer */
   negOfferAt: string;

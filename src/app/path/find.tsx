@@ -8,6 +8,7 @@ import { canAsk } from "../core/ask.js";
 import { CELLS, ORDER, REL, lcRel, notaOf } from "../core/rel.js";
 import { checkFind, chooseRel, editPair, usePair } from "../find/flow.js";
 import { guidance } from "../practice/guided.ts";
+import { givenShown } from "../practice/given.ts";
 import { next } from "../practice/queue.js";
 import { render } from "../shell/render.js";
 import type { RelKey } from "../../ai-shared/relations.ts";
@@ -27,13 +28,15 @@ const relOf = () => u0().rel as RelKey;
 const both = () => { const u = u0(); return !!u.wordA.trim() && !!u.wordB.trim(); };
 const focus = (id: string) => { const i = document.getElementById(id); if (i) i.focus({ preventScroll: true }); };
 const openRel = () => { const u = u0(); u.open = true; u.pstrip = false; render(); };
+/** The relation the learner picked to stay with; none while a given relation is asked (practice/given.ts), which is not theirs to change. */
+const picked = () => (givenShown() ? null : state.findRel);
 
 /** The relation asked for, as a stop: its figure in the margin, its name, what it says of A and B, and the way to change it. */
 function Asked({ change = true }: { change?: boolean }) {
   const u = u0(), r = REL[relOf()];
   return <St d={<Fig k={relOf()} size="m" />} cls="asked"><span class="relnm"><b class="yours">{r.name}</b>{state.nota !== "codes" ? <span class="rsym">{notaOf(relOf())}</span> : null}</span>
-    {guidance("find") !== "none" || (!u.checked && state.findRel) ? <span class="pq relg">{guidance("find") !== "none" ? r.gloss("A", "B") + "." : ""}{!u.checked && state.findRel ? " Your choice; it stays until Random." : ""}</span> : null}
-    {change ? <button type="button" class="pbtn" onClick={openRel}>{state.findRel ? "Change relation" : "Choose relation"}</button> : null}</St>;
+    {guidance("find") !== "none" || (!u.checked && picked()) ? <span class="pq relg">{guidance("find") !== "none" ? r.gloss("A", "B") + "." : ""}{!u.checked && picked() ? " Your choice; it stays until Random." : ""}</span> : null}
+    {change && !givenShown() ? <button type="button" class="pbtn" onClick={openRel}>{state.findRel ? "Change relation" : "Choose relation"}</button> : null}</St>;
 }
 
 /* ---------- 1 the pair ---------- */
@@ -56,7 +59,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls={(both() ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={state.findRel ? null : <SkipMark />} /><Gap h={6} />
+      <Sx cls={(both() ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={picked() ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
@@ -67,7 +70,7 @@ function PairStep({ kb }: { kb: boolean }) {
       <Sx cls="ptail" />
     </Scroll>
     <VoiceField kb={kb} />
-    {kb ? null : <Foot aux={state.findRel ? null : <SkipSide />}>
+    {kb ? null : <Foot aux={picked() ? null : <SkipSide />}>
       {ok ? <Station kind="ex" name="Examples" hint="your pair" act={usePair} /> : <PreStation name="Examples" hint="name both first" />}
     </Foot>}
   </>;
@@ -94,7 +97,7 @@ function Named() {
   return <>
     <StripPair q="Your pair." />
     <Sx cls="walked"><Gap h={10} /><Asked change={false} />
-      <St d={<span />}><span class="pbtns"><button type="button" class="pbtn" onClick={() => { u0().pstrip = false; editPair(); }}>Change the pair</button><button type="button" class="pbtn" onClick={openRel}>Change relation</button></span></St><Gap h={6} /></Sx>
+      <St d={<span />}><span class="pbtns"><button type="button" class="pbtn" onClick={() => { u0().pstrip = false; editPair(); }}>Change the pair</button>{givenShown() ? null : <button type="button" class="pbtn" onClick={openRel}>Change relation</button>}</span></St><Gap h={6} /></Sx>
   </>;
 }
 

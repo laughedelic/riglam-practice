@@ -11,6 +11,7 @@ import { render, top0 } from "../shell/render.js";
 import { drawInstance, gradeInstance, instanceExample, instanceGraded, instanceKey } from "../../domain/instance.ts";
 import { timeUpView } from "../../domain/sprint.ts";
 import { guidance } from "../practice/guided.ts";
+import { nextGiven } from "../practice/given.ts";
 import type { InstanceQuestion, InstanceResult } from "../../domain/instance.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import type { InstanceDoc, Ui } from "../types.ts";
@@ -66,7 +67,8 @@ export function timeUpInstance(): void {
       u.ranOut = true; u.gave = true; u.checked = true; u.ir = { v: "bad", thing: "", from: null, rows: [], example };
       render(); top0(); return;
     }
-    advanceInstance(); render(); top0(); return;
+    if (!nextGiven(true)) advanceInstance();     // a given set: the one who gave it says what comes
+    render(); top0(); return;
   }
   u.ranOut = true;
   checkInstance();

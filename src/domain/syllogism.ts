@@ -368,13 +368,18 @@ function make(ix: DataIndex, c: Cand, sit: Situation, rng: Rng, words?: PairWord
   };
 }
 
-/** What the data says about the syllogism of this subject (an item's name), reason and predicate (category ids), or null when the data cannot settle it. */
-export function syllogismOf(ix: DataIndex, subject: string, catR: string, catP: string, rng: Rng = Math.random): Syllogism | null {
+/**
+ * What the data says about the syllogism of this subject (an item's name), reason and predicate (category ids), or null when the data cannot settle it.
+ * With `words`, the reason and the predicate are said as a draw says them: not with a named term's phrase before its stop (intro.ts, wordsFor); one
+ * class as both, which needs two of its phrases, is null while fewer than two are shown, as a draw leaves it out.
+ */
+export function syllogismOf(ix: DataIndex, subject: string, catR: string, catP: string, rng: Rng = Math.random, words?: PairWords): Syllogism | null {
   const t = tableOf(ix), pair = t.pairs.find((x) => x.r === catR && x.p === catP), item = ix.DATA.items.find((i) => i.n === subject);
   if (!pair || !item || item.ne) return null;
+  if (words?.unmet?.size && catR === catP && phrasesNow(ix, catR, words, false).length < 2) return null;
   const cell = (["both", "anb", "bna", "nei"] as const).find((k) => pair.cells[k].includes(item));
   const sit = SIT_IDS.find((s) => { const rule = SITUATIONS[s]; return rule.cell === cell && matches(rule, pair); });
-  return sit ? make(ix, { pair, item, links: linksOf(t, pair, item, SITUATIONS[sit]), level: levelOf(pair, item) }, sit, rng) : null;
+  return sit ? make(ix, { pair, item, links: linksOf(t, pair, item, SITUATIONS[sit]), level: levelOf(pair, item) }, sit, rng, words) : null;
 }
 
 // ---- wording ----

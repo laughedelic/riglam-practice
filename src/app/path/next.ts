@@ -2,10 +2,12 @@
 // where it has no name of its own), or, when something comes before it, what that is: "Next: new stage" when the stage is due (practice/stage-offer.ts), "Next: new definition" or
 // "Next: repetition" when a stop of a course term is (practice/stops.ts). So a colon after Next always means that something else comes first, and from a stop or a stage
 // the station is "Next question". On a result pulled back to (practice/trail.ts) it is "Back to your pair": what it goes on to is the attempt that was left.
+// A given question (practice/given.ts) goes on to whatever the one who gave it opens: its station is "Next question", or the name it was given.
 import { stageUpDue } from "../practice/stage-offer.ts";
 import { dueStop } from "../practice/stops.ts";
 import type { Stop } from "../../domain/intro.ts";
 import { backShown, forwardName } from "../practice/trail.ts";
+import { givenNextName } from "../practice/given.ts";
 import type { StationKind } from "./shell.tsx";
 
 /** The name of the station that goes on to a question that has no name of its own (Categories), and from a stop or a stage on to the question. */
@@ -17,7 +19,7 @@ export function nextName(question: string): string {
   if (backShown()) return forwardName();      // the result pulled back to: Next goes on to the attempt it left (practice/trail.ts), not to a stage or a term
   if (stageUpDue()) return "Next: new stage";
   const s = dueStop();
-  return s ? stopName(s) : question;
+  return s ? stopName(s) : givenNextName() ?? question;      // a given question's Next is named by the one who gave it (practice/given.ts)
 }
 /** The look of the Next station, by what it goes on to: a new stage (green), a new term or a term that comes again (teal), else the next question (gold). */
 export function nextKind(): StationKind {

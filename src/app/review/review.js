@@ -50,4 +50,4 @@ export function uniqueMistakePairs(miss){
   }
   return out;
 }
-export function startRetry(ps){ switchTo("practice"); state.retryQ=ps.slice(0,10); state.retryTag="Retry"; advance(); render(); top0(); }
+export function startRetry(ps){ switchTo("practice",true); state.retryQ=ps.slice(0,10); state.retryTag="Retry"; advance(); render(); top0(); }

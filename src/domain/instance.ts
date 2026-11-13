@@ -193,6 +193,21 @@ function poolOf(ix: DataIndex): Pool {
   return pool;
 }
 
+const askedAt = new WeakMap<DrillData, Map<string, number>>();
+/**
+ * The stage from which the draw asks this set of categories (`setStage`), in any order, or null when it is not a set the draw asks: a category the
+ * data lacks, a pair it does not judge, nothing in all of them and no reason to say why, three with one inside another.
+ */
+export function askedFrom(ix: DataIndex, set: readonly string[]): number | null {
+  let by = askedAt.get(ix.DATA);
+  if (!by) {
+    const pool = poolOf(ix), all = new Map<string, number>();
+    for (const s of [...pool.one, ...pool.two, ...pool.apart.flat(), ...pool.three, ...pool.threeApart]) all.set(keyOf(s.set), Math.min(all.get(keyOf(s.set)) ?? Infinity, s.st));
+    askedAt.set(ix.DATA, (by = all));
+  }
+  return by.get(instanceKey(set)) ?? null;
+}
+
 export interface InstanceDraw {
   rng: Rng;
   /** keys of the sets asked lately (`instanceKey`), passed over while others remain */
