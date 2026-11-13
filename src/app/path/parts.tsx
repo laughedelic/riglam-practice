@@ -36,6 +36,7 @@ import { turnAside } from "./shell.tsx";
 import { Sub } from "./subjects.tsx";
 import { DefCard, OneTerm, TermText } from "./terms.tsx";
 import { D, Fig, Icon, Mark, St, Sx } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 import { ExplainChoice } from "./wait.tsx";
 
 export const u0 = () => state.ui!;
@@ -105,7 +106,7 @@ export function PairResult({ mine, ok, right, none, classes = true }: { mine: Re
   const rv = ok === null ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="pt" /></span>
     : ok ? <span class="rvl"><b class="yours">{name(mine)}</b><Mark m="ok" /></span>
     : <><span class="rvl"><s class="no">{none || name(mine)}</s><Mark m="no" /></span>{right ? <span class="rvl"><Fig k={right} size="xs" /><span class="fix">{name(right)}</span></span> : null}</>;
-  return <Sx cls="walked first"><div style={{ height: "14px" }} />
+  return <Sx cls="walked first"><ThreadTop done />
     <div class={"pn res" + (long ? " long" : "") + (state.db && !p.own ? " rstar" : "")}><i class="pnm a">A</i><i class="pnm b">B</i><Fig k={mine} size="pnode" />
       <span class="pnl a"><i>A</i><span class="tw"><b>{p.a}</b>{classes && !na ? <ClassOf label={p.a} cat={p.catA} where="pca" /> : null}</span></span>
       <span class="pnl b"><i>B</i><span class="tw"><b>{p.b}</b>{classes && !nb ? <ClassOf label={p.b} cat={p.catB} where="pcb" /> : null}</span></span>

@@ -23,6 +23,7 @@ import { Subjects } from "./subjects.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Fig, Gap, Head, St, Sx, nofillInput } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 
 const relOf = () => u0().rel as RelKey;
 const both = () => { const u = u0(); return !!u.wordA.trim() && !!u.wordB.trim(); };
@@ -59,7 +60,7 @@ function PairStep({ kb }: { kb: boolean }) {
   });
   return <>
     <Scroll>
-      <Sx cls={(both() ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={picked() ? null : <SkipMark />} /><Gap h={6} />
+      <Sx cls={(both() ? "cur" : "gap") + " first"}><ThreadTop /><Head d={<D cls="sec now" />} h="1 Pair" sub="two phenomena that relate like this" aside={picked() ? null : <SkipMark />} /><Gap h={6} />
         <Asked /><Gap h={6} />
         <Word k="a" key2="wordA" what="First" last={false} />
         <Word k="b" key2="wordB" what="Second" last />
@@ -143,7 +144,7 @@ function GaveStep() {
   const u = u0(), p = u.gave as Pair, spelled = guidance("find") === "detailed";
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Pair" sub="no pair named in time" /><Gap h={6} /><Asked change={false} /><Gap h={6} /></Sx>
+      <Sx cls="walked first"><ThreadTop done /><Head d={<D cls="sec done" />} h="1 Pair" sub="no pair named in time" /><Gap h={6} /><Asked change={false} /><Gap h={6} /></Sx>
       <Verdict v="no" word="Time is up" sub="no pair named" quiet />
       <Sx cls="walked"><St d={<D cls="sub done" />} cls="sb exr gave"><span class="lab">for example</span><div class="line1"><span class="ans2">{p.a} and {p.b}</span></div>
         {spelled && p.note ? <p class="xnote"><Subjects text={p.note.replace(/"([^"]*)"/g, "“$1”")} p={p} /></p> : null}</St></Sx>

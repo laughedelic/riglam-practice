@@ -30,7 +30,7 @@ export async function check(){
   render();
   focusAfterCheck();
   afterCheck(state.ui);
-  if(!state.db) return;
+  // (the document is made also where nothing is stored: persist() tells the giver of a given question, and writes only where there is storage)
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(state.ui.cells[c].t||"").trim(), none:REL[state.ui.rel].empty.includes(c)||state.ui.cells[c].none, verdict:state.ui.res.cells[c].v};
   state.ui.saveId=id;

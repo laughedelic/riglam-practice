@@ -25,6 +25,7 @@ import { nextKind, nextName } from "./next.ts";
 import { openDifficulty } from "./progression.tsx";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { Subjects, markNames } from "./subjects.tsx";
+import { ThreadTop } from "./daily.tsx";
 import { D, Fig, Gap, Head, Mark, St, Sx } from "./ui.tsx";
 
 /** the relation picked (the steps after the first have one) */
@@ -46,7 +47,7 @@ function PickStep({ kb }: { kb: boolean }) {
   return <>
     <Scroll>
       {retry ? <p class="retry">{(state.cur!.tag || "Retry") + (state.retryQ.length ? " · " + state.retryQ.length + " more" : "")}</p> : null}
-      <Sx cls="cur first"><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} /><Gap h={8} /></Sx>
+      <Sx cls="cur first"><ThreadTop /><Head d={<D cls="sec now" />} h="1 Relation" sub="how do A and B relate?" /><Gap h={4} /><PairStops p={p} /><Gap h={8} /></Sx>
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={pick} />
       <Sx cls="ptail" />
     </Scroll>

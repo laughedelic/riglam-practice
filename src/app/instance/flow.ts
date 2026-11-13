@@ -87,7 +87,7 @@ export function checkInstance(): void {
     ...(ir.from ? { thing: ir.thing } : {}), grade: GRADE[ir.v], ...(u.ranOut ? { timeout: true } : {}), at: new Date().toISOString(),
   };
   render(); top0();
-  if (!state.db) return;
+  // (kept also where nothing is stored: persist() tells the giver of a given question, and writes only where there is storage)
   u.saveId = doc.pairId; u.doc = doc as never;     // the stored shape of Find an instance is not a pair's (types.ts); persist() only reads its keys
   persist(u, "Your answer");
 }

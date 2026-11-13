@@ -52,9 +52,13 @@ export function openPage(id){ state.sessPage=id; state.resetAsk=""; render(); }
 export function openBlitzOptions(){ if(!state.sessOpen) toggleSess(true); openPage("times"); }
 /** The Progression page, which the ring in the top bar opens (and closes, while it is open): a sheet of its own, with no list under it. */
 export function openProgress(){ if(state.sessOpen&&state.sessPage==="progress"){ toggleSess(false); return; } if(!state.sessOpen) toggleSess(true); openPage("progress"); }
-/** Back or Escape in the options: from a page to the list, from the list to the exercise; the Progression page has no list under it, it closes the sheet. */
+/** The Daily practice page, as the session's last station opens it: by itself, with no list under it (the station is no exercise's screen). */
+export function openDailyOptions(){ if(!state.sessOpen) toggleSess(true); openPage("daily"); }
+/** Whether the page that is open has no list under it: the Progression page, and the Daily practice page over the session's last station. */
+export const pageAlone=()=>state.sessPage==="progress"||(state.sessPage==="daily"&&state.view==="daily");
+/** Back or Escape in the options: from a page to the list, from the list to the exercise; a page with no list under it closes the sheet. */
 export function sessBack(){
-  if(state.sessPage==="progress") toggleSess(false);
+  if(pageAlone()) toggleSess(false);
   else if(state.sessPage){ state.sessPage=null; render(); }
   else toggleSess(false);
 }

@@ -12,6 +12,7 @@ import type { Pull } from "./gesture.ts";
 import type { ScanPlan } from "./scan.tsx";
 import { refreshPath, renderPath } from "./index.tsx";
 import { openThen } from "./relayout.ts";
+import { ThreadTop } from "./daily.tsx";
 import { CASE, PairNode, SkipMark, Star, caseQ, pairOf, u0 } from "./parts.tsx";
 import { Scroll } from "./scroll.tsx";
 import { Foot, PreStation, PullCtx, SkipSide, Station, VoiceField, pathNote } from "./shell.tsx";
@@ -71,10 +72,10 @@ function Strip({ rel, full }: { rel: RelKey; full: ComponentChildren }) {
     <span class="pullr"><span class="gtip">{open ? "slide up to return" : "pull to look back"}</span><Knob label={open ? "Fold the earlier steps" : "Open the earlier steps"} onClick={() => set(!u.pstrip)} /></span>
   </div>;
 }
-/** The pair's two stops, small, for the strip unfolded, with the question they were asked under. */
+/** The pair's two stops, small, for the strip unfolded, with the question they were asked under; above them a session's row, as the first step had it (path/daily.tsx). */
 export function StripPair({ q }: { q: string }) {
   const p = pairOf();
-  return <Sx cls="walked"><Gap h={4} />
+  return <Sx cls="walked"><ThreadTop h={4} />
     <St d={<span class="ab">A</span>} cls="pairst sm"><span class="tn">{p.a}</span></St>
     <St d={<span class="ab">B</span>} cls="pairst sm"><span class="tn">{p.b}</span><p class="pq">{q}</p></St></Sx>;
 }

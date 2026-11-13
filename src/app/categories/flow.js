@@ -122,7 +122,7 @@ function finishThing(picked){
   gradeTerms(doc.rows.map(r=>({cat:r.cat,ok:r.yes===r.said})));     // each row grades its category's term (practice/stops.ts)
   stageStep("categories",q.thing.st,u.grade==="ok");     // the run towards an offer of the stages, and the offer when one is due (practice/stage-offer.ts)
   render(); top0();
-  if(!state.db) return;
+  // (kept also where nothing is stored: persist() tells the giver of a given question, and writes only where there is storage)
   u.saveId=doc.pairId; u.doc=/** @type {any} */(doc);       // the stored shape of Categories is not a pair's (types.ts); persist() only reads its keys
   persist(u,"Your answer");
 }

@@ -16,6 +16,7 @@ import { Scroll } from "./scroll.tsx";
 import { nextKind, nextName } from "./next.ts";
 import { Foot, PreStation, SkipSide, Station, TopBar, VoiceField } from "./shell.tsx";
 import { D, Gap, Head, Mark, St, Sx, nofillInput } from "./ui.tsx";
+import { ThreadTop } from "./daily.tsx";
 
 const q = () => shownSet() as InstanceQuestion;
 const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
@@ -68,7 +69,7 @@ function AskStep({ kb }: { kb: boolean }) {
       <p class="help"><span class="htx">A thing, in a few words. </span><button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { blur(); sayNothing(true); }}>{noneText(n)}</button></p></St>;
   return <>
     <Scroll>
-      <Sx cls={(ok ? "cur" : "gap") + " first"}><Gap h={14} /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
+      <Sx cls={(ok ? "cur" : "gap") + " first"}><ThreadTop /><Head d={<D cls="sec now" />} h="1 Instance" sub={n === 1 ? "something of this kind" : "something that is " + allOf(n)} aside={<SkipMark />} /><Gap h={6} />
         <CatStops s={s} /><Gap h={4} />{answer}<Gap h={6} /></Sx>
       <Sx cls="ptail" />
     </Scroll>
@@ -101,7 +102,7 @@ function ResultStep() {
     : ir.from || none ? null : s.possible ? "only the things the reference knows are checked here" : "whatever it is, nothing can be " + allOf(s.cats.length);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Instance" sub="checked" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>
+      <Sx cls="walked first"><ThreadTop done /><Head d={<D cls="sec done" />} h="1 Instance" sub="checked" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>
       <Verdict v={v} word={word} sub={sub} />
       <Sx cls="walked"><St d={<D cls={"sub " + (v === "ok" ? "ok" : v)} />} cls="sb exr">
         <span class="lab">your answer</span><div class="line1"><span class={"ans2" + (none ? " nil" : v === "no" ? " no" : "")}>{none ? noneText(s.cats.length) : said()}</span></div>
@@ -124,7 +125,7 @@ function GaveStep() {
   const u = u0(), s = q(), ir = u.ir as InstanceResult, ex = ir.example, spelled = guidance("instance") === "detailed", all = allOf(s.cats.length);
   return <>
     <Scroll>
-      <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Instance" sub="nothing written in time" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>
+      <Sx cls="walked first"><ThreadTop done /><Head d={<D cls="sec done" />} h="1 Instance" sub="nothing written in time" /><Gap h={4} /><CatStops s={s} sm /><Gap h={6} /></Sx>
       <Verdict v="no" word="Time is up" sub="nothing written" quiet />
       <Sx cls="walked"><St d={<D cls="sub done" />} cls="sb exr gave"><span class="lab">{ex ? "for example" : "the answer"}</span>
         <div class="line1"><span class="ans2">{ex ? ex.thing : "nothing can be " + all}</span></div>

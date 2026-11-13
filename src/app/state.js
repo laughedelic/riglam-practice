@@ -69,6 +69,10 @@ export const state = {
   negation: "off",   // the negation track of Relations and Pervasions: "one" negates A or B in about a third of the pairs, "both" both sides in half of those (`rd-negation`)
   carry: null,      // what a result that was not shown left due, for the next result (practice/queue.js, moveOn)
   given: null,      // a question that is given, not drawn, on screen in its exercise or set aside (practice/given.ts)
+  givenSprint: false, // Sprint (`blitz`) is as the giver of the question on screen says, not as its exercise's own switch (practice/given.ts)
+  daily: null,      // a session of daily practice under way: its plan, how each step went and where it stands (practice/daily.ts)
+  dailyDone: null,  // what the device keeps of the sessions done: the day of the last one, how many that day, its categories (`rd-daily`; read when first asked for)
+  dailyOptions: null, // what a session of daily practice is made of, as the learner set it: the exercises in the mix and what it draws from (`rd-daily-mix`, `rd-daily-from`; read when first asked for)
   relSession: [],    // the Relations answers checked on this page, oldest first: the run towards the offer of a negation step counts them before the database has handed them back (practice/negations.ts)
   negOfferAt: "",    // when the learner last answered the offer of a negation step (`rd-neg-offer`): only the answers after it count towards the next offer
   pace: OPEN_CAP,    // the most course terms open at once before a new one waits (the Progression page, `rd-pace`; src/domain/intro.ts, PACES)
@@ -103,7 +107,7 @@ export const state = {
   leaveAsk: false, // the installed app on the Path: Back on the roadmap has said "Back again to close", and a second Back while it says so leaves the app      // when Escape was last pressed: a close watcher hears it too, and the keys have already closed a level for it
   navBack: false, // the system's Back is closing levels, and the browser has animated the screen away itself (a swipe from the edge): the panels do not move as well (shell/history.js, shell/motion.js)
   motion: false,  // the first screen has been drawn: panels that open or close after it slide (shell/motion.js)
-  view: null,
+  view: null,     // what stands in front of the exercise in its place: "chat" (Claude's conversation, shell/chat.js), "daily" (the last station of Daily practice, practice/daily.ts), or null
   defLang: "en",  // definitions: "en", or "enru" (English with the Russian definition and the Russian name of each term)
   langs: [],      // the other languages a term's name is shown in, beside English (and Russian, when defLang says so): "bo", "skt", "zh" (domain/languages.ts)
   POOL: null,

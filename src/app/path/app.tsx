@@ -1,10 +1,11 @@
-// The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings) and the foot,
+// The Path's page: one column with the top bar, the screen in front (an exercise, Review, the tutor's conversation, Settings, the last station of a session) and the foot,
 // and over it the roadmap, the practice options, the question before a skip and the note at the foot. Which screen shows is the page's state
 // (state.js: tab, view, optsOpen, sessOpen, menuOpen, skipAsk), so Back, the keys and the clocks work from it.
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { state } from "../state.js";
 import { canAsk } from "../core/ask.js";
+import { dailyEnded, dailyRun } from "../practice/daily.ts";
 import { closeSkipAsk, skipAskText, skipNow } from "../practice/skips.js";
 import { exName } from "../shell/exercises.js";
 import { moves } from "../shell/motion.js";
@@ -12,6 +13,7 @@ import { isEx, render } from "../shell/render.js";
 import { applyLook, currentLook, darkNow, lookClasses } from "./look.ts";
 import { OptionsSheet } from "./options.tsx";
 import { categoriesScreen } from "./categories.tsx";
+import { dailyEndScreen } from "./daily.tsx";
 import { findScreen } from "./find.tsx";
 import { instanceScreen } from "./instance.tsx";
 import { pervasionsScreen } from "./pervasions.tsx";
@@ -57,6 +59,8 @@ function screen(kb: boolean): { cls: string; node: ComponentChildren } {
   if (state.optsOpen) return { cls: "", node: <SettingsPage /> };
   if (state.tab === "review") return { cls: "", node: state.pathProg ? <ProgressionPage /> : <ReviewPage /> };
   if (state.mode !== "quiz" || !isEx() || !state.ui) return { cls: "", node: <Status text="" /> };
+  const daily = dailyEnded() ? dailyRun() : null;
+  if (daily) return dailyEndScreen(daily);     // the last station of a session of Daily practice, in place of the exercise its last question was in (practice/daily.ts)
   if (state.view === "chat" && (state.ui.chat || state.ui.checked) && canAsk()) return { cls: "", node: <TutorPage /> };
   const u = state.ui;
   if (u.up && u.up.shown) return stageUpScreen(exName(state.tab));     // the next stage coming in, before the next question (practice/stage-offer.ts)
