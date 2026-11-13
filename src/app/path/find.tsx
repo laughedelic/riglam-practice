@@ -97,7 +97,7 @@ function Named() {
   return <>
     <StripPair q="Your pair." />
     <Sx cls="walked"><Gap h={10} /><Asked change={false} />
-      <St d={<span />}><span class="pbtns"><button type="button" class="pbtn" onClick={() => { u0().pstrip = false; editPair(); }}>Change the pair</button><button type="button" class="pbtn" onClick={openRel}>Change relation</button></span></St><Gap h={6} /></Sx>
+      <St d={<span />}><span class="pbtns"><button type="button" class="pbtn" onClick={() => { u0().pstrip = false; editPair(); }}>Change the pair</button>{givenShown() ? null : <button type="button" class="pbtn" onClick={openRel}>Change relation</button>}</span></St><Gap h={6} /></Sx>
   </>;
 }
 

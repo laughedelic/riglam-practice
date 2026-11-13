@@ -118,7 +118,7 @@ export function checkFind(){
 }
 /** Opens a pair that was skipped (Review, Skipped) at its examples, for the relation that was asked for then (it counts as asked, so the draw after it leaves it out). The relation the learner has picked is not changed. The attempt has an id of its own, as it is the id of the answer: another relation chosen here leaves the skip on the list, and answering that later must not replace this answer. */
 export function resumeFind(pair,rel){
-  switchTo("find");
+  switchTo("find",true);
   const p=JSON.parse(JSON.stringify(pair));       // a copy: the skipped pair stays as it was kept
   p.id=findId();
   state.cur=/** @type {any} */({p,find:true});

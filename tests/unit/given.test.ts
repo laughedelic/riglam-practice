@@ -117,6 +117,10 @@ test("givenPair: null for what the data does not have or judge, and beyond the l
   expect(givenPair(ix, "col", "form", { words: { unmet: new Set(["col"]) }, rng: seeded(1) })).toBeNull();
   for (let s = 1; s < 20; s++) expect(givenPair(ix, "col", "form", { words: { unmet: new Set(["form:Matter"]) }, rng: seeded(s) })!.b).toBe("forms");
   expect(givenPair(ix, "form", "form", { words: { unmet: new Set(["form:Matter"]) }, rng: seeded(1) })).toBeNull(); // one label left to show
+  // nor does a label the task says: "matter" is a named term's
+  expect(givenPair(ix, "col", "form", { labels: [null, "matter"], words: { unmet: new Set(["form:Matter"]) }, rng: seeded(1) })).toBeNull();
+  expect(givenPair(ix, "form", "form", { labels: ["forms", "matter"], words: { unmet: new Set(["form:Matter"]) }, rng: seeded(1) })).toBeNull();
+  expect(givenPair(ix, "col", "form", { labels: [null, "forms"], words: { unmet: new Set(["form:Matter"]) }, rng: seeded(1) })).toMatchObject({ b: "forms" });
 });
 
 test("givenPair: every pair the draw can make at a learner's stages can be given, with the relation the pool has", () => {
@@ -168,6 +172,9 @@ test("givenSyllogism: null for what the data cannot settle, a thing that cannot 
   // a named term's phrase waits for its stop: the predicate is "a form", never "matter"
   for (let s = 1; s < 20; s++) expect(givenSyllogism(ix, "a tomato", "red", "form", { words: { unmet: new Set(["form:Matter"]) }, rng: seeded(s) })!.predicate).toBe("a form");
   expect(new Set(Array.from({ length: 20 }, (_, s) => givenSyllogism(ix, "a tomato", "red", "form", { rng: seeded(s + 1) })!.predicate))).toEqual(new Set(["a form", "matter"]));
+  // one class as reason and predicate needs two of its phrases: with "matter" still to come there is one
+  expect(givenSyllogism(ix, "a tomato", "form", "form", { rng: seeded(1) })).not.toBeNull();
+  expect(givenSyllogism(ix, "a tomato", "form", "form", { words: { unmet: new Set(["form:Matter"]) }, rng: seeded(1) })).toBeNull();
 });
 
 test("givenSyllogism: every syllogism the drill draws can be given again, with the same answer", () => {

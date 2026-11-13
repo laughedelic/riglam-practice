@@ -39,8 +39,8 @@ export function next(sound=true){
   if(state.ui&&state.ui.ctl) state.ui.ctl.abort();
   if(comeForward()){ render(); top0(); if(sound) cue("next"); return; }     // from the result pulled back to: the attempt held goes back on screen (practice/trail.ts)
   passStageOffer(); if(takeStageUp()){ render(); top0(); cue("stage"); return; } closeStageUp(); if(takeStop()){ render(); top0(); cue("definition",{soft:state.ui.stop.why!=="new"}); return; }
-  // a given question draws nothing: the one who gave it says what comes (practice/given.ts); its result is not a step back for the question after it
-  if(nextGiven()){ takeCarry(); render(); top0(); if(sound) cue("next"); return; }
+  // a given question draws nothing: the one who gave it says what comes (practice/given.ts), told when it was a time-up with no result (moveOn); its result is not a step back for the question after it
+  if(nextGiven(!!(state.ui&&state.ui.passOn))){ takeCarry(); render(); top0(); if(sound) cue("next"); return; }
   const left={cur:state.cur,ui:state.ui};
   if(state.ui&&state.ui.debate) advanceDebate(); else if(state.ui&&state.ui.find) advanceFind(); else if(state.ui&&state.ui.cats) advanceCategories(); else if(state.ui&&state.ui.inst) advanceInstance(); else if(state.ui&&state.ui.syllogism) advanceSyllogism(); else advance();
   keepBehind(left); takeCarry(); render(); top0(); if(sound) cue("next");

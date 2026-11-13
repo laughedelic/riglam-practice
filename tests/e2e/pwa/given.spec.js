@@ -148,3 +148,51 @@ test("what the data cannot make is not opened", async ({ page }) => {
   expect(await give(page, [{ exercise: "syllogism", subject: "a thing the data does not have", reason: "vis", predicate: "col" }])).toBe(false);
   expect(await now(page)).toMatchObject({ tab: before.tab, shown: false, pair: before.pair });
 });
+
+test("a given Find a pair question keeps the pair named in it when set aside, and its examples offer no other relation", async ({ page }) => {
+  expect(await give(page, [{ exercise: "find", relation: "3ab" }])).toBe(true);
+  await page.locator("#fw-a").fill("pots");
+  await page.locator("#fw-b").fill("clay things");
+  await page.locator("#fw-b").press("Enter");
+  await expect.poll(() => page.evaluate(() => window.__t.ui.step)).toBe(1);
+  const named = (await now(page)).pair;
+  expect(named).not.toBeNull();
+  // the examples' strip, unfolded: the pair can be named again, the relation is the one asked
+  await page.locator("#cin").blur();
+  const strip = page.locator("#path .pstrip");
+  await strip.locator(".knob").click();
+  await expect(strip).toHaveClass(/\bopen\b/);
+  await expect(page.getByRole("button", { name: "Change the pair" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /(Choose|Change) relation/ })).toHaveCount(0);
+  // set aside and resumed: the named pair at its examples, not the question as it was opened
+  await goTo(page, "Relations");
+  expect(await now(page)).toMatchObject({ tab: "practice", shown: false, aside: { ex: "find", begun: true } });
+  expect(await page.evaluate(() => window.__t.given.resume())).toBe(true);
+  expect(await now(page)).toMatchObject({ tab: "find", shown: true, pair: named });
+  expect(await page.evaluate(() => window.__t.ui.step)).toBe(1);
+});
+
+test("a time-up with no result on a given question tells the giver it was skipped", async ({ page }) => {
+  expect(await give(page, [{ exercise: "practice", a: "col", b: "shape" }])).toBe(true);
+  // what moveOn leaves (practice/queue.js): the answer is kept as Sprint counts it, and Next comes with no result shown
+  await page.evaluate(() => { window.__t.ui.passOn = true; window.__t.next(false); });
+  expect(await now(page)).toMatchObject({ shown: false, log: ["skipped 0"] });
+});
+
+test("a pair taken again from Review sets the given question under it aside, to be resumed", async ({ page }) => {
+  const at = new Date().toISOString();
+  const pair = { id: "r-again", a: "round things", b: "wooden things", catA: "round", catB: "wooden", relation: "4", ex: { both: "a wooden bowl", anb: "a ball", bna: "a wooden table", nei: "a thought" }, why: {} };
+  const cells = Object.fromEntries(["both", "anb", "bna", "nei"].map((c) => [c, { text: pair.ex[c], none: false, verdict: "ok" }]));
+  await page.evaluate(async (doc) => { const db = await window.__riglam.platform.db(); await db.collection("answers").doc(doc.pairId).set(doc); },
+    { pairId: pair.id, a: pair.a, b: pair.b, catA: pair.catA, catB: pair.catB, chosen: "4", key: "4", correct: true, grade: "ok", cells, at, pair });
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  expect(await give(page, [{ exercise: "practice", a: "col", b: "shape", labels: ["colors", "shapes"] }])).toBe(true);
+  await choices(page).first().click();
+  await goTo(page, "Review");
+  await page.locator("#path .ptrail .trow .trb").first().click();
+  await page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" }).click();
+  expect(await now(page)).toMatchObject({ tab: "practice", shown: false, pair: "round things | wooden things", aside: { ex: "practice", begun: true } });
+  expect(await page.evaluate(() => window.__t.given.resume())).toBe(true);
+  expect(await now(page)).toMatchObject({ tab: "practice", shown: true, pair: "colors | shapes", rel: "mi" });
+});

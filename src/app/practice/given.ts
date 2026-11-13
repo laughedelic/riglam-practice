@@ -57,7 +57,7 @@ export interface GivenState extends Attempt {
   hooks: GivenHooks;
 }
 
-/** The given question on screen, or null. One that something else took the place of (a pair opened again from Review, a new draw after a reset) is forgotten. */
+/** The given question on screen, or null. One that something else took the place of (a new draw after a reset) is forgotten. */
 function live(): GivenState | null {
   const g = state.given;
   if (!g || !g.on) return null;
@@ -131,6 +131,7 @@ export function resumeGiven(): boolean {
 export function setAsideGiven(): void {
   const g = live(); if (!g) return;
   pauseClock(g.ui);
+  g.cur = state.cur as Current;      // what is asked may have moved on with the screen (Find a pair's named pair)
   g.on = false;
   if (g.back) { state.cur = g.back.cur; state.ui = g.back.ui; }
   g.back = null;

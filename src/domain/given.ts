@@ -60,6 +60,10 @@ function labelsOf(ix: DataIndex, cat: string, negated: boolean, words?: PairWord
   return wordsFor(ix, cat, negated && plain.length ? plain : all, words?.unmet, lean ? words?.open : undefined);
 }
 
+/** Whether a side may be shown under the label the task says: one of its category's, and none a named term's before its stop, as a draw would show it. */
+const said = (ix: DataIndex, cat: string, label: string, o: GivenOptions): boolean =>
+  ix.CAT[cat].labels.includes(label) && wordsFor(ix, cat, ix.CAT[cat].labels, o.words?.unmet).includes(label);
+
 /** What a given pair may add to the options: the labels to show the two sides under, and a negated side. */
 export interface GivenPairOptions extends GivenOptions {
   /** the label of each side, when the task says the words ("colors", not "hues"): each must be a label of its category; one left out is drawn */
@@ -71,7 +75,7 @@ export interface GivenPairOptions extends GivenOptions {
 /**
  * The pair for Relations and Pervasions: these two categories in this order (A first), as `pairOf` makes a drawn pair. The same category twice
  * is the pair of two of its own labels, where it is a course category with two. Null for a category the data lacks, a pair it does not judge, a
- * label the category does not have; with `stages`, also for a pair a learner at them does not meet yet (`pairStage`: a category not open, or a
+ * label the category does not have, or (with `words`) one of a named term before its stop; with `stages`, also for a pair a learner at them does not meet yet (`pairStage`: a category not open, or a
  * cell whose things come later). The random numbers are drawn in a fixed order: the label of A, of B (where not given), then the pair's.
  */
 export function givenPair(ix: DataIndex, a: string, b: string, o: GivenPairOptions = {}): Pair | null {
@@ -79,7 +83,7 @@ export function givenPair(ix: DataIndex, a: string, b: string, o: GivenPairOptio
   if (a === b ? ix.CAT[a].kind === "everyday" : !judgeable(ix, a, b)) return null;
   if (o.stages && pairStage(ix, a, b, o.stages) === null) return null;
   const rng = o.rng ?? Math.random, [na, nb] = negSides({ neg: o.neg }), [wa, wb] = o.labels ?? [];
-  if ((wa && !ix.CAT[a].labels.includes(wa)) || (wb && !ix.CAT[b].labels.includes(wb))) return null;
+  if ((wa && !said(ix, a, wa, o)) || (wb && !said(ix, b, wb, o))) return null;
   let la: string, lb: string;
   if (a === b) {
     // two different labels of the one category, every one the learner has met: the open term's is not preferred, since both sides are said

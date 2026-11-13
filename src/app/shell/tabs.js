@@ -55,9 +55,10 @@ export function startFirst(){
   state.mode="quiz";
   if(k!==state.tab) stopTimer();                       // its clock starts when Review is left (render)
 }
-export function switchTo(k){
-  // going to an exercise sets a given question aside, and its exercise's own attempt is back in its place (practice/given.ts); coming back from Review to the exercise under it leaves it there
-  if(isEx(k)&&!(state.tab==="review"&&k===state.own)) setAsideGiven();
+/** Goes to a screen; `again`: to put another attempt in its place right after (a pair taken again from Review, a skipped one, a favorite). */
+export function switchTo(k,again=false){
+  // going to an exercise sets a given question aside, and its exercise's own attempt is back in its place (practice/given.ts); coming back from Review to the exercise under it leaves it there, unless another attempt is to take its place
+  if(isEx(k)&&(again||!(state.tab==="review"&&k===state.own))) setAsideGiven();
   pauseClock();                                          // the exercise left keeps the time its step had left
   if(isEx(k)&&state.own!==k){
     const from=state.own, left=!ownPair(k)&&!ownPair(from)&&state.cur&&state.cur.p&&state.ui&&!state.ui.checked?state.cur.p:null;
