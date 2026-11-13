@@ -195,3 +195,25 @@ test("a cold start does not open on an attempt at a pair the reference has since
   expect(await page.evaluate(() => localStorage.getItem("rd-attempt")), "used up, and not kept again").toBeNull();
   await expect(page.locator("#path")).not.toContainText("black things");
 });
+
+// An attempt put away under other term data (an update came in between, or it was kept before attempts carried the data's stamp) is not put back
+// (shell/keep.ts): Find an instance and Syllogisms keep their question, and what grades it, from the data it was drawn with.
+test("a cold start does not open on an attempt kept under other term data", async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem("rd-start", "road"); });
+  await page.goto("/");
+  const road = page.getByRole("dialog", { name: "Roadmap" }), lay = page.locator("#path .lay"), choices = page.locator("#path .chs .crow");
+  await road.locator("[aria-current=page]").click();
+  await expect(choices).toHaveCount(5);
+  await choices.first().click();                                   // a relation picked: the attempt has begun
+  await expect(choices).toHaveCount(0);
+  const kept = JSON.parse(await page.evaluate(() => { window.dispatchEvent(new Event("pagehide")); return localStorage.getItem("rd-attempt"); }));
+  expect(typeof kept.data, "kept with the stamp of its data").toBe("string");
+  for (const data of ["another", undefined]) {
+    const v = JSON.stringify({ ...kept, data });
+    await page.addInitScript((v) => { if (!sessionStorage.getItem("t-" + v.length)) { sessionStorage.setItem("t-" + v.length, "1"); localStorage.setItem("rd-attempt", v); } }, v);
+    await page.reload();
+    await expect(road).toBeVisible();                               // nothing to continue: the roadmap, as on any cold start
+    await expect(lay).toBeHidden();
+    expect(await page.evaluate(() => localStorage.getItem("rd-attempt")), "used up").toBeNull();
+  }
+});

@@ -1,6 +1,10 @@
 // The format of the term data tiers (src/data/course.js), with made-up data.
 import { expect, test } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
 import { split, merge, lock, LOCKED_TEXT } from "../../src/data/course.js";
+import { dataStamp } from "../../src/domain/stamp";
+
+const stamp = (d: unknown) => dataStamp(d as never);      // the made-up data has only the parts these tests need
 
 const sample = () => ({
   built: "2026-01-01",
@@ -38,4 +42,26 @@ test("lock replaces every definition with the notice and drops nothing else", ()
   for (const t of Object.values<{ d: string }>(locked.terms)) expect(t.d).toBe(LOCKED_TEXT);
   expect(locked.terms.Form.wylie).toBe("gzugs");
   expect("d" in openPart.terms.Form, "lock leaves its input alone").toBe(false);
+});
+
+test("the stamp of the data is the same with or without the definitions and notes, and changes with what grades an answer", () => {
+  const { open: openPart, definitions, notes } = split(sample());
+  const s = stamp(openPart);
+  expect(stamp(merge(openPart, definitions, notes))).toBe(s);
+  expect(stamp(merge(openPart, definitions))).toBe(s);
+  expect(stamp(lock(openPart))).toBe(s);
+  expect(stamp(sample()), "the full export too").toBe(s);
+  const moved = structuredClone(openPart);
+  moved.terms.Form.parent = "Bare";
+  expect(stamp(moved), "a term placed elsewhere").not.toBe(s);
+  expect(stamp({ ...openPart, open: [["a", "b"]] }), "a pair left open").not.toBe(s);
+  expect(stamp({ ...openPart, built: "2026-01-02" })).not.toBe(s);
+});
+
+// the real data: whatever the course tier holds is left out of the stamp (a field added to it later would change the stamp at every key taken in)
+test.skipIf(!existsSync("data-private/definitions.json"))("the stamp of the real data is the same with its definitions and notes", () => {
+  const read = (p: string) => JSON.parse(readFileSync(p, "utf8"));
+  const openPart = read("src/data/drill-data.json"), definitions = read("data-private/definitions.json"), notes = existsSync("data-private/notes.json") ? read("data-private/notes.json") : undefined;
+  expect(stamp(merge(openPart, definitions, notes))).toBe(stamp(openPart));
+  expect(stamp(lock(openPart))).toBe(stamp(openPart));
 });

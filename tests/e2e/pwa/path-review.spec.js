@@ -175,6 +175,27 @@ test("Review on the Path: a pair skipped in Find a pair that the reference has s
   expect(Object.keys(await stored(page, "skips")), "the skipped pair stays as it was kept").toEqual(["f_con_test_white_black"]);
 });
 
+// A favorite of a pair named in Find a pair in the learner's own words (here one the reference leaves open): it has no relation or examples of the
+// reference, so Review shows none, and Practice this pair opens it in Find at its examples, never in Relations, which would grade it by the relation picked.
+const ownFav = { key: "c_black__white", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", at: now,
+  pair: { id: "f-own8", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", own: true, typeA: "", typeB: "", ex: {}, why: {} } };
+test("Review on the Path: a favorite of the learner's own pair shows no reference examples and is practiced in Find a pair", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await seed(page, { favorites: [ownFav] });
+  await openReview(page);
+  await section(page, "Favorites");
+  await expect(rows(page).first()).toContainText("your own pair");
+  await rows(page).first().locator(".trb").click();
+  const fold = page.locator("#path .pfold");
+  await expect(fold).toContainText("Your own pair: the reference does not cover it.");
+  await expect(fold).not.toContainText("nothing goes here");
+  await expect(fold).not.toContainText("Mutually exclusive");
+  await fold.getByRole("button", { name: "Practice this pair" }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Find a pair");
+  const cur = await page.evaluate(() => { const p = window.__t.cur.p; return { find: !!window.__t.cur.find, own: p.own, a: p.a, b: p.b, relation: p.relation, step: window.__t.ui.step }; });
+  expect(cur).toEqual({ find: true, own: true, a: "white things", b: "black things", relation: "con", step: 1 });
+});
+
 test("Review on the Path: the totals, the mistakes with Retry, a favorite and a pair skipped", async ({ page }) => {
   await seed(page, { answers: [answer], favorites: [fav], skips: [skip] });
   await openReview(page);

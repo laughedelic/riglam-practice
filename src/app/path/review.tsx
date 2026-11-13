@@ -132,6 +132,8 @@ function Mistakes() {
 }
 
 /* ---------- the favorites and the pairs skipped ---------- */
+// under a favorite of the learner's own words (named in Find): the reference gives it no relation or examples, so none is shown as if it did
+const OWN_FAV = "Your own pair: the reference does not cover it. Practice it to give your examples again, and Claude checks them.";
 // under a favorite whose relation the reference has since left open: it is shown as it was saved, and is not practiced again
 const GONE = { open: "Saved as it was then. The reference no longer settles this pair, so it is not asked again.", renamed: "Saved as it was then. The app no longer uses one of these names, so it is not asked again." };
 function Favs() {
@@ -141,12 +143,13 @@ function Favs() {
     const p = (f.pair || { a: f.a, b: f.b, catA: f.catA, catB: f.catB, relation: f.relation, ex: {}, why: {} }) as any, rel = REL[p.relation as RelKey] || REL[f.relation], k = "f:" + f.key, open = isOpen(k), gone = goneWhy(p) as keyof typeof GONE | null, kept = !gone;
     return <>
       <St d={<span class="pmk fav"><Icon n="star" /></span>} cls={"trow can" + (open ? " open" : "")}><button type="button" class="trb" aria-expanded={open ? "true" : "false"} onClick={() => toggleOpen(k)}>
-        <span class="ex2">{f.at ? "saved " + dayOf(f.at) : "saved"}</span><b>{p.a} · {p.b}</b><span class="rs">{rel ? rel.name : ""}</span><span class="arr"><Icon n="chev" /></span></button></St>
+        <span class="ex2">{f.at ? "saved " + dayOf(f.at) : "saved"}</span><b>{p.a} · {p.b}</b><span class="rs">{p.own ? "your own pair" : rel ? rel.name : ""}</span><span class="arr"><Icon n="chev" /></span></button></St>
       {open ? <div class="pfold">
+        {p.own ? <St d={<span />} cls="pnote2"><p class="xnote">{OWN_FAV}</p></St> : <>
         {rel ? <St d={<Fig k={p.relation} size="m" />} cls="srel"><span class="pq"><b>{rel.name}:</b> {rel.gloss(p.a, p.b).toLowerCase()}.{notaOf(p.relation) && state.nota !== "codes" ? <span class="rsym">{notaOf(p.relation)}</span> : null}</span></St> : null}
         {(CELLS as CellId[]).map((c) => { const ref = refOf(p, c); return <St d={<D cls={"sub " + (ref ? "done" : "nil")} />} cls="sb exr"><span class="lab">{CASE[c]}</span>
           <div class="line1">{ref ? <span class="ans2 ref">{ref}</span> : <span class="ans2 nil">nothing goes here</span>}</div>{!ref && p.why && p.why[c] ? <p class="xnote">{p.why[c]}</p> : null}</St>; })}
-        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) && typesLine(p) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}
+        {(p.typeA || p.typeB || p.note) ? <St d={<span />} cls="pnote2"><p class="xnote">{(p.typeA || p.typeB) && typesLine(p) ? <span class="ptype">{typesLine(p)}</span> : null} {p.note || ""}</p></St> : null}</>}
         {gone ? <St d={<span />} cls="pnote2"><p class="xnote">{GONE[gone]}</p></St> : null}
         <St d={<span />} cls="pacts">{kept ? <button type="button" class="pbtn" onClick={() => startFav(p)}>Practice this pair</button> : null}<button type="button" class="pbtn quiet" onClick={() => { delete state.pathOpen[k]; removeFav(f); }}>Remove</button></St>
       </div> : null}
