@@ -233,8 +233,9 @@ export function reportRoutes(deps: AccountDeps) {
     for (const id of withdrawn) {
       statements.push(db.prepare("DELETE FROM flag_reports WHERE id = ?1 AND (device = ?2 OR (user_id IS NOT NULL AND user_id = ?3))").bind(id, device, user));
     }
+    // a request that only asks about reports (`status`) or whose reports are all held already by the account has nothing to write, and D1 refuses an empty batch
     try {
-      await db.batch(statements);
+      if (statements.length) await db.batch(statements);
     } catch (e) {
       await giveBack();
       throw e;
