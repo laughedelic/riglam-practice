@@ -5,7 +5,9 @@
 import { cardBody, cardNotes } from "./card";
 import type { AnswerView } from "./card";
 import { QCELL } from "./debate";
+import { pairCats } from "./lookup";
 import type { DataIndex } from "./lookup";
+import { REVIEW_OPEN_NOTE } from "./prompts";
 import { CELLS, REL, isNeg } from "./relations";
 import type { CellId, PairLike, RelKey } from "./relations";
 
@@ -30,9 +32,9 @@ export interface ReviewFlag {
   suggest?: string;
 }
 
-/** The answer state the tutor card is built from, rebuilt from a stored answer. */
+/** The answer state the tutor card is built from, rebuilt from a stored answer. A Find a pair answer keeps the relation asked for in `chosen`. */
 export function storedView(a: ReviewAnswer): AnswerView {
-  const debate = a.mode === "debate";
+  const debate = a.mode === "debate", find = a.mode === "find";
   const cells = {} as AnswerView["cells"], res = { cells: {} as AnswerView["res"]["cells"], implied: a.implied ?? null };
   for (const c of CELLS) {
     const x = a.cells?.[c] || {};
@@ -44,7 +46,22 @@ export function storedView(a: ReviewAnswer): AnswerView {
     return { say: (q?.say === "accept" || q?.say === "why" ? q.say : null) as "accept" | "why" | null, text: q?.text || "", timeout: !!q?.timeout };
   }) : undefined;
   const late = a.chosen == null;
-  return { debate, rel: late ? a.pair.relation : a.chosen, late, exLate: a.timeout === "examples" || a.timeout === "both", cells, ans, res };
+  return { debate, ...(find ? { find } : {}), rel: late ? a.pair.relation : a.chosen, late, exLate: a.timeout === "examples" || a.timeout === "both", cells, ans, res };
+}
+
+/** The modes of a stored answer the card is made differently for: Pervasions and Find a pair. */
+const modeOf = (m: unknown): { mode?: string } => (m === "debate" || m === "find" ? { mode: m } : {});
+
+/**
+ * Whether the data now leaves open, or does not judge, the relation of the two categories of a stored pair that was drawn and graded
+ * with one: an answer kept from before carries the relation and the reasons the app showed then. Not a pair of the learner's own, which
+ * never had a reference.
+ */
+export function leftOpenSince(ix: DataIndex, p: PairLike): boolean {
+  const [a, b] = pairCats(ix, p);
+  if (p.own || !a || !b) return false;
+  const key = [a, b].sort().join("|");
+  return [...(ix.DATA.open || []), ...(ix.DATA.nopair || [])].some((x) => [...x].sort().join("|") === key);
 }
 
 export const VERDICTS = ["learner_right", "learner_wrong", "partly", "unclear"] as const;
@@ -108,6 +125,7 @@ export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
     ex: perCell(p.ex, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     why: perCell(p.why, (v) => (typeof v === "string" ? v.slice(0, REVIEW_LIMITS.cell) : undefined)),
     note: text(p.note, REVIEW_LIMITS.pairNote),
+    ...(p.own === true ? { own: true } : {}),
     ...(isNeg(p.neg) ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
@@ -125,7 +143,7 @@ export function readReviewAnswer(raw: unknown): ReviewAnswer | null {
       }).slice(0, QCELL.length)
     : undefined;
   return {
-    ...(raw.mode === "debate" ? { mode: "debate" } : {}),
+    ...modeOf(raw.mode),
     chosen,
     cells,
     ...(qs ? { qs } : {}),
@@ -159,6 +177,7 @@ function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
     catA: p.catA == null ? p.catA : oneLine(p.catA, 80), catB: p.catB == null ? p.catB : oneLine(p.catB, 80),
     typeA: p.typeA == null ? p.typeA : oneLine(p.typeA, L.type), typeB: p.typeB == null ? p.typeB : oneLine(p.typeB, L.type),
     relation: p.relation, ex: refsOf(p.ex, L.cell), why: refsOf(p.why, L.cell), note: p.note == null ? p.note : oneLine(p.note, L.pairNote),
+    ...(p.own === true ? { own: true } : {}),
     ...(isNeg(p.neg) ? { neg: p.neg } : {}),
   };
   const cells = {} as ReviewAnswer["cells"];
@@ -171,7 +190,7 @@ function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
     return { c: q.c, say: q.say === "accept" || q.say === "why" ? q.say : null, text: oneLine(q.text, L.cell), timeout: !!q.timeout, ...(verdict ? { verdict } : {}) };
   });
   return {
-    ...(a.mode === "debate" ? { mode: "debate" } : {}),
+    ...modeOf(a.mode),
     chosen: rel(a.chosen) ? a.chosen : null, cells, ...(qs ? { qs } : {}),
     implied: a.implied === "bad" || rel(a.implied) ? a.implied : null,
     ...(a.timeout ? { timeout: oneLine(a.timeout, 12) } : {}),
@@ -184,11 +203,14 @@ function cleanAnswer(a: ReviewAnswer): ReviewAnswer {
  * Everything a learner's device sent is cut to REVIEW_LIMITS and written as a quoted string (the stored answer's texts that the
  * card prints as they are are set on one line instead, `cleanAnswer`), so a line break inside it cannot open a section of its
  * own; REVIEW_GUIDE tells the reviewer to treat it as material, not instructions.
+ * An answer of Find a pair gets the card of that exercise (a pair of the learner's own has no reference). An answer kept from before
+ * the reference left its pair open is marked as such (`leftOpenSince`): the relation on its card is the one the app showed then.
  */
 export function reviewRequest(ix: DataIndex, flag: ReviewFlag, answer: ReviewAnswer): string {
   const q = (s: string | undefined, max: number) => JSON.stringify(String(s || "").trim().slice(0, max)), a = cleanAnswer(answer);
   return [
     cardBody(ix, a.pair, storedView(a)) + cardNotes(ix, a.pair),
+    leftOpenSince(ix, a.pair) ? "\n" + REVIEW_OPEN_NOTE : null,
     "",
     "TUTOR'S EXPLANATION OF THIS ANSWER:",
     a.explain ? q(a.explain, REVIEW_LIMITS.explain) : "(not kept)",

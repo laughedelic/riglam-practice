@@ -14,7 +14,7 @@ import type { CellId } from "../ai-shared/relations";
 import { catChain, termPhrase } from "./ladder";
 import type { HistoryEntry } from "./types";
 import type { Guidance } from "./stages";
-import { cellsFor, judgeable } from "./universe";
+import { cellsFor, judgeable, settled } from "./universe";
 import type { Rng } from "./universe";
 import { FEATURE, RECENT_MAX, inUniverse } from "./universe";
 import { vagueVerdict } from "./vague";
@@ -186,7 +186,10 @@ function tableOf(ix: DataIndex): Table {
     for (const p of ids) {
       if (r === p ? phrasesOf(ix, r).length < 2 : !judgeable(ix, r, p) || !wordings(ix, r, p).length) continue;
       const cells = cellsOf(r, p), level = ix.CAT[r].kind === "everyday" && ix.CAT[p].kind === "everyday" ? 1 : 2;
-      const by = holdsBy(ix, r, p), excl = by || r === p ? null : excludingClasses(ix, r, p);
+      // a pair the reference leaves open (universe.ts, settled) has an empty cell that nothing it states backs: no pervasion and no exclusion
+      // is proved of it here either, and only a thing can show that its pervasion fails
+      const open = r !== p && !settled(ix, r, p);
+      const by = open ? null : holdsBy(ix, r, p), excl = open || by || r === p ? null : excludingClasses(ix, r, p);
       // the data must agree with itself: a proved pervasion has no counter-example, a proved opposite no common thing
       if ((by && cells.anb.length) || (excl && cells.both.length)) { conflicts.push(`${r}>${p}`); continue; }
       if (!by && !cells.anb.length) continue; // neither the term data nor an item settles it

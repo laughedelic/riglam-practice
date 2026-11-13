@@ -89,6 +89,13 @@ export interface DrillData {
   sense?: string[];
   bodySkip: string[];
   nopair?: string[][];
+  /**
+   * pairs of category ids whose relation the reference does not settle: a cell of the pair is empty and nothing the reference states (the term
+   * hierarchy, a pervasion, an exclusion) backs it. The app neither asks nor grades their relation (src/domain/universe.ts, settled)
+   */
+  open?: string[][];
+  /** the exclusions the reference states in words, each with the pairs of category ids it backs: the reason shown where nothing is both */
+  apart?: { why: string; pairs: string[][] }[];
   /** groups of category ids whose things are mistaken for one another (the near misses of the syllogism drill) */
   confusable?: string[][];
   /** short name -> the item it means ("key" -> "a metal key") */

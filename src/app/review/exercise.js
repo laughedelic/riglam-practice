@@ -2,6 +2,7 @@ import { state } from "../state.js";
 import { REL, lcRel, refOf } from "../core/rel.js";
 import { QCELL } from "../debate/text.js";
 import { advance } from "../practice/queue.js";
+import { goneWhy, stillAsked } from "../practice/universe.js";
 import { render, top0 } from "../shell/render.js";
 import { switchTo } from "../shell/tabs.js";
 
@@ -27,14 +28,19 @@ export function storedCase(doc,p,c){
 export const storedPair=doc=>doc.pair||/** @type {import("../types.ts").Pair} */({a:doc.a,b:doc.b,relation:doc.key,ex:{},why:{}});
 // what a note of Claude's is read against in Review: the stored pair and the questions the learner accepted, not the exercise on screen
 export const noteContext=(doc,p=storedPair(doc))=>({p,accepted:f=>{ const q=doc.mode==="debate"&&doc.qs?doc.qs.find(y=>y.c===f.cell):null; return !!q&&q.say!=="why"; }});
+// what a stored answer says after its relation when the pair is no longer asked as it was (practice/universe.js, goneWhy)
+const GONE_THEN={open:" That was the answer then: the reference no longer settles this pair.", renamed:" That was the answer then: the app no longer uses one of these names."};
 // what a stored answer says of the relation: its lead ("Relation right: ") and the rest
 export function storedRel(doc){
   const key=REL[doc.key], mine=doc.chosen&&REL[doc.chosen];
   // Find a pair: the relation was given, and the question is whether the named pair has it
   const asked=doc.mode==="find"?mine||REL[doc.key]:null;
-  return doc.mode==="find"?["Asked for: ",lcRel(asked?asked.name:doc.chosen)+". "+(doc.correct?"The pair has it.":doc.relOpen?"Claude had not judged the pair.":key&&doc.key!==doc.chosen?"The pair is "+lcRel(key.name)+".":"The pair does not have it.")]
-    :doc.correct?["Relation right: ",lcRel(key?key.name:doc.key)+"."]
-    :["Relation: ",(key?key.name:doc.key)+". "+(mine?"You chose "+lcRel(mine.name)+".":"Time ran out before you chose.")];
+  // the relation of the pair has since been left open, or a category has lost the name the pair says; in Find a pair that is read off the stored pair, which says whether it
+  // was the learner's own (never judged by the reference)
+  const gone=GONE_THEN[goneWhy(doc.mode==="find"?storedPair(doc):doc)]||"";
+  return doc.mode==="find"?["Asked for: ",lcRel(asked?asked.name:doc.chosen)+". "+(doc.correct?"The pair has it.":doc.relOpen?"Claude had not judged the pair.":key&&doc.key!==doc.chosen?"The pair is "+lcRel(key.name)+".":"The pair does not have it.")+(doc.relOpen?"":gone)]
+    :doc.correct?["Relation right: ",lcRel(key?key.name:doc.key)+"."+gone]
+    :["Relation: ",(key?key.name:doc.key)+". "+(mine?"You chose "+lcRel(mine.name)+".":"Time ran out before you chose.")+gone];
 }
 // Practice a stored pair again, as Retry does for mistakes. The tab is switched first: coming from the Debate tab that may draw a pair itself, which would use up the queue.
-export function practiceAgain(p,tag){ switchTo("practice"); state.retryQ=[p]; state.retryTag=tag; advance(); render(); top0(); }
+export function practiceAgain(p,tag){ if(!stillAsked(p)) return; switchTo("practice"); state.retryQ=[p]; state.retryTag=tag; advance(); render(); top0(); }

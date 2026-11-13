@@ -19,7 +19,7 @@ import { placeByClass } from "./reference";
 import { askedKey, termCats, wordsFor } from "./intro";
 import { HOLD_STAGE, STAGES, catOpen, catStage, heldBack, itemStage, physical, topStage } from "./stages";
 import type { Stages, Unmet } from "./stages";
-import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells } from "./universe";
+import { FEATURE, cellsFor, inUniverse, judgeable, relOfCells, settled } from "./universe";
 import type { PairWords, Rng } from "./universe";
 import { cap, pick } from "./util";
 
@@ -68,8 +68,8 @@ const wordsStage = (ix: DataIndex, term: string) => (term in PLAIN ? 0 : catStag
 /**
  * Why nothing is in both categories, or null when the data cannot show it: an exclusion up their chains ("Whatever is made of wood is a
  * form, whatever is an emotion is a consciousness, and nothing is both a form and a consciousness."), or two course categories with nothing in
- * common in the list. Null too for a pair the data does not judge (`judgeable`), and when the list has something in both, which an exclusion
- * would contradict.
+ * common in the list. Null too for a pair whose relation the reference does not settle (`settled`: the data does not judge it, or leaves it open,
+ * so that the classes of its gloss are no ground here either), and when the list has something in both, which an exclusion would contradict.
  */
 export function apartOf(ix: DataIndex, a: string, b: string, on?: Stages): Apart | null {
   const r = apartWhy(ix, a, b, false, on);
@@ -80,7 +80,7 @@ export function apartOf(ix: DataIndex, a: string, b: string, on?: Stages): Apart
 // said in plain words ("physical", "a mind")
 function apartWhy(ix: DataIndex, a: string, b: string, apart = false, on?: Stages): { why: string; key: string; st: number } | null {
   const A = ix.CAT[a], B = ix.CAT[b];
-  if (!A || !B || a === b || (!apart && (!judgeable(ix, a, b) || cellsFor(ix, a, b).both.length))) return null;
+  if (!A || !B || a === b || !settled(ix, a, b) || (!apart && cellsFor(ix, a, b).both.length)) return null;
   const cb = catChain(ix, B), say = (t: string) => (plainAt(ix, t, on) ? PLAIN[t] : termPhrase(t));
   for (const x of catChain(ix, A)) {
     const y = cb.find((t) => excludes(ix, x, t));

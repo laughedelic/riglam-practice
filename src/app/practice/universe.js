@@ -2,7 +2,7 @@ import { state } from "../state.js";
 import { isCategories, isFind, isInstance, isSyllogism } from "../core/util.js";
 import { catKey, hiddenKeys } from "./skips.js";
 import { catByLabel as byLabel, makeIndex, matchItem as itemFor, norm, pairCats as catsOf } from "../../ai-shared/lookup.ts";
-import { buildPool as poolOf, nextPair } from "../../domain/universe.ts";
+import { buildPool as poolOf, keptGone, nextPair } from "../../domain/universe.ts";
 import { moreRefs } from "../core/examples.js";
 import { spendLean } from "../shell/stages.js";
 import { shareNow } from "./stage-offer.ts";
@@ -18,6 +18,14 @@ export function catByLabel(l){ return byLabel(state,l); }
 export function pairCats(p){ return catsOf(state,p); }
 export function matchItem(text,exactOnly){ return itemFor(state,text,exactOnly); }
 export function buildPool(){ state.POOL=poolOf(state); }
+/**
+ * Why a pair kept from before (a mistake, a skipped pair, a favorite, a stored answer) is no longer asked as it was kept: "open" when the reference has since left its relation
+ * open, "renamed" when it says a category by a label the category no longer has (domain/universe.ts, keptGone); null while it still is. A stored answer is read by the pair it
+ * keeps: an answer on a pair of one category's two labels ("persons" and "sentient beings") has no categories of its own (practice/grading.js), and its pair has.
+ */
+export function goneWhy(p){ const q=p.pair&&typeof p.pair==="object"?p.pair:p, [a,b]=q.catA&&q.catB?[q.catA,q.catB]:catsOf(state,q); return keptGone(state,{a:q.a,b:q.b,catA:a,catB:b,own:!!q.own}); }
+/** Whether a pair kept from before can still be asked as it was kept (`goneWhy` says why not). */
+export const stillAsked=p=>goneWhy(p)===null;
 // the Relations answers: the answers of Find a pair, Categories, Find an instance and Syllogisms are kept in the same collection and are not part of the draw, the statistics or the lists of Relations
 export function answerList(){ return Object.values(state.answers).filter(a=>!isFind(a)&&!isCategories(a)&&!isInstance(a)&&!isSyllogism(a)).sort((x,y)=>(x.at||"").localeCompare(y.at||"")); }
 /** The next pair; `negate`: Relations and Pervasions, where the negation track (Practice options) may negate a side. @returns {import("../types.ts").Pair} */

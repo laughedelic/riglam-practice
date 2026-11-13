@@ -87,6 +87,115 @@ test("Review on the Path: Practice this pair on an answer of Pervasions starts i
   await expect(page.locator("#path")).toContainText("round things");
 });
 
+// Pairs kept from before the reference left their relation open (docs/DATA.md): two colors, two materials. They carry the relation they were drawn with.
+const gone = (id, a, b, catA, catB) => ({ id, a, b, catA, catB, relation: "con", ex: { anb: "snow", bna: "coal", nei: "a thought" }, why: { both: "Nothing in the reference is both." } });
+const goneAnswer = {
+  pairId: "r-gone1", a: "white things", b: "black things", catA: "white", catB: "black", chosen: "4", key: "con", correct: false, grade: "bad",
+  cells: { both: { text: "a zebra", none: false, verdict: "bad" }, anb: { text: "snow", none: false, verdict: "ok" }, bna: { text: "coal", none: false, verdict: "ok" }, nei: { text: "a thought", none: false, verdict: "ok" } },
+  at: now, pair: gone("r-gone1", "white things", "black things", "white", "black"),
+};
+const goneFav = { key: "c_black__white", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", at: now, pair: gone("r-gone2", "white things", "black things", "white", "black") };
+const goneSkip = { key: "c_metal__wooden", a: "wooden things", b: "metal things", catA: "wooden", catB: "metal", relation: "con", at: now, from: "practice", n: 1,
+  pair: gone("r-gone3", "wooden things", "metal things", "wooden", "metal") };
+
+test("Review on the Path: a pair the reference has since left open is kept as it was saved and is not asked again", async ({ page }) => {
+  await seed(page, { answers: [goneAnswer], favorites: [goneFav], skips: [goneSkip] });
+  await openReview(page);
+  await section(page, "Mistakes");
+  await expect(rows(page)).toHaveCount(1);
+  await expect(rows(page).first()).toContainText("the answer then was mutually exclusive, which the reference no longer gives");
+  await expect(page.getByRole("button", { name: /^Retry \d+ mistake/ })).toHaveCount(0);
+  await rows(page).first().locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("the reference no longer settles this pair");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  await section(page, "Favorites");
+  await rows(page).first().locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("The reference no longer settles this pair, so it is not asked again.");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Remove" })).toBeVisible();
+  await section(page, "Skipped");
+  await expect(rows(page).first()).toContainText("no longer asked");
+  await expect(rows(page).first().getByRole("button", { name: "Practice" })).toHaveCount(0);
+  await rows(page).first().getByRole("button", { name: "Remove" }).click();
+  await expect.poll(async () => Object.keys(await stored(page, "skips"))).toEqual([]);
+});
+
+// The same for what the first test leaves out: a pair skipped in Find a pair, which comes back as the learner's own pair (find/flow.js,
+// resumeFind); an answer of Find a pair given when the reference still judged its pair; and a mistake under a label its category no
+// longer has ("sentient beings" for persons), which is not asked again under that name.
+const goneFindSkip = { key: "f_con_test_white_black", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", asked: "con", at: now, from: "find", n: 1,
+  pair: gone("f-gone4", "white things", "black things", "white", "black") };
+const goneFindAnswer = {
+  pairId: "f-gone5", mode: "find", a: "wooden things", b: "metal things", catA: "wooden", catB: "metal", chosen: "con", key: "con", correct: true, grade: "ok",
+  cells: { both: { text: "", none: true, verdict: "ok" }, anb: { text: "a wooden chair", none: false, verdict: "ok" }, bna: { text: "a metal key", none: false, verdict: "ok" }, nei: { text: "a thought", none: false, verdict: "ok" } },
+  at: now, pair: gone("f-gone5", "wooden things", "metal things", "wooden", "metal"),
+};
+const oldLabelAnswer = {
+  pairId: "r-gone6", a: "sentient beings", b: "teachers", catA: "pers", catB: "teacher", chosen: "4", key: "3ba", correct: false, grade: "bad",
+  cells: { both: { text: "your teacher", none: false, verdict: "ok" }, anb: { text: "a dog", none: false, verdict: "ok" }, bna: { text: "a book", none: false, verdict: "bad" }, nei: { text: "a stone", none: false, verdict: "ok" } },
+  at: now, pair: { id: "r-gone6", a: "sentient beings", b: "teachers", catA: "pers", catB: "teacher", relation: "3ba", ex: { both: "a teacher", anb: "a dog", nei: "a stone" }, why: { bna: "Whatever falls under “teachers” also falls under “sentient beings”." } },
+};
+// A pair of one category's two labels, one of them since dropped: the answer has no categories of its own (practice/grading.js stores none for
+// such a pair), so what Review says of it is read off the pair it keeps.
+const ownLabelsAnswer = {
+  pairId: "r-gone7", a: "persons", b: "sentient beings", catA: null, catB: null, chosen: "3ab", key: "mi", correct: false, grade: "bad",
+  cells: { both: { text: "a dog", none: false, verdict: "ok" }, anb: { text: "", none: true, verdict: "ok" }, bna: { text: "", none: true, verdict: "ok" }, nei: { text: "a stone", none: false, verdict: "ok" } },
+  at: now, pair: { id: "r-gone7", a: "persons", b: "sentient beings", catA: "pers", catB: "pers", relation: "mi", ex: { both: "a dog", nei: "a stone" }, why: {} },
+};
+test("Review on the Path: a pair skipped in Find a pair that the reference has since left open comes back as the learner's own, and an old label is not asked again", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await seed(page, { answers: [goneFindAnswer, oldLabelAnswer, ownLabelsAnswer], skips: [goneFindSkip] });
+  await openReview(page);
+  // the answer of Find a pair: what it says of the relation was the answer then, and the pair is not offered again
+  const found = rows(page).filter({ hasText: "wooden things · metal things" });
+  await found.locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("The pair has it. That was the answer then: the reference no longer settles this pair.");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  // the mistakes under the old label: listed as they were, with what is the matter (the name, not the relation), and not in Retry
+  await section(page, "Mistakes");
+  await expect(rows(page)).toHaveCount(2);
+  const renamed = rows(page).filter({ hasText: "sentient beings · teachers" });
+  await expect(renamed).toContainText("the answer then was three possibilities");
+  await expect(renamed).toContainText("under a name the app no longer uses");
+  // also in a pair of the category's own two labels, whose answer keeps no categories
+  const twoLabels = rows(page).filter({ hasText: "persons · sentient beings" });
+  await expect(twoLabels).toContainText("the answer then was mutually inclusive, under a name the app no longer uses");
+  await expect(page.getByRole("button", { name: /^Retry \d+ mistake/ })).toHaveCount(0);
+  await twoLabels.locator(".trb").click();
+  await expect(page.locator("#path .pfold")).toContainText("That was the answer then: the app no longer uses one of these names.");
+  await expect(page.locator("#path .pfold").getByRole("button", { name: "Practice this pair" })).toHaveCount(0);
+  // the pair skipped in Find a pair: Practice opens it at its examples, as a pair of the learner's own, with nothing of the old reference
+  await section(page, "Skipped");
+  await expect(rows(page).first()).toContainText("Find a pair, Mutually exclusive");
+  await rows(page).first().getByRole("button", { name: "Practice" }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Find a pair");
+  await expect(page.locator("#path")).toContainText("white things");
+  const cur = await page.evaluate(() => { const p = window.__t.cur.p; return { find: !!window.__t.cur.find, own: p.own, a: p.a, b: p.b, relation: p.relation, ex: p.ex, why: p.why, note: p.note, uiOwn: window.__t.ui.own, step: window.__t.ui.step }; });
+  expect(cur).toEqual({ find: true, own: true, a: "white things", b: "black things", relation: "con", ex: {}, why: {}, uiOwn: true, step: 1 });
+  expect(Object.keys(await stored(page, "skips")), "the skipped pair stays as it was kept").toEqual(["f_con_test_white_black"]);
+});
+
+// A favorite of a pair named in Find a pair in the learner's own words (here one the reference leaves open): it has no relation or examples of the
+// reference, so Review shows none, and Practice this pair opens it in Find at its examples, never in Relations, which would grade it by the relation picked.
+const ownFav = { key: "c_black__white", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", at: now,
+  pair: { id: "f-own8", a: "white things", b: "black things", catA: "white", catB: "black", relation: "con", own: true, typeA: "", typeB: "", ex: {}, why: {} } };
+test("Review on the Path: a favorite of the learner's own pair shows no reference examples and is practiced in Find a pair", async ({ page }) => {
+  await page.addInitScript(() => { window.__riglamTest = (t) => { window.__t = t; }; });
+  await seed(page, { favorites: [ownFav] });
+  await openReview(page);
+  await section(page, "Favorites");
+  await expect(rows(page).first()).toContainText("your own pair");
+  await rows(page).first().locator(".trb").click();
+  const fold = page.locator("#path .pfold");
+  await expect(fold).toContainText("Your own pair: the reference does not cover it.");
+  await expect(fold).not.toContainText("nothing goes here");
+  await expect(fold).not.toContainText("Mutually exclusive");
+  await fold.getByRole("button", { name: "Practice this pair" }).click();
+  await expect(page.locator(".ptb-t")).toContainText("Find a pair");
+  const cur = await page.evaluate(() => { const p = window.__t.cur.p; return { find: !!window.__t.cur.find, own: p.own, a: p.a, b: p.b, relation: p.relation, step: window.__t.ui.step }; });
+  expect(cur).toEqual({ find: true, own: true, a: "white things", b: "black things", relation: "con", step: 1 });
+});
+
 test("Review on the Path: the totals, the mistakes with Retry, a favorite and a pair skipped", async ({ page }) => {
   await seed(page, { answers: [answer], favorites: [fav], skips: [skip] });
   await openReview(page);

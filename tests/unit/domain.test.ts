@@ -4,19 +4,19 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { expect, test } from "vitest";
-import { CELLS, NEG_CELL, REL, cardBody, explainAsk, isNeg, makeIndex, negLabel, negLine, negSides, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
+import { CELLS, FIND_OPEN_NOTE, NEG_CELL, REL, REVIEW_OPEN_NOTE, cardBody, explainAsk, isNeg, leftOpenSince, makeIndex, pairCats, negLabel, negLine, negSides, plainLabel, readReviewAnswer, refOf, reviewRequest } from "../../src/ai-shared";
 import type { CellId, DrillData, RelKey } from "../../src/ai-shared";
 import {
   FEATURE, RECENT_MAX, AUTO_FLAGS, applyVerdicts, autoFlagOf, decideFlag, factNote, fitOf, flagAnswerRef, flagAsked, flagStateText, flaggedPart, noteParts, buildPool, cellsFor, chooseEntry, deriveRel, grade, gradeDebate, gradeOf, inUniverse, isMiss, judgeText, makePair,
   negateCells, nextPair, pairKey, parseFactLine, parseVerdicts, pick, placeFacts, relOfCells, summarize, termLine, cellFor, cellOfFacts, disputeText, divided, quorumDisputes, quorumRows, readings,
-  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, nameThing, pairOf, parseRelationVerdict, sameThing,
+  FIND_RELS, applyRelationVerdict, drawRelation, findId, findPair, gradeFind, judgeable, keptGone, nameThing, pairOf, parseRelationVerdict, sameThing, settled, statedApart, stillSettled,
 } from "../../src/domain";
 import type { DebateInput, GradeDraft, HistoryEntry, Pair, PoolEntry } from "../../src/domain";
 import openData from "../../src/data/drill-data.json";
 import { catStage, drawable, examplesFor, placeByClass } from "../../src/domain";
 import { LANGS, normLangs, termNames } from "../../src/domain";
 import { AGAIN_AFTER, FIRST_AFTER, OPEN_CAP, PACES, SETTLED, SPACING, afterQuestion, againAsked, askedKey, freshIntro, introduced, metTerms, newTermDue, nextStageDue, nextStop, normIntro, normPace, openTerms, paceSpacing, pairGraded, showAgain, stageMarks, stageMet, stageTerms, stageUp, stopCat, stopShown, termMark, termTree, unmet, wordsFor } from "../../src/domain";
-import { instanceGraded, instanceQuestion } from "../../src/domain/instance";
+import { apartOf, instanceGraded, instanceQuestion } from "../../src/domain/instance";
 import { DEFAULT_STAGES, DEFINITION_STAGE, HOLD_STAGE, LADDER_TOP, MAX_STAGE, NEG_OPEN, NEG_STREAK, NEG_SUGGEST, STAGES, START_SHARE, STAGE_STREAK, STAGE_STUMBLE, catOpen, depthOf, depthOpen, drawSyllogism, ladderOf, ladderTop, negationSuggested, withDepth, heldBack, itemKnown, itemOn, itemStageFor, levelAt, negationOffer, newCategories, normStages, pairStage, physical, poolAt, stagesOfLevels, toggleStage, topStage } from "../../src/domain";
 import { GUIDE_RIGHT, LOWER_CREDIT, NO_TERMS, STAGE_LONGER, STAGE_STREAK_MAX, cameDown, exerciseAfter, freshRun, guidanceByRight, guidanceOf, guidanceStep, movedUp, newShare, normExRuns, normGuided, normRun, restartRun, runAfter, runNeed, runWanted, setManual, stageOffer, stageProgress, stayLonger, termsOf } from "../../src/domain";
 import type { MissKind, StageRun } from "../../src/domain";
@@ -31,7 +31,7 @@ import { examplePair } from "../../src/domain/find";
 import { instanceExample } from "../../src/domain/instance";
 import { timeUpView } from "../../src/domain/sprint";
 import { guideSteps } from "../../src/domain/stages";
-import { checksShown, syllogismCounts } from "../../src/domain/syllogism";
+import { checksShown, syllogismCounts, syllogismOf } from "../../src/domain/syllogism";
 
 /** A small deterministic random source (mulberry32), so a test draws the same numbers every time. */
 const seeded = (seed: number) => () => {
@@ -1571,7 +1571,7 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q4: "an oak tree" | A no: it is a tree | B no: it is a tree')).toEqual([
     "Take an oak tree:",
     "It follows it is not a thought, because it is a tree, which is an external form, which is a form.",
-    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+    "A thought is a mental consciousness, which is a consciousness, and nothing is both a form and a consciousness.", // the class the gloss names, and up
     "It follows it is not a sense power, because it is a tree.", // external and internal form are not exclusive in the data: the tutor's reason stays
   ]);
   expect(note("thoughts", "thought", "sense powers", "sp", 'Q2: "a thought about lunch" | A yes: it is a mind that apprehends lunch | B no: it is a consciousness').slice(2)).toEqual([
@@ -1616,7 +1616,7 @@ test("a note states the term data's steps: up the chain to the term, or to the c
   expect(note("forms", "form", "thoughts", "thought", 'Q2: "a puddle" | class: External form | A yes: it is an external form | B no: it is a puddle').slice(1)).toEqual([
     "It follows it is a form, because it is an external form, which is a form.",
     "It follows it is not a thought, because it is a puddle, which is an external form, which is a form.",
-    "A thought is a consciousness, and nothing is both a form and a consciousness.",
+    "A thought is a mental consciousness, which is a consciousness, and nothing is both a form and a consciousness.",
   ]);
   expect(note("forms", "form", "thoughts", "thought", 'Q2: "a glint" | class: Form source | A yes: it is a form source | B no: it is a glint')[1])
     .toBe("It follows it is a form, because it is a form source, which is an external form, which is a form.");
@@ -2516,7 +2516,7 @@ test("a pair with both sides negated: what excludes each other becomes four poss
   expect(relOfCells(cellsFor(rix, "form", "emotion"))).toBe("con");
   expect(p).toMatchObject({ a: "non-forms", b: "non-emotions", neg: "ab", relation: "4" });
   expect(p.ex!.nei).toBeNull();
-  expect(p.why!.nei).toMatch(/Nothing is both\.$/);
+  expect(p.why!.nei).toMatch(/Nothing is both “forms” and “emotions”\.$/);
   expect(judgeText(rix, p, "both", "the horn of a rabbit")?.v).toBe("ok");
 });
 
@@ -2546,9 +2546,13 @@ test("two everyday categories of one kind with nothing in both do not give their
   expect(same.why!.both).toBe("Nothing in the reference is both “red things” and “green things”.");
   expect(same.note).toBe("No common locus: nothing in the reference is both red things and green things.");
   // across kinds the kind is the reason
-  const across = pairOf(rix, "red", "emotion", "red things", "emotions", seeded(1), () => 0);
-  expect(across.why!.both).toBe("“red things” are form; “emotions” are consciousness. Nothing is both.");
-  expect(across.note).toBe("Red things are form and emotions are consciousness: no common locus.");
+  const across = pairOf(rix, "red", "human", "red things", "humans", seeded(1), () => 0);
+  expect(across.why!.both).toBe("“red things” are form; “humans” are person. Nothing is both.");
+  expect(across.note).toBe("Red things are form and humans are person: no common locus.");
+  // unless the reference states one in plain words: of a thought, a memory, a dream or an emotion it says only what holds however the word is read
+  const mind = pairOf(rix, "red", "emotion", "red things", "emotions", seeded(1), () => 0);
+  expect(mind.why!.both).toBe("A thought, a memory, a dream or an emotion belongs to the mind. It is not a physical thing. Nothing is both “red things” and “emotions”.");
+  expect(mind.note).toBe("A thought, a memory, a dream or an emotion belongs to the mind. It is not a physical thing. So “red things” and “emotions” have no common locus.");
 });
 
 test("the tutor's facts on a negated side are read in reverse, and the tutor is told what the negation takes in", () => {
@@ -2754,4 +2758,278 @@ test("instanceExample: a thing that is in every category of the set, or none whe
   expect(ex.rows.every((r) => r.answer === true)).toBe(true);
   const apart = realPool.find((c) => c.r === "con" && c.a !== c.b && instanceQuestion(rix, [c.a, c.b], seeded(1)).possible === false)!;
   expect(instanceExample(rix, instanceQuestion(rix, [apart.a, apart.b], seeded(1)), seeded(2))).toBeNull();
+});
+
+// ---- grounds: a relation needs a thing for every filled cell and a stated ground for every empty one ----
+
+test("a pair the reference leaves open is neither drawn nor graded, and a stated exclusion gives its reason", () => {
+  const d = data(), at = () => 1_700_000_000_000;
+  d.open = [["mind", "wooden"]]; // nothing in the list is both, and nothing says that nothing can be
+  d.apart = [{ why: "Gray things are not minds.", pairs: [["gray", "mind"]] }];
+  const ox = makeIndex(d), pool = buildPool(ox).map(pairKey);
+  expect(settled(ox, "mind", "wooden")).toBe(false);
+  expect(settled(ox, "wooden", "mind")).toBe(false); // either way round
+  expect(judgeable(ox, "mind", "wooden")).toBe(true); // what the things do show of the pair stays in use
+  expect(pool).not.toContain("mind|wooden");
+  expect(pool).toContain("gray|mind");
+  expect(buildPool(ix).map(pairKey)).toContain("mind|wooden"); // data without the list draws it as before
+  // named by a learner it is a pair of their own: the relation asked for as a placeholder, no examples, no reasons
+  const own = findPair(ox, "con", nameThing(ox, "minds"), nameThing(ox, "wooden things"), seeded(4), at);
+  expect(own).toMatchObject({ own: true, relation: "con", ex: {}, why: {}, catA: "mind", catB: "wooden" });
+  expect(findPair(ix, "con", named("minds"), named("wooden things"), seeded(4), at).own).toBeUndefined();
+  // the stated reason comes before the classes, in the cell and in the note
+  expect(statedApart(ox, "mind", "gray")).toBe("Gray things are not minds.");
+  expect(statedApart(ox, "mind", "wooden")).toBeNull();
+  const p = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at);
+  expect(p.relation).toBe("con");
+  expect(p.why!.both).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
+  expect(p.note).toBe("Gray things are not minds. So “gray things” and “minds” have no common locus.");
+  expect(pairOf(ix, "gray", "mind", "gray things", "minds", seeded(1), at).why!.both).toBe("“gray things” are form; “minds” are mind. Nothing is both.");
+  // with a side negated the empty cell moves, and keeps the reason of the plain pair
+  const n = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at, undefined, undefined, "b");
+  expect(n.why!.anb).toBe("Gray things are not minds. Nothing is both “gray things” and “minds”.");
+  expect(n.note).toBe("“non-minds” takes in everything outside “minds”, what does not exist included. Gray things are not minds. So “gray things” and “minds” have no common locus.");
+  // each side negated, and both: the reason stands only in the cell that is the plain pair's Both, and the note names the plain pair
+  for (const [neg, cell] of [["a", "bna"], ["b", "anb"], ["ab", "nei"]] as const) {
+    const q = pairOf(ox, "gray", "mind", "gray things", "minds", seeded(1), at, undefined, undefined, neg);
+    expect(Object.keys(q.why!).filter((c) => q.why![c as CellId]!.startsWith("Gray things are not minds.")), neg).toEqual([cell]);
+    expect(q.note, neg).toContain("So “gray things” and “minds” have no common locus.");
+  }
+  // a pair kept from before the reference left its relation open is not one to ask again; the learner's own pairs and unknown ones stay
+  expect(stillSettled(ox, { catA: "mind", catB: "wooden" })).toBe(false);
+  expect(stillSettled(ox, { catA: "wooden", catB: "mind" })).toBe(false);
+  expect(stillSettled(ox, { catA: "gray", catB: "mind" })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: "wooden", own: true })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: null })).toBe(true);
+  expect(stillSettled(ox, { catA: "mind", catB: "no-such-category" })).toBe(true);
+  expect(stillSettled(ix, { catA: "mind", catB: "wooden" })).toBe(true);
+});
+
+test("the real data: open pairs and stated exclusions name pairs of categories, none twice, and agree with the things", () => {
+  const rx = makeIndex(real), key = (x: readonly string[]) => [...x].sort().join("|");
+  const open = (real.open ?? []).map(key), apart = (real.apart ?? []).flatMap((s) => s.pairs.map(key)), nopair = new Set((real.nopair ?? []).map(key));
+  expect(open.length).toBeGreaterThan(100);
+  expect(apart.length).toBeGreaterThan(50);
+  for (const k of [...open, ...apart]) {
+    const [a, b] = k.split("|");
+    expect(rx.CAT[a] && rx.CAT[b] && a !== b, k).toBeTruthy();
+    expect(judgeable(rx, a, b), k).toBe(true); // a pair the app could draw: one it cannot needs no entry
+    expect(nopair.has(k), k).toBe(false);
+  }
+  expect(new Set(open).size).toBe(open.length);
+  expect(new Set(apart).size).toBe(apart.length);
+  expect(open.filter((k) => apart.includes(k))).toEqual([]);
+  // an open pair has an empty cell (four possibilities are shown by things); a pair stated apart has nothing in both
+  for (const k of open) { const [a, b] = k.split("|"); expect(relOfCells(cellsFor(rx, a, b)), k).not.toBe("4"); }
+  for (const k of apart) { const [a, b] = k.split("|"); expect(cellsFor(rx, a, b).both.map((i) => i.n), k).toEqual([]); }
+  // the reasons are sentences a learner reads: plain words, none of the words the app avoids
+  for (const s of real.apart ?? []) {
+    expect(s.why).toMatch(/^[A-Z][^\n]*\.$/);
+    expect(s.why).not.toMatch(/\b(list|booklet|course)\b/i);
+    expect(s.pairs.length).toBeGreaterThan(0);
+  }
+});
+
+test("the real data: the pool asks no open pair, and keeps the pairs a class or a statement settles", () => {
+  const rx = makeIndex(real), pool = new Map(buildPool(rx).map((e) => [pairKey(e), e.r]));
+  for (const x of real.open ?? []) expect(pool.has([...x].sort().join("|")), x.join("|")).toBe(false);
+  // judged before only because no thing is both: internal form with cold things (the flag of 2026-11-11), two colors, two materials
+  for (const k of ["cold|intf", "hot|intf", "black|white", "metal|wooden", "animal|human"]) {
+    expect(pool.has(k), k).toBe(false);
+    const [a, b] = k.split("|");
+    expect(settled(rx, a, b), k).toBe(false);
+  }
+  // two classes the term hierarchy keeps apart, a stated pervasion, things in every cell, a stated exclusion
+  expect(pool.get("emotion|furn")).toBe("con");
+  expect(pool.get("cons|white")).toBe("con");
+  expect(pool.get("form|white")).toBe("3");
+  expect(pool.get("furn|wooden")).toBe("4");
+  expect(pool.get("clothes|furn")).toBe("con");
+  expect(statedApart(rx, "furn", "clothes")).toMatch(/^Furniture is made to sit or lie on/);
+  // one reason for every kind of thing: not "a made thing", which the materials (liquid mercury), the instruments (the voice) and the
+  // kitchen things (salt) are not all
+  for (const c of ["furn", "metal", "instr", "kitchen", "fruit", "liquid", "drink", "tree"]) expect(statedApart(rx, "sp", c), c).toBe("A physical sense power is subtle matter in a living body. Everyday senses do not perceive it. Whatever everyday senses can see, hear or touch is not one.");
+  // not eaten: edible electronics exist (an edible battery), so electric devices and food are open
+  expect(statedApart(rx, "drink", "electric")).toBe("An electric device is a made thing that runs on electricity. It is not something to drink.");
+  expect(statedApart(rx, "food", "electric")).toBeNull();
+  expect(statedApart(rx, "human", "furn")).toBeNull(); // the classes say it: a person is not a form
+  // a thought, a memory, a dream or an emotion: the class of the gloss is that of the things, and the word can be read otherwise, so the
+  // reason is one that holds on every reading
+  expect(statedApart(rx, "emotion", "furn")).toBe("A thought, a memory, a dream or an emotion belongs to the mind. It is not a physical thing.");
+  expect(statedApart(rx, "thought", "human")).toBe("A thought, a memory, a dream or an emotion is not a living being. None of them is a person or an animal.");
+  // an emotion is impermanent on either reading (a mental factor, a standing disposition): the reason says that, not its class
+  expect(pool.get("emotion|perm")).toBe("con");
+  expect(statedApart(rx, "emotion", "perm")).toBe("An emotion arises from causes and changes moment by moment. It is not permanent.");
+  const at = () => 1_700_000_000_000, p = pairOf(rx, "intf", "furn", "internal matter", "furniture", seeded(2), at);
+  expect(p.why!.both).toBe("Internal form belongs to the body and senses of a living being. Furniture and clothes are made things, and no part of a living body. Nothing is both “internal matter” and “furniture”.");
+  expect(p.note).toBe("Internal form belongs to the body and senses of a living being. Furniture and clothes are made things, and no part of a living body. So “internal matter” and “furniture” have no common locus.");
+  // what an independent review broke stays open: a made thing put into the body, one thing hot and cold in its parts, a grown-up child,
+  // a pilot, a teacher who is no human, an inedible fruit, a spoon played as an instrument
+  for (const k of ["intf|metal", "cold|hot", "round|square", "children|men", "fly|human", "human|teacher", "food|fruit", "instr|kitchen", "body|instr"]) expect(pool.has(k), k).toBe(false);
+  // and what a second one broke: the other side of the same doubt (is every metal thing external form?), no material settles where a thing
+  // is, a gourd rattle, a skull cup, and a living tree as a wooden thing
+  for (const k of ["extf|metal", "extf|plastic", "extf|wooden", "intf|wooden", "fabric|intf", "fruit|instr", "body|kitchen", "body|clothes", "plant|wooden", "tree|wooden"]) expect(pool.has(k), k).toBe(false);
+  // and a third: "kitchen things" takes in salt, which is eaten (the same doubt as for what the body takes in); and a thing that is both
+  // exists, however rare (a carrot flute, edible clothing, an edible battery, a living willow seat, a chair grown from a tree, a jingle dress)
+  for (const k of ["extf|kitchen", "intf|kitchen", "food|instr", "clothes|food", "electric|food", "furn|plant", "furn|tree", "clothes|instr"]) expect(pool.has(k), k).toBe(false);
+  // and a fourth: the botanical reading of fruit (a calabash hat, a gourd used as a vessel), water drumming
+  for (const k of ["clothes|fruit", "fruit|furn", "electric|fruit", "instr|liquid", "drink|instr"]) expect(pool.has(k), k).toBe(false);
+  // clothes stay external form and apart from internal form: the source names "your clothes" as matter not in a person's continuum
+  expect(pool.get("clothes|extf")).toBe("3");
+  expect(pool.get("clothes|intf")).toBe("con");
+  expect(pool.get("extf|furn")).toBe("3");
+  expect(pool.get("extf|tree")).toBe("3");
+  expect(rx.DATA.items.filter((i) => i.c.includes("tree")).every((i) => !i.c.includes("wooden") && i.may?.includes("wooden"))).toBe(true);
+  // internal form and the sense objects: the hierarchy states neither that they overlap nor that they are apart (the color of a person's
+  // skin), so nothing is asked; a physical sense power does not appear to the senses, and stays apart from them
+  for (const c of ["col", "shape", "vis", "snd", "odr", "tst", "tng", "elem", "earth", "water", "fire", "wind", "arisen", "expr"]) {
+    expect(pool.has(pairKey({ a: "intf", b: c })), c).toBe(false);
+    expect(pool.get(pairKey({ a: "sp", b: c })), c).toBe("con");
+  }
+  // settled by a class and left open all the same, where the general statement is what a debater would contest: a thought or a memory
+  // meant as what is thought or remembered, a memory or an emotion as a standing disposition. What holds on every reading stays.
+  for (const k of ["memory|nonas", "emotion|nonas", "perm|thought", "ft|thought", "cons|thought", "ment|thought", "memory|perm", "ft|memory", "cons|memory", "memory|ment", "cons|emotion"]) expect(pool.has(k), k).toBe(false);
+  // a dream likewise (what was dreamt; "my dream of becoming a doctor"), and "your thoughts on this" are held while asleep
+  for (const k of ["cons|dream", "dream|ment", "dream|ft", "dream|perm", "dream|nonas", "nonas|thought"]) expect(pool.has(k), k).toBe(false);
+  expect(pool.get("form|thought")).toBe("con");
+  expect(pool.get("exist|memory")).toBe("3");
+  expect(pool.get("dream|exist")).toBe("3");
+  expect(pool.get("emotion|ft")).toBe("3");
+  // a thought or a dream against a sense consciousness: the reason holds whether it is the thinking or what is thought
+  expect(pool.get("sense|thought")).toBe("con");
+  expect(pairOf(rx, "sense", "thought", "sense consciousnesses", "thoughts", seeded(2), at).why!.both).toBe("A sense consciousness arises from a physical sense power. A thought or a dream does not. Nothing is both “sense consciousnesses” and “thoughts”.");
+  expect(statedApart(rx, "eye", "dream")).toMatch(/^A sense consciousness arises from a physical sense power/);
+  // a memory is not judged against them: recollection is also a mental factor, which can go with a sense consciousness, the finer
+  // point that keeps emotions out
+  for (const c of ["sense", "eye", "ear", "nose", "tongue", "bodyc"]) expect(pool.has(pairKey({ a: "memory", b: c })), c).toBe(false);
+  // the labels say no more than the term: the five physical sense powers (the mental one is a consciousness), and persons, whom the
+  // reference does not call sentient beings (a Buddha is a person)
+  expect(rx.CAT.sp.labels).toEqual(["physical sense powers"]);
+  expect(rx.CAT.pers.labels).toEqual(["persons"]);
+  expect(pool.has("pers|pers")).toBe(false);
+  // food is a functional thing and nothing narrower: it exists and is impermanent, and whether all of it is form is left open
+  expect(pool.get("food|ft")).toBe("3");
+  expect(pool.get("exist|food")).toBe("3");
+  expect(pool.get("food|perm")).toBe("con");
+  for (const k of ["food|form", "food|pers", "cons|food", "extf|food", "food|intf"]) expect(pool.has(k), k).toBe(false);
+  // no pair of the pool is left with only "nothing in the reference is both" for a reason
+  for (const e of buildPool(rx)) {
+    if (e.a === e.b || e.r !== "con") continue;
+    const q = pairOf(rx, e.a, e.b, rx.CAT[e.a].labels[0], rx.CAT[e.b].labels[0], seeded(3), at);
+    expect(q.why!.both, pairKey(e)).not.toMatch(/Nothing in the reference is both/);
+  }
+});
+
+test("the real data: a pair kept from before is asked again only while the reference still judges it, under labels it still uses", () => {
+  const rx = makeIndex(real), at = () => 1_700_000_000_000;
+  // every pair the app draws now, plain and negated, is one it would ask again
+  const pool = buildPool(rx), r = seeded(11);
+  for (let i = 0; i < pool.length; i += 7) {
+    for (const neg of [undefined, "a", "b", "ab"] as const) {
+      const p = makePair(rx, pool[i], r, at, undefined, undefined, neg);
+      expect(stillSettled(rx, p), p.a + " / " + p.b).toBe(true);
+    }
+  }
+  // not one the reference has left open, and not one it has stopped judging (emotions with a sense consciousness were drawn before)
+  for (const [a, b] of real.open ?? []) expect(stillSettled(rx, { catA: a, catB: b }), a + "|" + b).toBe(false);
+  for (const [a, b] of real.nopair ?? []) expect(stillSettled(rx, { catA: a, catB: b }), a + "|" + b).toBe(false);
+  expect(stillSettled(rx, { a: "emotions", b: "ear consciousnesses", catA: "emotion", catB: "ear" })).toBe(false);
+  // nor under a label its category no longer has, also in a pair of one category's two labels
+  expect(stillSettled(rx, { a: "persons", b: "teachers", catA: "pers", catB: "teacher" })).toBe(true);
+  expect(stillSettled(rx, { a: "sentient beings", b: "teachers", catA: "pers", catB: "teacher" })).toBe(false);
+  expect(stillSettled(rx, { a: "persons", b: "sentient beings", catA: "pers", catB: "pers" })).toBe(false);
+  expect(stillSettled(rx, { a: "sense powers", b: "forms", catA: "sp", catB: "form" })).toBe(false);
+  // and which of the two it is, for what Review says of the pair: the relation is no longer settled, or only the name is gone
+  expect(keptGone(rx, { a: "white things", b: "black things", catA: "white", catB: "black" })).toBe("open");
+  expect(keptGone(rx, { a: "emotions", b: "ear consciousnesses", catA: "emotion", catB: "ear" })).toBe("open");
+  expect(keptGone(rx, { a: "sense powers", b: "forms", catA: "sp", catB: "form" })).toBe("renamed");
+  expect(keptGone(rx, { a: "persons", b: "sentient beings", catA: "pers", catB: "pers" })).toBe("renamed");
+  expect(keptGone(rx, { a: "sense powers", b: "white things", catA: "sp", catB: "white" }), "the name comes first, also for an open pair").toBe("renamed");
+  expect(keptGone(rx, { a: "physical sense powers", b: "white things", catA: "sp", catB: "white" })).toBe("open");
+  expect(keptGone(rx, { a: "persons", b: "teachers", catA: "pers", catB: "teacher" })).toBeNull();
+  // an answer on a pair of one category's two labels keeps no categories of its own (pairCats gives none for one category): by its labels
+  // alone it cannot be told, which is why the app reads a stored answer by the pair it keeps (app/practice/universe.js, goneWhy)
+  expect(pairCats(rx, { a: "persons", b: "sentient beings", catA: "pers", catB: "pers", relation: "mi" })).toEqual([null, null]);
+  expect(keptGone(rx, { a: "persons", b: "sentient beings", catA: null, catB: null })).toBeNull();
+  expect(stillSettled(rx, { a: "non-(physical sense powers)", b: "forms", catA: "sp", catB: "form", }), "a negated side").toBe(true);
+  expect(stillSettled(rx, { a: "non-functioning phenomena", b: "forms", catA: "perm", catB: "form" }), "a label that is a negation itself").toBe(true);
+  expect(stillSettled(rx, { a: "matter", b: "forms", catA: "form", catB: "form" })).toBe(true);
+  // the learner's own pair, and a pair whose categories the data does not know, stay as they were
+  expect(stillSettled(rx, { a: "sentient beings", b: "teachers", catA: "pers", catB: "teacher", own: true })).toBe(true);
+  expect(stillSettled(rx, { a: "x", b: "y", catA: "gone", catB: "form" })).toBe(true);
+});
+
+test("the real data: Syllogisms and Find an instance prove nothing of an open pair, and Find takes it as the learner's own", () => {
+  const rx = makeIndex(real), at = () => 1_700_000_000_000, first = (c: string) => real.items.find((i) => !i.ne && i.c.includes(c));
+  let made = 0;
+  for (const [a, b] of real.open ?? []) {
+    // no exclusion is given for it: "nothing is both" is never the right answer of a set that holds it
+    expect(apartOf(rx, a, b), a + "|" + b).toBeNull();
+    // a pervasion between the two is never proved to hold or to be opposite: only a thing can show that it fails
+    for (const [r, p] of [[a, b], [b, a]]) {
+      for (const it of [first(r), first(p)]) {
+        const c = it ? syllogismOf(rx, it.n, r, p, seeded(5)) : null;
+        if (!c) continue;
+        made++;
+        expect(c.pervasion, `${it!.n}: ${r} > ${p}`).toBe("fails");
+        expect(c.witness, `${it!.n}: ${r} > ${p}`).toBeTruthy();
+      }
+    }
+  }
+  expect(made).toBeGreaterThan(100); // the things of an open pair still disprove a pervasion
+  // the pairs of food with persons and minds were proved "opposite" from its gloss; a red apple is impermanent because it is food, by the chain
+  expect(apartOf(rx, "food", "women")).toBeNull();
+  expect(syllogismOf(rx, "a red apple", "food", "ft", seeded(5))?.pervasion).toBe("holds");
+  expect(syllogismOf(rx, "a red apple", "food", "form", seeded(5))).toBeNull(); // neither proved nor disproved: not asked
+  expect(apartOf(rx, "emotion", "furn")?.why).toMatch(/nothing is both/); // a settled pair keeps its exclusion
+  // Find: an open pair of two categories of the app is the learner's own, and the card says why it gives no relation
+  const own = findPair(rx, "con", nameThing(rx, "white things"), nameThing(rx, "black things"), seeded(4), at);
+  expect(own).toMatchObject({ own: true, catA: "white", catB: "black", ex: {}, why: {} });
+  const cells = { both: { t: "", none: true }, anb: { t: "snow" }, bna: { t: "coal" }, nei: { t: "a red rose" } };
+  const card = cardBody(rx, own, { find: true, rel: "con", cells, res: gradeFind(rx, own, { rel: "con", cells }) } as never);
+  expect(card).toContain("the reference does not settle their relation");
+  expect(card).not.toContain("Correct relation of this pair");
+  expect(card).not.toContain("is not among its practice items");
+  const known = findPair(rx, "con", nameThing(rx, "furniture"), nameThing(rx, "clothes"), seeded(4), at);
+  expect(known.own).toBeUndefined();
+  expect(cardBody(rx, known, { find: true, rel: "con", cells, res: gradeFind(rx, known, { rel: "con", cells }) } as never)).toContain("Correct relation of this pair: Mutually exclusive.");
+});
+
+// A flag is reviewed on the server from the stored answer (ai-shared/flag-review.ts). The reviewer must not be handed, as the reference's,
+// a relation the reference does not settle: not the placeholder of the learner's own pair in Find, and not the relation an answer was
+// graded with before its pair was left open.
+test("the real data: the review of a flag takes an open pair as open, in Find a pair and in an answer kept from before", () => {
+  const rx = makeIndex(real), at = () => 1_700_000_000_000, flag = { what: "Claude’s explanation", shown: "They have nothing in common." };
+  // Find a pair on an open pair: the learner's own pair, read from the device with its mode and `own`, on the card of that exercise
+  const own = findPair(rx, "4", nameThing(rx, "internal matter"), nameThing(rx, "cold things"), seeded(4), at);
+  expect(own.own).toBe(true);
+  const sent = readReviewAnswer({ mode: "find", chosen: "4", pair: own, cells: { both: { text: "cold hands", verdict: "cmp" }, nei: { text: "a thought", verdict: "cmp" } } })!;
+  expect(sent).toMatchObject({ mode: "find", chosen: "4", pair: { own: true, catA: "intf", catB: "cold" } });
+  const req = reviewRequest(rx, flag, sent);
+  expect(req).toContain("Relation asked for: Four possibilities");
+  expect(req).toContain(FIND_OPEN_NOTE);
+  expect(req).toContain("reference none, for you to decide");
+  expect(req).not.toMatch(/Correct relation/);
+  expect(req).not.toContain(REVIEW_OPEN_NOTE); // it never had a reference
+  expect(readReviewAnswer({ mode: "categories", chosen: "4", pair: own })?.mode).toBeUndefined(); // only the modes the card knows
+  expect(readReviewAnswer({ chosen: "4", pair: { ...own, own: "yes" } })?.pair.own).toBeUndefined();
+  // a known pair in Find keeps the card of Find, with its relation
+  const known = findPair(rx, "con", nameThing(rx, "furniture"), nameThing(rx, "clothes"), seeded(4), at);
+  const reqKnown = reviewRequest(rx, flag, readReviewAnswer({ mode: "find", chosen: "con", pair: known, cells: {} })!);
+  expect(reqKnown).toContain("Relation asked for: Mutually exclusive");
+  expect(reqKnown).toContain("Correct relation of this pair: Mutually exclusive.");
+  expect(reqKnown).not.toContain(REVIEW_OPEN_NOTE);
+  // an answer of Relations kept from before: the card is the one of then, and the reviewer is told that the reference no longer holds it
+  const then = { a: "internal matter", b: "cold things", catA: "intf", catB: "cold", relation: "con", ex: {}, why: { both: "Nothing in the reference is both “internal matter” and “cold things”." } };
+  const old = reviewRequest(rx, flag, readReviewAnswer({ chosen: "4", pair: then, cells: {} })!);
+  expect(old).toContain("Correct relation: Mutually exclusive.");
+  expect(old).toContain(REVIEW_OPEN_NOTE);
+  expect(old.indexOf(REVIEW_OPEN_NOTE)).toBeLessThan(old.indexOf("TUTOR'S EXPLANATION"));
+  expect(leftOpenSince(rx, { a: "emotions", b: "ear consciousnesses", catA: "emotion", catB: "ear", relation: "con" }), "a pair the reference has stopped judging").toBe(true);
+  expect(leftOpenSince(rx, { a: "internal matter", b: "cold things", relation: "con" }), "the categories found by the labels").toBe(true);
+  expect(leftOpenSince(rx, own)).toBe(false);
+  // a settled pair: nothing is added
+  const p = pairOf(rx, "intf", "furn", "internal matter", "furniture", seeded(2), at);
+  expect(leftOpenSince(rx, p)).toBe(false);
+  expect(reviewRequest(rx, flag, readReviewAnswer({ chosen: "con", pair: p, cells: {} })!)).not.toContain(REVIEW_OPEN_NOTE);
 });

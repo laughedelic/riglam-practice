@@ -8,7 +8,7 @@ import { advanceFind, anotherRelation, resumeFind } from "../find/flow.js";
 import { put } from "./answers.js";
 import { favKey, favSafe } from "./favorites.js";
 import { advance } from "./queue.js";
-import { catByLabel, norm } from "./universe.js";
+import { catByLabel, norm, stillAsked } from "./universe.js";
 import { render, top0 } from "../shell/render.js";
 import { begun, switchTo } from "../shell/tabs.js";
 
@@ -105,12 +105,13 @@ export function skipAskText(){
 export function startSkipped(f){
   const p=f.pair||{a:f.a,b:f.b,relation:f.relation,ex:{},why:{}};
   if(f.from==="find"){ resumeFind(p,f.asked); return; }
+  if(!stillAsked(p)) return;       // the reference has since left its relation open: Review does not offer it (path/review.tsx)
   if(f.from==="debate"){ debateAgain(p); return; }
   switchTo("practice"); state.retryQ=[p]; state.retryTag="Skipped"; advance();
   render(); top0();
 }
 /** A pair of Pervasions taken again there (a skipped one, or one from Review on the Path). */
-export function debateAgain(p){ switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; render(); top0(); }
+export function debateAgain(p){ if(!stillAsked(p)) return; switchTo("debate"); state.cur={p,debate:true}; state.ui=freshDebateUi(); state.mode="quiz"; render(); top0(); }
 export function unskipKey(k){
   const had=state.skips[k]; if(!had) return;
   delete state.skips[k]; render();

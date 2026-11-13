@@ -9,7 +9,7 @@ import { passNegOffer } from "./negations.ts";
 import { isSkipped } from "./skips.js";
 import { closeStageUp, passStageOffer, takeStageUp } from "./stage-offer.ts";
 import { takeStop } from "./stops.ts";
-import { nextGenerated } from "./universe.js";
+import { nextGenerated, stillAsked } from "./universe.js";
 import { holdAhead, takeAhead } from "./ahead.ts";
 import { comeForward, keepBehind } from "./trail.ts";
 import { cue } from "../sound/play.ts";
@@ -19,8 +19,8 @@ export function freshUi(){return {rel:null, open:true, cells:{both:{t:"",none:fa
 
 /* ---------- queue: retry run, then older prepared pairs not yet answered, then generated ---------- */
 function nextPair(){
-  if(state.retryQ.length) return {p:state.retryQ.shift(), retry:true, tag:state.retryTag};
-  for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)); if(q) return {p:q, legacy:true}; }
+  while(state.retryQ.length){ const p=state.retryQ.shift(); if(stillAsked(p)) return {p, retry:true, tag:state.retryTag}; }       // a kept pair whose relation the reference has since left open is passed over: it carries the old relation
+  for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)&&stillAsked(p)); if(q) return {p:q, legacy:true}; }
   return {p:takeAhead("practice")||nextGenerated(undefined,true)};       // the pair drawn ahead for a natural voice (pairAhead), if what it was drawn under still holds
 }
 /**
@@ -28,8 +28,8 @@ function nextPair(){
  * (shell/voice.js, warmNext). The same order as `nextPair`: a retry run, then the older prepared pairs, then a generated one. Nothing is spent for the first two.
  */
 export function pairAhead(){
-  if(state.retryQ.length) return state.retryQ[0];
-  for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)); if(q) return q; }
+  const kept=state.retryQ.find(p=>stillAsked(p)); if(kept) return kept;
+  for(const b of state.batches){ const q=pairsOf(b).find(p=>!state.answers[p.id]&&!isSkipped(p)&&stillAsked(p)); if(q) return q; }
   return holdAhead("practice",()=>nextGenerated(undefined,true));
 }
 export function advance(){ passNegOffer(); state.cur=nextPair(); state.ui=freshUi(); state.mode="quiz"; }
