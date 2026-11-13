@@ -513,10 +513,16 @@ export interface State {
   dailyDone: DailyDone | null;
   /** what a session of daily practice is made of (`rd-daily-mix`, `rd-daily-from`), once it was read */
   dailyOptions: DailyOptions | null;
-  /** the challenge that everyone gets now, as this device has it (practice/challenge.ts), or null: there is none, or this device has no Magic Key */
-  chal: ChallengeNow | null;
-  /** the challenge's page stands in for Review (path/challenge.tsx) */
+  /** the challenges that everyone gets, as this device has them, by their day (practice/challenge.ts); none: there are none, or this device has no Magic Key */
+  chals: ChallengeNow[];
+  /** the challenges' page stands in for Review (path/challenge.tsx) */
   chalPage: boolean;
+  /** the id of the challenge open on their page, or null: the latest that waits */
+  chalOpen: string | null;
+  /** the ids of the done challenges brought back from behind the top of their page, until it is opened anew */
+  chalOut: string[];
+  /** the id of the challenge that is done and falls behind the top of their page, while it goes */
+  chalFall: string | null;
   /** asks the platform to look for another challenge (the roadmap opened), or null where it cannot */
   chalLook: (() => void) | null;
   relSession: NegResult[];

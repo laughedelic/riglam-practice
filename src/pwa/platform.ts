@@ -7,7 +7,7 @@
 //           only to a device that has the Magic Key. Otherwise the page has no Quorum.
 //   unlock  a way to enter the Magic Key, while this device has none (./unlock.ts; the page asks on its Magic Key page); the definitions come from the server (./course.ts)
 //   examples the reference examples kept on this device, fetched from the server in the background once the key is known to fit (./course.ts)
-//   challenge the challenge that everyone gets now, kept on this device the same way, and looked for again when the page asks (./course.ts)
+//   challenge the challenges that everyone gets, kept on this device the same way, and looked for again when the page asks (./course.ts)
 //   keyHeld while it has one: enter another, or forget it (./unlock.ts)
 //   tutor   the app's own server (./tutor.ts), when it has the tutor on and this device has the Magic Key
 //   known   what that server learned of examples from earlier checks (./tutor.ts), when it answers from it (a Preview) and this device has the Magic Key
@@ -269,8 +269,12 @@ export const pwaPlatform: Platform = {
     exampleListeners.add(tell);
     return () => void exampleListeners.delete(tell);
   },
-  // What was kept of the challenge (an earlier visit's, or this one's once the background fetch is done); nothing without the key.
-  challenge: async () => (groupKey ? keptChallenge()?.challenge ?? null : null),
+  // What was kept of the challenges (an earlier visit's, or this one's once the background fetch is done): an empty set when the server said it has
+  // none; nothing without the key, or before the server was heard.
+  challenge: async () => {
+    const kept = groupKey ? keptChallenge() : null;
+    return kept ? (kept.challenge ?? { challenges: [] }) : null;
+  },
   onChallenge(tell) {
     challengeListeners.add(tell);
     return () => void challengeListeners.delete(tell);

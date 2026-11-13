@@ -1,7 +1,8 @@
-// The challenge (src/app/practice/challenge.ts, src/app/path/challenge.tsx; its rules are src/domain/challenge.ts): a short task that everyone gets, served to
-// a device with the Magic Key. The roadmap has its stop in the corner while there is one; the stop opens its page; each question is asked in its own
-// exercise, apart from the learner's progression, with its place in the top bar; after the last one the page is back. A challenge has no clock by itself:
-// Sprint is its own there, switched by the stopwatch, and no exercise's switch is touched by it.
+// The challenges (src/app/practice/challenge.ts, src/app/path/challenge.tsx; their rules are src/domain/challenge.ts): short tasks that everyone gets, served
+// to a device with the Magic Key. They accumulate. The roadmap has their stop in the corner while there are any; the stop opens their page, a timeline where
+// the ones that wait are folded but for the open one; each question is asked in its own exercise, apart from the learner's progression, with its place in the
+// top bar; after the last one the page is back, and a challenge whose questions all have an answer falls behind the top, where a pull brings the done ones
+// back. A challenge has no clock by itself: Sprint is its own there, switched by the stopwatch, and no exercise's switch is touched by it.
 import { test, expect } from "../../support/test.js";
 import { giveKey } from "../../support/data-key.js";
 import { answerFirst, explainChoice, openMenu, overflow, relOptions, roadmap } from "../../support/page.js";
@@ -26,22 +27,36 @@ const OUTSIDE = {
   ],
 };
 const NEXT = { ...DOC, id: "2026-11-14-sounds", date: "2026-11-14", title: "Sounds", note: "", items: [{ exercise: "practice", a: "col", b: "shape" }] };
+const EARLY = { id: "2026-11-12-shapes", date: "2026-11-12", title: "Shapes", note: "", items: [{ exercise: "practice", a: "vis", b: "col" }] };
+/** The server's challenges as the server keeps them: one row that holds them all. */
+const set = (...challenges) => ({ challenges });
 
 const station = (page) => page.locator("#stn");
 const title = (page) => page.locator("#path .ptb-t");
 const mark = (page) => page.locator("#path .ptb .gmark");
 const stop = (page) => roadmap(page).getByRole("button", { name: /^Challenge/ });
-const rows = (page) => page.locator("#path .chi");
+const rows = (page) => page.locator("#path .chx[data-open] .chi");
+/** The challenges on the page, by their titles, and the one open. */
+const titles = (page) => page.locator("#path .chx .chtt");
+const opened = (page) => page.locator("#path .chx[data-open]");
+/** The small stop at the top of the page that counts the done challenges behind it, and pulls them back. */
+const past = (page) => page.locator("#path .chpast");
 const stopwatch = (page) => page.getByRole("switch", { name: /^Sprint/ });
 const clock = (page) => page.evaluate(() => (window.__t.ui && window.__t.ui.tq ? window.__t.ui.tq.key : null));
+/** Where the element is once the page has stopped moving (the roadmap slides away). */
+async function settledBox(at) {
+  let was = null;
+  await expect.poll(async () => { const b = await at.boundingBox(), same = !!b && !!was && b.x === was.x && b.y === was.y; was = b; return same; }).toBe(true);
+  return was;
+}
 /** On a phone the top bar steps aside while a field has the keyboard: the focus is let go before the top bar is used. */
 const calm = (page) => page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
-/** Where the page and the challenge stand. */
-const now = (page) => page.evaluate(() => {
-  const t = window.__t, v = t.challenge.view(), p = t.cur && t.cur.p;
-  return { tab: t.tab, page: t.challenge.page(), shown: t.challenge.shown(), standing: v ? v.standing : null, marks: v ? v.rec.marks : null, done: v ? v.done : 0, at: v ? v.at : -1,
-    pair: p ? p.a + " | " + p.b : null, checked: !!(t.ui && t.ui.checked) };
-});
+/** Where the page and a challenge stand (`id`; the latest when none is named), and the page's timeline: the ids on it, the one open, how many are behind the top. */
+const now = (page, id = null) => page.evaluate((id) => {
+  const t = window.__t, all = t.challenge.all, c = id ? all.find((x) => x.doc.id === id) : all[all.length - 1], v = c ? t.challenge.view(c.doc.id) : null, p = t.cur && t.cur.p, tl = t.challenge.timeline();
+  return { tab: t.tab, page: t.challenge.page(), shown: t.challenge.shown(), standing: v ? v.standing : null, waits: v ? v.waits : null, marks: v ? v.rec.marks : null, done: v ? v.done : 0,
+    at: v ? v.at : -1, pair: p ? p.a + " | " + p.b : null, checked: !!(t.ui && t.ui.checked), on: tl.shown.map((s) => s.doc.id), open: tl.open, hidden: tl.hidden };
+}, id);
 /** What the learner's progression keeps: none of it moves for a question of the challenge. */
 const progression = (page) => page.evaluate(() => JSON.stringify([window.__t.stageRun, window.__t.exRuns, window.__t.intro, window.__t.stages]));
 /** The pair on screen answered right, with examples the page can check by itself, as far as the result. */
@@ -61,44 +76,60 @@ async function open(page, challenge = { version: "c1", doc: DOC }) {
   return calls;
 }
 
-test("the roadmap has the challenge's stop while there is one: new until its page was opened; the page has its words and its questions", async ({ page }) => {
-  await open(page);
+test("the roadmap has the challenges' stop while there are any: new until their page was opened, then how many wait; the page is a timeline, the latest open", async ({ page }) => {
+  await open(page, { version: "c1", doc: set(NEXT, DOC) });
   await openMenu(page);
-  await expect(stop(page)).toHaveAccessibleName("Challenge, new: Colors and shapes");
+  await expect(stop(page)).toHaveAccessibleName("Challenge, new: Sounds");
   await expect(roadmap(page).locator(".chring")).toHaveCount(1);
   expect(await now(page)).toMatchObject({ standing: "new", page: false, shown: false });
 
-  // the stop opens the page first: the day and the count, the title, the note, and each question under the name of its exercise
+  // the stop opens the page first: the challenges by their day, the earliest above; the latest is open, with its day, count, title and questions, and the one before is folded
   await stop(page).click();
   await expect(roadmap(page)).toBeHidden();
   await expect(title(page)).toHaveText("Challenge");
-  await expect(page.locator("#path .sechead .ph")).toHaveText("7 Nov3 questions");
-  await expect(page.locator("#path h2.tn")).toHaveText("Colors and shapes");
-  await expect(page.locator("#path .chnote")).toHaveText(DOC.note);
+  await expect(titles(page)).toHaveText(["Colors and shapes", "Sounds"]);
+  await expect(opened(page)).toHaveAttribute("data-id", NEXT.id);
+  await expect(opened(page).locator(".sechead .ph")).toHaveText("14 Nov1 question");
+  await expect(opened(page).locator(".chnote")).toHaveCount(0);
+  await expect(rows(page).locator(".cht")).toHaveText(["colors and shapes"]);
+  await expect(titles(page).first()).toHaveAttribute("aria-expanded", "false");
+  // folded: its day, a hollow diamond for each of its questions and its title; what folds is out of reach
+  const first = page.locator("#path .chx").first();
+  await expect(first.locator(".chm i")).toHaveCount(3);
+  await expect(first.locator(".chm i.ok")).toHaveCount(0);
+  await expect(first.locator(".chi .chb").first()).not.toBeInViewport();
+  await expect(station(page)).toHaveAccessibleName("Start");
+  expect(await now(page)).toMatchObject({ standing: "open", page: true, tab: "review", on: [DOC.id, NEXT.id], open: NEXT.id, hidden: 0 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+
+  // its title unfolds the one before, with its note and its questions, and folds the latest; the station is the open one's
+  await titles(page).first().click();
+  await expect(opened(page)).toHaveAttribute("data-id", DOC.id);
+  await expect(opened(page).locator(".chnote")).toHaveText(DOC.note);
   await expect(rows(page).locator(".chl")).toHaveText(["Pervasions", "Relations", "Relations"]);
   await expect(rows(page).locator(".cht")).toHaveText(["visible forms and colors", "colors and shapes", "visible forms and colors"]);
   await expect(rows(page).locator(".chv")).toHaveCount(0);
+  await expect(titles(page).last()).toHaveAttribute("aria-expanded", "false");
   await expect(station(page)).toHaveAccessibleName("Start");
-  expect(await now(page)).toMatchObject({ standing: "open", page: true, tab: "review" });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  expect(await now(page)).toMatchObject({ open: DOC.id });
 
-  // the top bar goes back to the roadmap, where the stop is a plain one now, and stays so after a reload
+  // the top bar goes back to the roadmap, where the stop says how many wait now, and so after a reload
   await page.locator(".tstn").click();
   await expect(roadmap(page)).toBeVisible();
-  await expect(stop(page)).toHaveAccessibleName("Challenge, 3 questions: Colors and shapes");
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 2 open");
   await expect(roadmap(page).locator(".chring")).toHaveCount(0);
   await page.reload();
   await expect(relOptions(page)).toHaveCount(5);
   await openMenu(page);
-  await expect(stop(page)).toHaveAccessibleName("Challenge, 3 questions: Colors and shapes");
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 2 open");
 });
 
-test("a device whose server has no challenge has no stop, and the tree is as it always is", async ({ page }) => {
+test("a device whose server has no challenges has no stop, and the tree is as it always is", async ({ page }) => {
   const calls = await open(page, null);
   await openMenu(page);
   await expect.poll(() => calls.challenge.length).toBeGreaterThan(0);
   await expect(stop(page)).toHaveCount(0);
-  expect(await page.evaluate(() => window.__t.challenge.now)).toBeNull();
+  expect(await page.evaluate(() => window.__t.challenge.all)).toEqual([]);
 });
 
 test("its questions are asked in their exercises, apart from the progression; Next goes on, and after the last one the page is back", async ({ page }) => {
@@ -136,16 +167,21 @@ test("its questions are asked in their exercises, apart from the progression; Ne
   await station(page).click();
   await expect(title(page)).toHaveText("Challenge");
   expect(await now(page)).toMatchObject({ page: true, shown: false, at: -1, standing: "under", done: 2 });
-  await expect(page.locator("#path .sechead .ph")).toHaveText("7 Nov3 questions · 2 done");
+  await expect(opened(page).locator(".sechead .ph")).toHaveText("7 Nov3 questions · 2 done");
   await expect(rows(page).locator(".chv")).toHaveText(["right", "not right"]);
   // the skipped one is what Continue goes on with
   await expect(station(page)).toHaveAccessibleName("Continue");
 
-  // Back from the page goes to the roadmap: the stop says how far it is, with the answers beside it; the answers are in Review like any other
+  // a question is still without an answer: the challenge waits, on the page, and its diamonds say how each went once it is folded
+  expect(await now(page)).toMatchObject({ waits: true, on: [DOC.id], hidden: 0 });
+  await expect(past(page)).toHaveCount(0);
+  await expect(page.locator("#path .chx .chm i.ok")).toHaveCount(1);
+  await expect(page.locator("#path .chx .chm i.no")).toHaveCount(1);
+
+  // Back from the page goes to the roadmap: the stop says that it waits; the answers are in Review like any other
   await page.goBack();
   await expect(roadmap(page)).toBeVisible();
-  await expect(stop(page)).toHaveAccessibleName("Challenge, 2 of 3 done: Colors and shapes");
-  await expect(stop(page).locator(".rm")).toHaveCount(2);
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 1 open");
   await expect(roadmap(page).getByRole("button", { name: /^Review/ })).toHaveText("Review · 2 today");
   // the exercise under the roadmap has its own pair again
   expect(await now(page)).toMatchObject({ shown: false });
@@ -199,48 +235,96 @@ test("the mark in the top bar leads to the page and Back to the question as it w
   expect(await now(page)).toMatchObject({ tab: "practice", shown: true, at: 1, pair: "colors | shapes" });
 });
 
-test("all answered, the stop says done and the station asks it again; the next challenge takes its place and starts as new; with none the stop goes", async ({ page }) => {
-  const calls = await open(page, { version: "c2", doc: NEXT });
+test("a challenge whose questions all have an answer falls behind the top of the page; a pull or a press brings the done ones back, and the next one opens", async ({ page }) => {
+  const calls = await open(page, { version: "c2", doc: set(EARLY, NEXT) });
   await openMenu(page);
   await expect(stop(page)).toHaveAccessibleName("Challenge, new: Sounds");
   await stop(page).click();
-  await expect(page.locator("#path .sechead .ph")).toHaveText("14 Nov1 question");
-  await expect(page.locator("#path .chnote")).toHaveCount(0);
+  await expect(opened(page)).toHaveAttribute("data-id", NEXT.id);
   await station(page).click();
   await expect(mark(page)).toHaveText("1 of 1");
   await answerRight(page);
   await expect(station(page)).toHaveAccessibleName(/^Back to the challenge/);
   await station(page).click();
-  await expect(title(page)).toHaveText("Challenge");
-  expect(await now(page)).toMatchObject({ page: true, standing: "done", marks: { 0: "ok" } });
-  await expect(station(page)).toHaveAccessibleName("Again");
-  await page.locator(".tstn").click();
-  await expect(stop(page)).toHaveAccessibleName("Challenge, done: Sounds");
 
-  // asked again, its answer is the last one given
+  // back on the page it shows how it went, then folds and goes up the thread, behind the top: the small stop there counts it, and the one before opens
+  await expect(title(page)).toHaveText("Challenge");
+  expect(await now(page, NEXT.id)).toMatchObject({ page: true, standing: "done", waits: false, marks: { 0: "ok" } });
+  await expect(past(page)).toHaveAccessibleName("1 done. Pull down or press to bring it back");
+  await expect(titles(page)).toHaveText(["Shapes"]);
+  await expect(opened(page)).toHaveAttribute("data-id", EARLY.id);
+  await expect(station(page)).toHaveAccessibleName("Start");
+  expect(await now(page)).toMatchObject({ on: [EARLY.id], open: EARLY.id, hidden: 1 });
+  await page.locator(".tstn").click();
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 1 open");
+
+  // the last one that waits done too: nothing waits, the page says so, and the stop says nothing more
   await stop(page).click();
+  await station(page).click();
+  await answerRight(page);
+  await station(page).click();
+  await expect(past(page)).toHaveAccessibleName("2 done. Pull down or press to bring them back");
+  await expect(titles(page)).toHaveCount(0);
+  await expect(page.locator("#path .chnone")).toHaveText("Nothing is waiting. The next challenge shows up here.");
+  await expect(station(page)).toHaveCount(0);
+  await page.locator(".tstn").click();
+  await expect(stop(page)).toHaveAccessibleName("Challenge, all done");
+  await expect(stop(page).locator(".ed")).toHaveCount(0);
+
+  // pressed, the small stop brings them all back, folded, in their order; one unfolded asks its questions again, and stays out after its last one
+  await stop(page).click();
+  await past(page).click();
+  await expect(past(page)).toHaveCount(0);
+  await expect(titles(page)).toHaveText(["Shapes", "Sounds"]);
+  await expect(opened(page)).toHaveCount(0);
+  await titles(page).last().click();
+  await expect(opened(page)).toHaveAttribute("data-id", NEXT.id);
+  await expect(rows(page).locator(".chv")).toHaveText(["right"]);
+  await expect(station(page)).toHaveAccessibleName("Again");
   await station(page).click();
   await expect(mark(page)).toHaveText("1 of 1");
   await page.evaluate(() => window.__t.skipPair());
   await expect(title(page)).toHaveText("Challenge");
-  expect(await now(page)).toMatchObject({ page: true, standing: "done", marks: { 0: "ok" } });
+  expect(await now(page, NEXT.id)).toMatchObject({ page: true, standing: "done", marks: { 0: "ok" }, on: [EARLY.id, NEXT.id], open: NEXT.id, hidden: 0 });
 
-  // the server has another one: the device asks with the version it kept, and the new one starts as new, with nothing answered
-  calls.setChallenge({ version: "c3", doc: DOC });
+  // opened anew from the roadmap, the done ones are behind the top again; the mouse pulls them down over the curb, and the station above the thread says how many
+  await page.locator(".tstn").click();
+  await stop(page).click();
+  await expect(past(page)).toHaveText("2 donepull down");
+  await expect(roadmap(page)).toBeHidden();
+  const box = await settledBox(past(page));
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  for (let y = 10; y <= 150; y += 10) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + y);
+  await expect(page.locator("#path .bkhead .gol b")).toHaveText("2 done");
+  await expect(page.locator("#path .main")).toHaveClass(/bkover/);
+  await page.mouse.up();
+  await expect(past(page)).toHaveCount(0);
+  await expect(titles(page)).toHaveText(["Shapes", "Sounds"]);
+  await expect(page.locator("#path .main")).not.toHaveClass(/bkpull/);
+
+  // the server has one more: the device asks with the version it kept; it comes before the others by its day, new, and the done ones keep their answers
+  calls.setChallenge({ version: "c3", doc: set(EARLY, NEXT, DOC) });
   await page.reload();
   await expect(relOptions(page)).toHaveCount(5);
   await openMenu(page);
   await expect(stop(page)).toHaveAccessibleName("Challenge, new: Colors and shapes");
   expect(calls.challenge.at(-1)).toEqual({ have: "c2", fits: true });
-  expect(await now(page)).toMatchObject({ standing: "new", marks: {} });
+  expect(await now(page, DOC.id)).toMatchObject({ standing: "new", marks: {} });
+  expect(await now(page, NEXT.id)).toMatchObject({ standing: "done", marks: { 0: "ok" } });
+  await stop(page).click();
+  await expect(past(page)).toHaveAccessibleName("2 done. Pull down or press to bring them back");
+  await expect(opened(page)).toHaveAttribute("data-id", DOC.id);
+  await page.locator(".tstn").click();
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 1 open");
 
-  // a server that cannot say leaves the kept one in place: the challenge is there offline
+  // a server that cannot say leaves the kept ones in place: the challenges are there offline
   const route = (url) => url.pathname === "/api/course/challenge", down = (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "unavailable" } }) });
   await page.route(route, down);
   await page.reload();
   await expect(relOptions(page)).toHaveCount(5);
   await openMenu(page);
-  await expect(stop(page)).toHaveAccessibleName("Challenge, new: Colors and shapes");
+  await expect(stop(page)).toHaveAccessibleName("Challenge, 1 open");
   await page.unroute(route, down);
 
   // the server has none any more: the stop goes
@@ -358,7 +442,7 @@ test("the same challenge said anew while one of its questions is on screen goes 
   await expect(mark(page)).toHaveText("2 of 3");
   // its title set right on the server, as the platform would hand it over
   await page.evaluate((doc) => window.__t.challenge.set(doc), { ...DOC, title: "Colors and shapes, set right" });
-  expect(await page.evaluate(() => window.__t.challenge.view().doc.title)).toBe("Colors and shapes, set right");
+  expect(await page.evaluate((id) => window.__t.challenge.view(id).doc.title, DOC.id)).toBe("Colors and shapes, set right");
   await answerRight(page);
   await expect.poll(async () => (await now(page)).marks).toEqual({ 1: "ok" });
   await expect(station(page)).toHaveAccessibleName(/^Next question/);
@@ -456,8 +540,59 @@ test("questions about what the data does not have bring their answers: the app c
   await expect(station(page)).toHaveAccessibleName(/^Back to the challenge/);
   await station(page).click();
   await expect(title(page)).toHaveText("Challenge");
+  // all three have an answer: it is behind the top, and the small stop there brings it back
+  await past(page).click();
+  await titles(page).first().click();
   await expect(rows(page).locator(".chv")).toHaveCount(3);
   await page.goBack();
   await expect(roadmap(page).getByRole("button", { name: /^Review/ })).toHaveText("Review · 3 today");
   expect(errors).toEqual([]);
+});
+
+test("a press on the done ones' stop takes nothing when the page is left before the pull is let go", async ({ page }) => {
+  await open(page, { version: "c2", doc: set(NEXT) });
+  // a result of the exercise's own behind the pair on screen: the step back a pull there would take
+  await answerFirst(page);
+  await station(page).click();
+  await expect.poll(async () => (await now(page)).checked).toBe(false);
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await expect(mark(page)).toHaveText("1 of 1");
+  await answerRight(page);
+  await station(page).click();
+  await expect(past(page)).toHaveAccessibleName("1 done. Pull down or press to bring it back");
+  // pressed, and the roadmap opened at once over the page: when the thread would be let go, nothing is brought back
+  await past(page).click();
+  await page.locator(".tstn").click();
+  await expect(roadmap(page)).toBeVisible();
+  await page.waitForTimeout(900);
+  expect(await now(page)).toMatchObject({ hidden: 1, on: [], checked: false });
+  await expect(page.locator("#path .main")).not.toHaveClass(/bkpull/);
+});
+
+test("when the server has no challenges any more their records go too, and one given again starts as new", async ({ page }) => {
+  const calls = await open(page, { version: "c2", doc: set(NEXT) });
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await answerRight(page);
+  await station(page).click();
+  await expect(past(page)).toHaveCount(1);
+  const records = () => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("rd-challenge") || "{}")));
+  expect(await records()).toEqual([NEXT.id]);
+  // none: the stop goes, and so does what this device kept of how it went
+  calls.setChallenge(null);
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await openMenu(page);
+  await expect(stop(page)).toHaveCount(0);
+  await expect.poll(records).toEqual([]);
+  // the same one again: new, with nothing answered
+  calls.setChallenge({ version: "c3", doc: set(NEXT) });
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await openMenu(page);
+  await expect(stop(page)).toHaveAccessibleName("Challenge, new: Sounds");
+  expect(await now(page, NEXT.id)).toMatchObject({ standing: "new", marks: {} });
 });

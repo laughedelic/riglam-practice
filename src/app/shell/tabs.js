@@ -85,7 +85,7 @@ export function goTo(k){
   if(state.sessOpen) toggleSess(false);
   if(state.view==="chat") closeChat();
   state.fromRoad=!isEx(k)&&(state.menuOpen||state.fromRoad);   // Review from the roadmap goes back there (shell/history.js)
-  state.skipAsk=false; state.menuOpen=false; state.pathProg=null; state.chalPage=false;   // Review, not the Progression page or the challenge's page that stand in for it (path/progression.tsx, path/challenge.tsx)
+  state.skipAsk=false; state.menuOpen=false; state.pathProg=null; state.chalPage=false;   // Review, not the Progression page or the challenges' page that stand in for it (path/progression.tsx, path/challenge.tsx)
   if(state.tab!==k) switchTo(k); else if(isEx(k)) setAsideGiven();
   return true;
 }

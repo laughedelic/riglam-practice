@@ -67,7 +67,7 @@ The page reads the device part into `state.EX` and uses it in four places. The s
 
 ## Where the data lives
 
-`data-private/` (git-ignored) holds `definitions.json` and `notes.json` (and, where the examples were imported, `examples.json` and `examples-device.json`) on every machine that builds the artifact, runs the full tests or changes the data. The server holds the same two texts in the table `course_data` (`worker/migrations/0003_course_data.sql`), loaded by `npm run data:publish`. The Worker reads them at most once a minute, so new data needs no deploy. The same table has a row that is not term data: `challenge`, the task that everyone with the Magic Key gets, written by `npm run challenge` ([SERVER.md](SERVER.md), "The challenge"). It names terms and categories by their ids in the open data, and `data:publish` leaves it alone.
+`data-private/` (git-ignored) holds `definitions.json` and `notes.json` (and, where the examples were imported, `examples.json` and `examples-device.json`) on every machine that builds the artifact, runs the full tests or changes the data. The server holds the same two texts in the table `course_data` (`worker/migrations/0003_course_data.sql`), loaded by `npm run data:publish`. The Worker reads them at most once a minute, so new data needs no deploy. The same table has a row that is not term data: `challenge`, the tasks that everyone with the Magic Key gets, written by `npm run challenge` ([SERVER.md](SERVER.md), "The challenges"). It names terms and categories by their ids in the open data, and `data:publish` leaves it alone.
 
 Without `data-private/`: `npm run build:pwa`, the unit tests that do not need it, and the PWA specs that do not need it work. `npm run build:artifact` stops with a message, because an artifact built without definitions must never replace the live one.
 
@@ -90,7 +90,7 @@ npm run data:check                    # check that the open file holds no defini
 npm run data:publish                  # load data-private/ into the production database, the examples too when they are there (wrangler; --config <file> for another database)
 npm run data:sql -- out.sql           # the statements publish runs, to load by other means
 npm run data:fixture                  # write made-up definitions, notes and examples into data-private/ (refuses to overwrite real ones; --replace does)
-npm run challenge -- check task.json  # check a written challenge against the open data and show how it will be asked (publish loads it: docs/SERVER.md, "The challenge")
+npm run challenge -- check tasks.json  # check written challenges against the open data and show how they will be asked (publish loads them: docs/SERVER.md, "The challenges")
 ```
 
 To refresh the data from the knowledge base (which lives outside this repository), export the full file there and run `npm run data:import -- <that file>`, then `npm run data:publish`. Files that did not change are not rewritten, and a part that did not change keeps its version on the server. D1 refuses a statement of more than about 100 KB and the examples are several times that, so a long part is written in pieces of at most 80 KB into a scratch row (`<kind>~part`) and moved into place with one short statement (`scripts/lib/course-sql.mjs`); a run that fails midway can leave the scratch row, which the next run overwrites, but never a half-written part. Never commit a file with definitions in it; `npm run test:unit` catches it.
