@@ -42,6 +42,14 @@ export interface PairLike {
   own?: boolean;
   /** a pair with a negated side: B, A or both are the negation of their category, "non-(wooden things)"; `catA` and `catB` stay the categories themselves */
   neg?: Neg;
+  /**
+   * a pair the practice data does not have, which came with its answer (a challenge's, src/domain/challenge.ts): `relation`, `ex`, `why` and `note` were written
+   * for it from the reference, not worked out from the data, and it has no categories. The relation and the empty cells are checked against them as on any
+   * pair; an example the learner writes is the tutor's to check, with that answer in hand
+   */
+  carried?: boolean;
+  /** what one thing of each side is called, A then B ("a bird" for "birds"), on a pair whose labels the app has no singular for: the questions of Pervasions say it */
+  sing?: readonly [string, string];
 }
 
 /** Which side of a pair is negated: B alone, A and B, or A alone (the negation track draws all three, and Find a pair takes them as named). */

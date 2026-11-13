@@ -3,9 +3,11 @@
 import { expect, test } from "vitest";
 import { GUIDE, makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
-import { SYLLOGISM_ASK, SYLLOGISM_NOTE, syllogismBody, syllogismCard, syllogismCats, syllogismNotes } from "../../src/ai-shared/syllogism";
+import { CARRIED_SYLLOGISM, SYLLOGISM_ASK, SYLLOGISM_NOTE, syllogismBody, syllogismCard, syllogismCats, syllogismNotes } from "../../src/ai-shared/syllogism";
 import type { SyllogismAnswerView } from "../../src/ai-shared/syllogism";
-import { drawSyllogism, gradeSyllogism, gradeThesisWhy, gradeTimeout, syllogismText, thesisText } from "../../src/domain/syllogism";
+import { challengeQuestion, readChallenge } from "../../src/domain/challenge";
+import type { Challenge } from "../../src/domain/challenge";
+import { drawSyllogism, gradeExample, gradeSyllogism, gradeThesisWhy, gradeTimeout, syllogismText, thesisText } from "../../src/domain/syllogism";
 import type { Reply, Syllogism } from "../../src/domain/syllogism";
 import openData from "../../src/data/drill-data.json";
 
@@ -119,9 +121,43 @@ test("the card is the instructions, the body and the fine points, which a server
   expect(syllogismBody(withNotes, c, a)).not.toContain("Fine points"); // a server adds them itself, from the categories
 });
 
-test("the categories for the fine points are the reason's and the predicate's, the same one once", () => {
+test("the categories for the fine points are the reason's and the predicate's, the same one once, and none for a part without a category", () => {
   expect(syllogismCats({ catR: "a", catP: "b" })).toEqual(["a", "b"]);
   expect(syllogismCats({ catR: "a", catP: "a" })).toEqual(["a"]);
+  expect(syllogismCats({ catR: "", catP: "" })).toEqual([]);
+  expect(syllogismCats({ catR: "", catP: "b" })).toEqual(["b"]);
+});
+
+test("the card of a syllogism that came with its answer says where the checks are from, and gives its parts by their words", () => {
+  const says = { subject: "a bat", predicate: "a bird", reason: "something that flies" };
+  const made = (answer: object): Syllogism => {
+    const ch = readChallenge({ id: "outside-the-data", date: "2026-11-11", title: "Outside the data", items: [{ exercise: "syllogism", says, answer }] }) as Challenge;
+    return (challengeQuestion(real, ch, 0) as { syllogism: Syllogism }).syllogism;
+  };
+  const c = made({ reason: true, pervasion: false, thesis: false, witness: "a dragonfly" });
+  const body = syllogismBody(real, c, answered(c, "reason", { ex: { text: "an airplane", v: gradeExample(real, c, "an airplane").v as "cmp" } }));
+  expect(body.startsWith(SYLLOGISM_NOTE + "\nCARD (" + CARRIED_SYLLOGISM + "; S is the subject, R the reason, P the predicate):\n")).toBe(true);
+  expect(body).not.toContain("CARD (from the reference's term data");
+  expect(body).toContain('"R":{"label":"something that flies"},"P":{"label":"a bird"}');
+  expect(body).toContain("Checks (they came with the task):");
+  expect(body).not.toContain("Checks (the app settled them):");
+  expect(body).toContain('1 Reason (is S the reason?): ESTABLISHED. The app\'s line: "A bat is something that flies."');
+  expect(body).toContain('2 Pervasion (is whatever is the reason also the predicate?): DOES NOT HOLD: some things that are the reason are not the predicate; the counter-example kept for you: "a dragonfly".');
+  expect(body).toContain('3 Thesis (is S the predicate?): FALSE. The app\'s line: "A bat is not a bird."');
+  expect(body).toContain('Right reply: "There is no pervasion". Learner replied: "The reason is not established", which is wrong.');
+  expect(body).toContain('The learner\'s counter-example: "an airplane"; app verdict cmp (the app does not know it well enough to say).');
+  expect(body).not.toMatch(/undefined|NaN|\[object/);
+  // an opposite pervasion that was written, not found in the term chain
+  const opp = syllogismBody(real, made({ reason: true, pervasion: "opposite", thesis: false }), answered(made({ reason: true, pervasion: "opposite", thesis: false }), "pervasion"));
+  expect(opp).toContain("DOES NOT HOLD: it is the opposite, nothing that is the reason is the predicate. The app's line:");
+  expect(opp).not.toContain("the term chain shows it");
+  // no categories, so no fine points: the card is the instructions and the body
+  expect(syllogismNotes(real, c)).toBe("");
+  expect(syllogismCard(real, c, answered(c, "pervasion"))).toBe(GUIDE + "\n\n" + syllogismBody(real, c, answered(c, "pervasion")));
+  // a syllogism of the data keeps its heading
+  const drawn = find((x) => x.answer === "pervasion");
+  expect(syllogismBody(real, drawn, answered(drawn, "pervasion"))).toContain("CARD (from the reference's term data; S is the subject");
+  expect(syllogismBody(real, drawn, answered(drawn, "pervasion"))).toContain("Checks (the app settled them):");
 });
 
 test("the request asks for the lines in the order of the checks and for no machine-readable verdict", () => {

@@ -42,8 +42,18 @@ export const Wd=()=>WORDINGS[state.wording];
 // a term of the pair ("A" or "B") in the singular, with its article: "a functional thing"
 export const termSing=x=>singular(x==="A"?state.cur.p.a:state.cur.p.b);
 // the chip and the first word of its term stay on one line
-/** A category label in the singular, with its article ("memories" -> "a memory"). */
-export const singular=lab=>SING[american(lab)]||negSingular(lab)||lab.replace(/^(\w+) things$/,"a $1 thing");
+/** A category label in the singular, with its article ("memories" -> "a memory"). A label the table does not have may be a side of a pair that says its own (ownSing). */
+export const singular=lab=>SING[american(lab)]||negSingular(lab)||ownSing(lab)||lab.replace(/^(\w+) things$/,"a $1 thing");
+/**
+ * What one thing of a side is called on a pair that brings its own words (`sing`: a challenge's question about phenomena the data does not have, src/domain/challenge.ts),
+ * for a label that is a side of it: the pair on screen first, then one kept with an answer, a skipped pair or a favorite, so that Review says it too. "" when no pair says.
+ */
+function ownSing(lab){
+  const of=p=>p&&Array.isArray(p.sing)?(p.a===lab?p.sing[0]:p.b===lab?p.sing[1]:"")||"":"";
+  const cur=of(state.cur&&state.cur.p); if(cur) return cur;
+  for(const kept of [state.debates,state.answers,state.skips,state.favs]) for(const k in kept){ const s=of(kept[k]&&kept[k].pair); if(s) return s; }
+  return "";
+}
 // a negated label ("non-products", "non-(wooden things)", "non-wooden things", the negation track) in the singular: "a non-product", "a non-(wooden thing)", "a non-wooden thing", "non-food"
 function negSingular(lab){
   const m=/^non-\((.+)\)$/.exec(lab)||/^non-(.+)$/.exec(lab); if(!m) return "";
