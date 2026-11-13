@@ -548,3 +548,51 @@ test("questions about what the data does not have bring their answers: the app c
   await expect(roadmap(page).getByRole("button", { name: /^Review/ })).toHaveText("Review · 3 today");
   expect(errors).toEqual([]);
 });
+
+test("a press on the done ones' stop takes nothing when the page is left before the pull is let go", async ({ page }) => {
+  await open(page, { version: "c2", doc: set(NEXT) });
+  // a result of the exercise's own behind the pair on screen: the step back a pull there would take
+  await answerFirst(page);
+  await station(page).click();
+  await expect.poll(async () => (await now(page)).checked).toBe(false);
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await expect(mark(page)).toHaveText("1 of 1");
+  await answerRight(page);
+  await station(page).click();
+  await expect(past(page)).toHaveAccessibleName("1 done. Pull down or press to bring it back");
+  // pressed, and the roadmap opened at once over the page: when the thread would be let go, nothing is brought back
+  await past(page).click();
+  await page.locator(".tstn").click();
+  await expect(roadmap(page)).toBeVisible();
+  await page.waitForTimeout(900);
+  expect(await now(page)).toMatchObject({ hidden: 1, on: [], checked: false });
+  await expect(page.locator("#path .main")).not.toHaveClass(/bkpull/);
+});
+
+test("when the server has no challenges any more their records go too, and one given again starts as new", async ({ page }) => {
+  const calls = await open(page, { version: "c2", doc: set(NEXT) });
+  await openMenu(page);
+  await stop(page).click();
+  await station(page).click();
+  await answerRight(page);
+  await station(page).click();
+  await expect(past(page)).toHaveCount(1);
+  const records = () => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("rd-challenge") || "{}")));
+  expect(await records()).toEqual([NEXT.id]);
+  // none: the stop goes, and so does what this device kept of how it went
+  calls.setChallenge(null);
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await openMenu(page);
+  await expect(stop(page)).toHaveCount(0);
+  await expect.poll(records).toEqual([]);
+  // the same one again: new, with nothing answered
+  calls.setChallenge({ version: "c3", doc: set(NEXT) });
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+  await openMenu(page);
+  await expect(stop(page)).toHaveAccessibleName("Challenge, new: Sounds");
+  expect(await now(page, NEXT.id)).toMatchObject({ standing: "new", marks: {} });
+});

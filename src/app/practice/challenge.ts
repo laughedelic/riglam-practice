@@ -70,6 +70,8 @@ function kept(docs: Challenge[]): Record<string, ChallengeRecord> {
   try { raw = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { /* none kept */ }
   return normRecords(raw, docs);
 }
+/** Whether the platform says that the server has no challenges now: an empty set. */
+const noneNow = (raw: unknown): boolean => !!raw && typeof raw === "object" && Array.isArray((raw as { challenges?: unknown }).challenges) && !(raw as { challenges: unknown[] }).challenges.length;
 /** Keeps the records of all the challenges (those of challenges no longer there go). */
 function keep(): void {
   const rs = Object.fromEntries(state.chals.map((c) => [c.doc.id, c.rec]));
@@ -165,15 +167,17 @@ export const challengePageOn = (): boolean => state.tab === "review" && state.ch
 /**
  * Takes what the platform has of the challenges into the page. A challenge already here (by its id) stays as it stands, with its record and its question
  * on screen, also when it is said anew (its title, its note, a question set right: its lines are made again); a new one starts as new; one no longer
- * there goes (and so does its record). When there are none any more the stop goes, and their page, if it is in front, gives way to the roadmap. A
- * question of one that went, still on screen, stays there until it is left.
+ * there goes (and so does its record). When there are none any more the stop goes, and their page, if it is in front, gives way to the roadmap; when
+ * the server said so (an empty set, not the null of a device without the key or of nothing heard yet) their records go too. A question of one that
+ * went, still on screen, stays there until it is left.
  */
 export function setChallenges(raw: unknown): void {
   const docs = raw ? readChallenges(raw) : [], was = state.chals;
   if (!docs.length) {
-    if (!was.length) return;
     const front = challengePageOn();
-    state.chals = []; state.chalPage = false; state.chalOpen = null; state.chalOut = []; state.chalFall = null;
+    if (was.length) { state.chals = []; state.chalPage = false; state.chalOpen = null; state.chalOut = []; state.chalFall = null; }
+    if (noneNow(raw)) keep();
+    if (!was.length) return;
     if (front) toRoad(); else if (state.mode !== "loading") render();
     return;
   }

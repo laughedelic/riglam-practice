@@ -273,8 +273,9 @@ export interface Platform {
   onExamples?(tell: () => void): () => void;
   /**
    * The challenges that everyone gets, as the server gave them: one set, `{challenges: [...]}` (the page reads it with src/domain/challenge.ts),
-   * or null (or absent) when this device has none: no key, there are none now, or they have not arrived yet. Like the examples they come in the
-   * background and are kept on the device, so that they can be done offline.
+   * `{challenges: []}` when the server said it has none now (the page then forgets the records of the ones before), or null (or absent) when this
+   * device has none to say: no key, or nothing heard from the server yet. Like the examples they come in the background and are kept on the device,
+   * so that they can be done offline.
    */
   challenge?(): Promise<object | null>;
   /** Calls `tell` whenever what `challenge` gives changed (another set was kept, or there are none any more). Returns the way to stop. */

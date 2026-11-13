@@ -139,17 +139,23 @@ function unroll(main: HTMLElement, pull: Pull, take: () => boolean): void {
 
 /**
  * A press on the handle of the pull (the challenges' stop of those done): the thread is pulled down over its curb by itself, and let go. Under reduced
- * motion what it takes is simply there.
+ * motion what it takes is simply there. Left meanwhile (another page, a panel over this one), the press takes nothing: least of all the step back of
+ * what is on screen then.
  */
 export function pullByItself(main: HTMLElement, pull: Pull): void {
-  const sc = main.querySelector<HTMLElement>(".pscroll"), r = main.closest<HTMLElement>(".pa");
-  if (!sc || !r || pull.busy || !target() || covered(r) || main.classList.contains("bkpull")) return;
+  const sc = main.querySelector<HTMLElement>(".pscroll"), r = main.closest<HTMLElement>(".pa"), tg = target();
+  if (!sc || !r || pull.busy || !tg || !tg.unroll || covered(r) || main.classList.contains("bkpull")) return;
   if (!moves() || currentLook().ride === "plain") { ride(main, pull, 0); return; }
   pull.busy = true; sc.scrollTop = 0;
   main.style.setProperty("--bkt", sc.offsetTop + "px");
   main.classList.add("bkpull", "bkrest"); main.style.setProperty("--bk", "0.01px");
   requestAnimationFrame(() => requestAnimationFrame(() => { main.classList.add("bkover"); main.style.setProperty("--bk", PRESS + "px"); }));
-  setTimeout(() => { pull.busy = false; ride(main, pull, PRESS); }, 470);
+  setTimeout(() => {
+    pull.busy = false;
+    const now = target();
+    if (!main.isConnected || covered(r) || !now || !now.unroll) { clear(main); return; }
+    ride(main, pull, PRESS);
+  }, 470);
 }
 
 /**

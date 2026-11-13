@@ -269,8 +269,12 @@ export const pwaPlatform: Platform = {
     exampleListeners.add(tell);
     return () => void exampleListeners.delete(tell);
   },
-  // What was kept of the challenge (an earlier visit's, or this one's once the background fetch is done); nothing without the key.
-  challenge: async () => (groupKey ? keptChallenge()?.challenge ?? null : null),
+  // What was kept of the challenges (an earlier visit's, or this one's once the background fetch is done): an empty set when the server said it has
+  // none; nothing without the key, or before the server was heard.
+  challenge: async () => {
+    const kept = groupKey ? keptChallenge() : null;
+    return kept ? (kept.challenge ?? { challenges: [] }) : null;
+  },
   onChallenge(tell) {
     challengeListeners.add(tell);
     return () => void challengeListeners.delete(tell);
