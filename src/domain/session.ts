@@ -14,7 +14,7 @@
 // for this learner (the stages, the terms met), and reads from a syllogism which reply is right, so that the three replies come about as often.
 // Each step after the first of a round has a line that says what it carries over from the step before (`tie`): what is the same, never the
 // answer. Pure functions of the data and of a random source, like the draws: the same data and the same random numbers give the same plan.
-import type { Item } from "../ai-shared/data";
+import type { Cat, Item } from "../ai-shared/data";
 import type { DataIndex } from "../ai-shared/lookup";
 import { CELLS } from "../ai-shared/relations";
 import type { CellId, RelKey } from "../ai-shared/relations";
@@ -152,12 +152,18 @@ export const SESSION_QUESTIONS = SESSION_ROUNDS * 3;
 const TERM_EXERCISES: readonly SessionExercise[] = ["categories", "instance", "practice", "debate", "syllogism"];
 /**
  * How many questions a session of this mix has where nothing is missed and the data has enough for the learner: three to a round, fewer where the mix has
- * fewer exercises for it (a term round has no step of Find a pair, and needs two of the others).
+ * fewer exercises for it (a term round has no step of Find a pair, and needs two of the others). `term`: whether it opens with a term round
+ * (`sessionTerm`); without one every round is a pair round.
  */
-export function sessionSize(mix: readonly SessionExercise[] = SESSION_MIX, rounds = SESSION_ROUNDS): number {
-  const pair = Math.min(3, new Set(mix).size), term = Math.min(TERM_STEPS, TERM_EXERCISES.filter((x) => mix.includes(x)).length);
-  return rounds > 1 && term >= 2 ? term + (rounds - 1) * pair : rounds * pair;
+export function sessionSize(mix: readonly SessionExercise[] = SESSION_MIX, rounds = SESSION_ROUNDS, term = true): number {
+  const pair = Math.min(3, new Set(mix).size), first = Math.min(TERM_STEPS, TERM_EXERCISES.filter((x) => mix.includes(x)).length);
+  return term && rounds > 1 && first >= 2 ? first + (rounds - 1) * pair : rounds * pair;
 }
+/** Whether this is a course term a term round can be about for the learner: one of their stages, and met. */
+const termMet = (cat: Cat, o: Pick<SessionOptions, "stages" | "words">): boolean =>
+  cat.kind === "dudra" && !!cat.term && o.stages.includes(catStage(cat)) && !o.words?.unmet?.has(cat.id);
+/** Whether a session of the learner can open with a term round: they have met a course term of their stages (at the first stage there is none). */
+export const sessionTerm = (ix: DataIndex, o: Pick<SessionOptions, "stages" | "words">): boolean => Object.values(ix.CAT).some((cat) => termMet(cat, o));
 
 /** Whether a step with this grade (of its kept answer: ok, part, bad, pend) was missed, so that it comes back: as Review counts a miss (util.ts, isMiss). */
 export const sessionMiss = (grade: string | null | undefined): boolean => grade === "bad" || grade === "part";
@@ -193,7 +199,7 @@ interface Ctx {
   can: ReadonlySet<SessionExercise>;
   from: SessionFrom;
   /** what was missed lately, with `from: "missed"`: the pairs (`pairKey`), every category of a missed question, and the categories of the misses that are no pair */
-  missed: { pairs: ReadonlySet<string>; cats: ReadonlySet<string>; alone: ReadonlySet<string> };
+  missed: { pairs: ReadonlySet<string>; cats: ReadonlySet<string>; alone: ReadonlySet<string>; held: ReadonlySet<string> };
 }
 
 const pairKey = (a: string, b: string): string => (a < b ? a + "|" + b : b + "|" + a);
@@ -205,10 +211,15 @@ function context(ix: DataIndex, o: SessionOptions): Ctx {
   if (!pool) pools.set(ix.DATA, (pool = buildPool(ix)));
   const pairs = poolAt(ix, pool, o.stages).filter((e) => e.a !== e.b && !unmet?.has(e.a) && !unmet?.has(e.b));
   const from = o.from ?? "all", missed = from === "missed" ? o.missed ?? [] : [];
+  const missedPairs = new Set(missed.filter((m) => m.length === 2).map((m) => pairKey(m[0], m[1])));
   return {
     ix, on: o.stages, rng, given: { stages: o.stages, words: o.words, rng, now: () => 0 }, pairs, said: { accept: 0, reason: 0, pervasion: 0 },
     can: new Set(o.mix ?? SESSION_MIX), from,
-    missed: { pairs: new Set(missed.filter((m) => m.length === 2).map((m) => pairKey(m[0], m[1]))), cats: new Set(missed.flat()), alone: new Set(missed.filter((m) => m.length !== 2).flat()) },
+    missed: {
+      pairs: missedPairs, cats: new Set(missed.flat()), alone: new Set(missed.filter((m) => m.length !== 2).flat()),
+      // the categories of the missed pairs the learner can be asked: held for the rounds on those pairs
+      held: new Set(pairs.filter((e) => missedPairs.has(pairKey(e.a, e.b))).flatMap((e) => [e.a, e.b])),
+    },
   };
 }
 
@@ -363,7 +374,9 @@ function termRoundOf(c: Ctx, id: string, max: number): SessionRound | null {
   const cat = c.ix.CAT[id];
   if (!cat || c.given.words?.unmet?.has(id)) return null;
   const name = cap(cat.term || cat.labels[0]), steps: SessionStep[] = [];
-  const partners = shuffle(c.pairs.filter((e) => e.a === id || e.b === id), c.rng).map((e) => { const other = e.a === id ? e.b : e.a; return { other, rel: relOfCells(cellsFor(c.ix, id, other)) }; });
+  // (beside no category of a missed pair the session is drawn from: those are for the round on that pair)
+  const partners = shuffle(c.pairs.filter((e) => (e.a === id || e.b === id) && !c.missed.held.has(e.a === id ? e.b : e.a)), c.rng)
+    .map((e) => { const other = e.a === id ? e.b : e.a; return { other, rel: relOfCells(cellsFor(c.ix, id, other)) }; });
   const used = new Set<string>();
   /** A partner with one of the relations that no step has yet, a course term before an everyday category. */
   const take = (rels: readonly RelKey[]) => {
@@ -411,12 +424,13 @@ export function termRound(ix: DataIndex, id: string, o: SessionOptions & { steps
 /**
  * The course terms a term round can be about, in the order to try them: the open ones (met, the last answer not right yet), then those of the highest
  * stage, then the others; those to avoid last. Drawn from the newest stage, its terms come before every other, the open ones first among them and
- * those to avoid last. Drawn from what was missed, the open terms and then the terms missed by themselves come first, also the ones to avoid (the
- * terms of a missed pair are left for the round on that pair: no category of one round is in another).
+ * those to avoid last. Drawn from what was missed, the open terms and then the terms missed by themselves come first, also the ones to avoid; the
+ * terms of a missed pair the learner can be asked are not among them, open or not (they are left for the round on that pair: no category of one
+ * round is in another).
  */
 function termOrder(c: Ctx, avoid?: ReadonlySet<string>): string[] {
-  const top = topStage(c.on), unmet = c.given.words?.unmet, open = c.given.words?.open?.size ? termCats(c.given.words.open) : null;
-  const ids = shuffle(Object.values(c.ix.CAT).filter((x) => x.kind === "dudra" && !!x.term && c.on.includes(catStage(x)) && !unmet?.has(x.id)).map((x) => x.id), c.rng);
+  const top = topStage(c.on), open = c.given.words?.open?.size ? termCats(c.given.words.open) : null;
+  const ids = shuffle(Object.values(c.ix.CAT).filter((x) => termMet(x, { stages: c.on, words: c.given.words }) && !c.missed.held.has(x.id)).map((x) => x.id), c.rng);
   const high = (id: string) => catStage(c.ix.CAT[id]) === top;
   const rank = (id: string) =>
     c.from === "new" ? (high(id) ? 0 : 4) + (avoid?.has(id) ? 2 : 0) + (open?.has(id) ? 0 : 1)

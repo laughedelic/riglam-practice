@@ -29,9 +29,12 @@ function applyVerify(text,U,C){
   if(n) saveVerdicts(U,C);
   return n;
 }
-/** Writes the verdicts that settled since the check into the answer's document, with who settled each ("claude", or "course" for the reference examples). */
+/**
+ * Writes the verdicts that settled since the check into the answer's document, with who settled each ("claude", or "course" for the reference examples).
+ * Also where nothing is stored: persist() tells the giver of a given question the grade as it is now, and writes only where there is storage.
+ */
 export function saveVerdicts(U,C){
-  if(!state.db||!U.doc||!U.saveId) return;
+  if(!U.doc||!U.saveId) return;
   for(const c of CELLS){ U.doc.cells[c].verdict=U.res.cells[c].v; if(U.res.cells[c].by) U.doc.cells[c].by=U.res.cells[c].by; }
   if(U.doc.qs) for(const q of U.doc.qs){ const r=U.res.cells[q.c]; q.verdict=r.v; if(r.by) q.by=r.by; }
   U.doc.grade=U.res.overall; U.doc.verifiedAt=new Date().toISOString();

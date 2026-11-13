@@ -2,7 +2,8 @@
 // questions that move between the exercises; each stands in its exercise with the session's row at the top of its thread; a missed question of a round comes
 // back at the end; the last station says how it went and offers one more round, and from it the roadmap is back. A session has no clock by itself: Sprint is
 // the session's own there, switched by the stopwatch or taken with a Sprint round at the last station, and no exercise's switch is touched by it. What a
-// session is made of is set on its page of the practice options: the exercises in the mix and what the rounds are drawn from.
+// session is made of is set on its page of the practice options: the exercises in the mix and what the rounds are drawn from. The row stays at the top of a
+// question through its later steps, and a session hears how an answer went also on a device that stores nothing.
 import { test, expect } from "../../support/test.js";
 import { goTo, openMenu, relOptions, roadmap } from "../../support/page.js";
 
@@ -376,3 +377,65 @@ test("the stop says how long a session of the mix is; drawn from mistakes, the n
   expect(after[2].cats).not.toBe(plan[2].cats);
 });
 
+/** Starts the app again with what a session mixes as the device would keep it (and more of what it keeps). */
+async function withMix(page, mix, more = {}) {
+  await page.evaluate(([m, x]) => { localStorage.setItem("rd-daily-mix", m); for (const [k, v] of Object.entries(x)) localStorage.setItem(k, v); }, [mix, more]);
+  await page.reload();
+  await expect(relOptions(page)).toHaveCount(5);
+}
+
+test("the session's row stays at the top of a question through its later steps", async ({ page }) => {
+  await withMix(page, "practice,debate,syllogism", { "rd-syllogism-thesis": "1" });
+  await start(page);
+  // Relations: with the relation picked, the first step folds into the strip over the examples, and its row with it: there when the strip is opened
+  let s = await now(page);
+  expect(s).toMatchObject({ exercise: "practice", at: 0 });
+  await expect(row(page)).toHaveAccessibleName("Question 1 of " + s.n + " in this session");
+  await relOptions(page).first().click();
+  await expect(page.locator("#cin")).toBeVisible();
+  await calm(page);
+  await page.getByRole("button", { name: "Open the earlier steps" }).click();
+  await expect(page.locator("#path .pstrip.open .st.dly .dlym")).toHaveAccessibleName("Question 1 of " + s.n + " in this session");
+  await page.getByRole("button", { name: "Fold the earlier steps" }).click();
+  // Pervasions: the row and the line that ties the question to the one before are there on the four statements, and stay while the relation is picked
+  while (s.exercise !== "debate") { await answer(page, "ok"); s = await now(page); }
+  await expect(row(page)).toHaveAccessibleName("Question " + (s.at + 1) + " of " + s.n + " in this session");
+  const carried = await tie(page).innerText();
+  expect(carried).not.toBe("");
+  for (let i = 0; i < 4; i++) {
+    await expect(page.locator("#path .sechead").first()).toContainText((i + 1) + " of 4");
+    await page.locator("#path .chs .crow").filter({ visible: true }).first().click();
+  }
+  await expect(page.locator("#path .sechead").nth(1)).toContainText("Relation");
+  await expect(row(page)).toHaveAccessibleName("Question " + (s.at + 1) + " of " + s.n + " in this session");
+  await expect(tie(page)).toHaveText(carried);
+  // Syllogisms with Thesis first: after Why? to a thesis that does not hold, the reason is asked under the thesis, and the row is still above it
+  const falseThesis = () => page.evaluate(() => { const t = window.__t, c = t.cur && t.cur.c; return t.daily.shown() && !!c && !c.checks.t.ok; });
+  let found = false;
+  for (let i = 0; i < 80 && !found; i++) {
+    s = await now(page);
+    if (s.ended) { await page.evaluate(() => window.__t.daily.more(false)); continue; }
+    if (s.exercise === "syllogism" && await falseThesis()) found = true; else await answer(page, "ok");
+  }
+  expect(found, "a syllogism whose thesis does not hold").toBe(true);
+  const asked = (await tie(page).count()) ? await tie(page).innerText() : "";
+  await page.locator("#path .chs .crow").filter({ visible: true, hasText: "Why?" }).click();
+  await expect(page.locator("#path .sylwhy")).toHaveText("Why?");
+  await expect(row(page)).toHaveAccessibleName("Question " + (s.at + 1) + " of " + s.n + " in this session");
+  if (asked) await expect(tie(page)).toHaveText(asked); else await expect(tie(page)).toHaveCount(0);
+});
+
+test("on a device that stores nothing, a session still hears how an answer went", async ({ page }) => {
+  await page.evaluate(() => { window.__t.db = null; });
+  await start(page);
+  // a syllogism answered on screen ("I accept" settles it at once): its mark is the answer's, though nothing was kept
+  let s = await now(page);
+  while (s.exercise !== "syllogism") { await answer(page, "ok"); s = await now(page); }
+  const k = s.at;
+  await page.locator("#path .chs .crow").filter({ visible: true, hasText: "I accept" }).click();
+  await expect.poll(async () => (await now(page)).checked).toBe(true);
+  expect(await page.evaluate(() => window.__t.db)).toBe(null);
+  const mine = (await now(page)).marks.split(",")[k];
+  expect(["ok", "bad"]).toContain(mine);
+  await expect(row(page)).toHaveAccessibleName("Question " + (k + 1) + " of 9 in this session: " + (mine === "ok" ? "right" : "wrong"));
+});

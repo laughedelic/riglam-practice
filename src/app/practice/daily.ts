@@ -29,7 +29,7 @@ import type { GivenHooks } from "./given.ts";
 import { openNow, unmetNow } from "./stops.ts";
 import type { DataIndex } from "../../ai-shared/lookup.ts";
 import { givenQuestion } from "../../domain/given.ts";
-import { SESSION_EXERCISES, SESSION_MIX_MIN, comeBacks, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, stepKey, roundName } from "../../domain/session.ts";
+import { SESSION_EXERCISES, SESSION_MIX_MIN, SESSION_ROUNDS, comeBacks, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, sessionTerm, stepKey, roundName } from "../../domain/session.ts";
 import type { SessionAnswer, SessionExercise, SessionFrom, SessionOptions, SessionPlan, SessionStep } from "../../domain/session.ts";
 
 /** The name of the mode, on the roadmap and wherever it is said. */
@@ -121,8 +121,8 @@ export function dailyOptions(): DailyOptions {
   }
   return state.dailyOptions;
 }
-/** What the roadmap says under the name before a session: how many questions it has when nothing is missed. */
-export const dailySize = (): string => sessionSize(dailyOptions().mix) + " questions";
+/** What the roadmap says under the name before a session: how many questions it has when nothing is missed (it opens with a term round once the learner has met a term). */
+export const dailySize = (): string => sessionSize(dailyOptions().mix, SESSION_ROUNDS, sessionTerm(ix(), { stages: state.stages, words: { unmet: unmetNow() } })) + " questions";
 const keep = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* the choice holds for this visit */ } };
 /** Puts an exercise in the mix or takes it out. Whether it was done: not when fewer than two would be left. */
 export function setDailyExercise(ex: SessionExercise, on: boolean): boolean {

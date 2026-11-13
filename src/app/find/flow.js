@@ -107,7 +107,7 @@ export function checkFind(){
   render();
   focusAfterCheck();
   afterCheck(u);
-  if(!state.db) return;
+  // (the document is made also where nothing is stored: persist() tells the giver of a given question, and writes only where there is storage)
   const cells=/** @type {import("../types.ts").AnswerDoc["cells"]} */({});
   for(const c of CELLS) cells[c]={text:(u.cells[c].t||"").trim(), none:REL[u.rel].empty.includes(c)||u.cells[c].none, verdict:u.res.cells[c].v};
   u.saveId=p.id;

@@ -120,7 +120,7 @@ function RelationStep() {
   const u = u0(), p = pairOf(), pull = useContext(PullCtx);
   return <>
     <Scroll>
-      <Sx cls="walked first tight"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
+      <Sx cls="walked first tight"><ThreadTop /><Head d={<D cls="sec done" />} h="1 Questions" sub="answered" /><Gap h={4} /><PairStops p={p} sm /><Gap h={4} /><Answered n={4} /><Gap h={8} /></Sx>
       <Sx cls="cur"><Head d={<D cls="sec now" />} h="2 Relation" sub="which relation do your answers give?" /><Gap h={4} /></Sx>
       <Choices label="Relation" slide items={relChoices(p, u.rel || null)} picked={u.pk} onPick={(k) => pickThen(k, () => chooseD(k), (act) => pull.scanPick(() => scanPlan(k as RelKey), act))} />
       <Sx cls="ptail" />

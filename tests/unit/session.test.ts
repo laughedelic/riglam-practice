@@ -4,7 +4,7 @@ import { expect, test } from "vitest";
 import { makeIndex } from "../../src/ai-shared";
 import type { DrillData } from "../../src/ai-shared";
 import { givenQuestion } from "../../src/domain/given";
-import { SESSION_EXERCISES, SESSION_MIX, SESSION_QUESTIONS, SESSION_ROUNDS, comeBacks, pairRound, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, sessionTally, stepKey, termRound, roundName } from "../../src/domain/session";
+import { SESSION_EXERCISES, SESSION_MIX, SESSION_QUESTIONS, SESSION_ROUNDS, comeBacks, pairRound, planSession, sessionFrom, sessionMiss, sessionMisses, sessionMix, sessionSize, sessionTally, sessionTerm, stepKey, termRound, roundName } from "../../src/domain/session";
 import type { SessionExercise, SessionOptions, SessionPlan, SessionStep } from "../../src/domain/session";
 import { STAGES, poolAt, topStage } from "../../src/domain/stages";
 import { buildPool } from "../../src/domain/universe";
@@ -248,6 +248,22 @@ test("the mix and what a session is drawn from, as they are kept", () => {
   expect(sessionSize(["syllogism", "find"])).toBe(6);
   expect(sessionSize(["practice", "debate", "find"])).toBe(8);     // the term round has no step of Find a pair
   expect(sessionSize(SESSION_MIX, 1)).toBe(3);
+  // a session that cannot open with a term round has pair rounds only
+  expect(sessionSize(["practice", "debate", "find"], SESSION_ROUNDS, false)).toBe(9);
+  expect(sessionSize(["practice", "debate"], SESSION_ROUNDS, false)).toBe(6);
+  expect(sessionSize(SESSION_MIX, SESSION_ROUNDS, false)).toBe(SESSION_QUESTIONS);
+  // it can open with one once the learner has met a course term of their stages: none at the first stage, none while every term waits for its stop
+  expect(sessionTerm(ix, { stages: [0] })).toBe(false);
+  expect(sessionTerm(ix, { stages: upTo(1) })).toBe(true);
+  expect(sessionTerm(ix, { stages: upTo(5), words: { unmet: new Set(["ft", "form", "cons", "col"]) } })).toBe(false);
+  expect(sessionTerm(ix, { stages: upTo(5), words: { unmet: new Set(["ft", "form", "cons"]) } })).toBe(true);
+  // and the count is the plan's: at the first stage, a mix whose term round would be shorter than its pair rounds
+  const mix: SessionExercise[] = ["practice", "debate", "find"];
+  for (let s = 1; s <= 5; s++) {
+    const zero = planSession(ix, { stages: [0], mix, rounds: 2, rng: seeded(s) });
+    expect(zero.rounds.map((t) => t.kind)).toEqual(["pair", "pair"]);
+    expect(steps(zero).length).toBe(sessionSize(mix, 2, sessionTerm(ix, { stages: [0] })));
+  }
 });
 
 test("pairRound: the round is walked by the exercises of the mix, the other of a place stepping in for a place that has none", () => {
@@ -350,6 +366,21 @@ test("planSession: drawn from what was missed, the missed pairs come first, then
     const pair = planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["red", "round"]], avoid: new Set(["red", "round"]) });
     expect(pair.rounds[0].kind).toBe("term");
     expect(pair.rounds.filter((t) => t.kind === "pair").map((t) => [...t.cats].sort().join("|")), "seed " + s).toContain("red|round");
+  }
+  // a term of a missed pair is kept for the round on that pair, open or not: the term round is not about it and none of its steps is beside it
+  const rounds = (plan: SessionPlan, kind: "term" | "pair") => plan.rounds.filter((t) => t.kind === kind);
+  for (let s = 1; s <= 10; s++) {
+    const plan = planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["form", "red"]], words: { open: new Set(["form"]) } });
+    const opening = rounds(plan, "term").flatMap((t) => t.steps.flatMap((x) => x.cats));
+    expect(opening, "seed " + s).not.toContain("form");
+    expect(opening, "seed " + s).not.toContain("red");
+    expect(rounds(plan, "pair").map((t) => [...t.cats].sort().join("|")), "seed " + s).toContain("form|red");
+    // where it is the only term the learner has met, the session has no term round, and the pair has its round
+    const only = planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["form", "red"]], words: { unmet: new Set(["ft", "cons", "col"]) } });
+    expect(rounds(only, "term"), "seed " + s).toEqual([]);
+    expect(rounds(only, "pair").map((t) => [...t.cats].sort().join("|")), "seed " + s).toContain("form|red");
+    // a missed pair the learner cannot be asked holds nothing back: the open term opens the session as ever
+    expect(planSession(ix, { stages: upTo(5), rng: seeded(s), from: "missed", missed: [["form", "nowhere"]], words: { open: new Set(["form"]) } }).rounds[0].cats, "seed " + s).toEqual(["form"]);
   }
 });
 

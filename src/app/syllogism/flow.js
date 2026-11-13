@@ -143,7 +143,7 @@ function finishSyllogism(){
   render();
   top0();
   explainByItself(u);                             // with Explanations by Claude on Every answer, the explanation comes by itself
-  if(!state.db) return;
+  // (the document is made also where nothing is stored: persist() tells the giver of a given question, and writes only where there is storage)
   u.saveId=docId();
   /** @type {import("../types.ts").SyllogismDoc} */
   const doc={pairId:u.saveId,mode:"syllogism",id:c.id,subject:c.subject,reason:c.reason,predicate:c.predicate,catA:c.catR,catB:c.catP,situation:c.situation,answer:g.expected,said:g.said,

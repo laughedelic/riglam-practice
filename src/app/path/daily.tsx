@@ -2,9 +2,10 @@
 //
 // What a question of a session has at the top of its thread, in the first section and above its heading: a small walked stop on the line holds the
 // session's questions as small diamonds, a group for each round and one for what came back, colored as they went, the one being asked in gold; under
-// them the line that says what this question carries over from the one before. Its result has the same row without that line, the question's own
-// diamond in the color of its answer. The exercise below it and the top bar are as they always are. A question that is not a session's has the gap
-// every first section starts with.
+// them the line that says what this question carries over from the one before. The row stays there through the later steps of the question (the
+// relation of Pervasions, the reason after Why?); where the first step folds into the strip over the examples, the row folds with it and is there when
+// the strip is opened (path/examples.tsx). Its result has the same row without that line, the question's own diamond in the color of its answer. The
+// exercise below it and the top bar are as they always are. A question that is not a session's has the gap every first section starts with.
 //
 // And the session's last station, after its last question: a screen of its own, drawn like the station of a new stage (paper and ink, not a question's
 // gold). It says how it went (how many were right, then each round by what it was about with its questions as they went, and what came back), and

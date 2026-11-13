@@ -71,7 +71,7 @@ function Statement({ star = true, keep = false, thesis = false }: { star?: boole
 }
 /** Thesis first, once Why? is said: the thesis as it was asked, with the Why? under it. */
 function ThesisAsked() {
-  return <Sx cls="walked first"><Gap h={14} /><Head d={<D cls="sec done" />} h="1 Thesis" sub="do you accept it?" /><Gap h={6} /><Statement thesis /><Gap h={4} />
+  return <Sx cls="walked first"><ThreadTop /><Head d={<D cls="sec done" />} h="1 Thesis" sub="do you accept it?" /><Gap h={6} /><Statement thesis /><Gap h={4} />
     <St d={<D cls="sub yours" />} cls="sylwhy"><span class="said"><b class="yours">{T_SAY.why}</b></span></St><Gap h={4} /></Sx>;
 }
 /** Thesis first, after Why?: the reason, as the challenger gives it, on its own line under the Why?; `children` follow it in its section (the reply, at the counter-example). */

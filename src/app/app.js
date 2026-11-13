@@ -170,6 +170,8 @@ if(typeof window.__riglamTest==="function") window.__riglamTest({get cur(){retur
   // Daily practice (practice/daily.ts): the session under way, whether its question is on screen, how many were done today, and the roadmap stop's action
   daily:{get run(){return state.daily},get options(){return dailyOptions()},shown:dailyShown,ended:dailyEnded,today:dailyToday,start:startDaily,more:moreDaily,leave:leaveDaily},
   // the kept answers of Relations and of the exercises kept with them: a spec adds one to stand for an earlier miss
-  get answers(){return state.answers}});
+  get answers(){return state.answers},
+  // the storage the app was started with: a spec takes it away (null) to stand for a device that has none
+  get db(){return state.db},set db(v){state.db=v}});
 }
 /* ---------- test hook (end) ---------- */
